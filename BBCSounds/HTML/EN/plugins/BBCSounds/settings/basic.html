@@ -1,0 +1,23 @@
+[% PROCESS settings/header.html %]
+	
+    <br>
+    [% IF isSignedIn %]<div style="color: blue">You are already successfully signed in, you can sign in to a different account by entering different credentials below</div><br/>[% END %]
+    [% IF !isSignedin %]To sign in, enter your BBC Account credentials below and apply.<br/>[% END %]
+    
+	
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
+	<div class="prefDesc">
+		<input type="text" class="stdedit" name="pref_username" value="[% prefs.username %]" size="40" />	
+	</div>
+
+	[% END %]
+	
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_PASSWORD" desc="PLUGIN_BBCSOUNDS_PASSWORD_DESC" %]
+	<div class="prefDesc">
+		<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
+	</div>
+
+	[% END %]
+
+
+[% PROCESS settings/footer.html %]

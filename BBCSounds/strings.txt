@@ -1,0 +1,19 @@
+PLUGIN_BBCSOUNDS
+	EN	BBC Sounds
+
+PLUGIN_BBCSOUNDS_DESC
+	EN	BBC Sounds Plugin to access "My Sounds", Station Schedules, curated content and search of all bbc audio content
+	
+PLUGIN_BBCSOUNDS_USERNAME
+	EN	BBC Account User Name
+
+PLUGIN_BBCSOUNDS_USERNAME_DESC
+	EN	Enter your BBC Account User Name and Password here.  This retrieves a token that is valid for a 2 years.  Passwords are not stored.
+
+PLUGIN_BBCSOUNDS_PASSWORD
+	EN	BBC Account Password
+
+PLUGIN_BBCSOUNDS_PASSWORD_DESC
+	EN	EN	Enter your BBC Account User Name and Password here.  This retrieves a token that is valid for a 2 years.  Passwords are not stored.
+
+
