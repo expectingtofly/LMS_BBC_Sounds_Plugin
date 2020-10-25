@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<extension>
+	<name>PLUGIN_BBCSOUNDS</name>
+	<module>Plugins::BBCSounds::Plugin</module>
+	<version>0.2.6</version>
+	<description>PLUGIN_BBCSOUNDS_DESC</description>
+	<creator>expectingtofly</creator>
+	<email></email>
+	<icon>plugins/BBCSounds/html/images/BBCSounds.png</icon>
+	<defaultState>enabled</defaultState>
+	<targetApplication>
+		<id>SlimServer</id>
+		<minVersion>7.9</minVersion>
+        <maxVersion>*</maxVersion>
+	</targetApplication>
+	<optionsURL>plugins/BBCSounds/settings/basic.html</optionsURL>
+</extension>
