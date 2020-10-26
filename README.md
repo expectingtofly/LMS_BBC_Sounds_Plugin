@@ -3,7 +3,7 @@ BBC Sounds Plugin for LMS.
 Provides access to the BBC Sounds features as a LMS plugin includes :
 
 1. Search
-2. My sounds
+2. My Sounds (Subscriptions and Bookmarks)
 3. Daily Picks (BBC daily curated content) 
 4. Featured Podcasts (BBC Promoted content)
 5. Music Mixes
