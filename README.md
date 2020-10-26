@@ -9,7 +9,7 @@ Provides access to the BBC Sounds features as a LMS plugin includes :
 5. Music Mixes
 6. 30 day Station Schedules for catch up listening
 7. Categories Browsing
-8. Subscibing and Bookmarking from within the plugin
+8. Subscribing and Bookmarking from within the plugin
 
 Add the plugin to your SMS from the following repo (add it as an additional repostiories on your plugin settings)
 
