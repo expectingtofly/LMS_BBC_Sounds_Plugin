@@ -34,14 +34,14 @@ sub handler {
                     $params->{pref_password},
                     sub {
                         my $msg =
-                          '<div style="color: red">There was a problem with sign in, please try again</div>';
+                          '<strong>There was a problem with sign in, please try again</strong>';
                         my $isValid = 0;
                         if ( Plugins::BBCSounds::SessionManagement::isSignedIn()
                           )
                         {
                             $isValid = 0;
                             $msg =
-                              '<div style="color: blue">Successfully signed in</div>';
+                              '<strong">Successfully signed in</strong>';
                         }
                         $params->{warning} .= $msg . '<br/>';
                         my $body = $class->SUPER::handler( $client, $params );
@@ -60,7 +60,7 @@ sub handler {
                     },
                     sub {
                         my $msg =
-                          '<div style="color: red">There was a problem with sign in, please try again</div>';
+                          '<strong">There was a problem with sign in, please try again</strong>';
                         $params->{warning} .= $msg . '<br/>';
                         if ( $params->{AJAX} ) {
                             $params->{warning} = $msg;
@@ -78,7 +78,7 @@ sub handler {
                 );
             },
             sub {
-                my $msg = '<div style="color: red">There was a problem with sign in, please try again</div>';
+                my $msg = '<strong>There was a problem with sign in, please try again</strong>';
                 $params->{warning} .= $msg . '<br/>';
                 if ( $params->{AJAX} ) {
                     $params->{warning} = $msg;

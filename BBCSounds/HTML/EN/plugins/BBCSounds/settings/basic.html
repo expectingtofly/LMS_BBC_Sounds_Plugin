@@ -1,8 +1,8 @@
 [% PROCESS settings/header.html %]
 	
     <br>
-    [% IF isSignedIn %]<div style="color: blue">You are already successfully signed in, you can sign in to a different account by entering different credentials below</div><br/>[% END %]
-    [% IF !isSignedin %]To sign in, enter your BBC Account credentials below and apply.<br/>[% END %]
+    [% IF isSignedIn %]<strong>You are already successfully signed in, you can sign in to a different account by entering different credentials below</strong><br/>[% END %]
+    [% IF !isSignedin %]To sign in, enter your BBC Account credentials below :<br/>[% END %]
     
 	
 	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
