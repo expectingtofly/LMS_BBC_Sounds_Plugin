@@ -16,3 +16,5 @@ Add the plugin to your SMS from the following repo (add it as an additional repo
   For the stable version :  http://plugins.expectingtofly.co.uk/stablerepo.xml
   
   For the latest beta version : http://plugins.expectingtofly.co.uk/betarepo.xml 
+  
+  Requires the BBC Iplayer Plugin to also be installed. 
