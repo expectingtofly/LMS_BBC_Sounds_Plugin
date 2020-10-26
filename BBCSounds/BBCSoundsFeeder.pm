@@ -706,12 +706,12 @@ sub _createOffset {
         
               
         if ( ( $offset + $limit ) < $total ) {
-            my $nextstart = $offset + $limit + 1;
-            my $nextend   = $nextstart + $limit;
-            if ( ( $limit + $nextstart ) > $total ) { $nextend = $total; }
-            my $title = 'Next - ' . $nextstart . ' to ' . ($nextend-1) . ' of ' . $total;
+            my $nextoffset = $offset + $limit;
+            my $nextend   = $nextoffset + $limit;
+            if ( $nextend > $total ) { $nextend = $total; }
+            my $title = 'Next - ' . $nextoffset . ' to ' . $nextend . ' of ' . $total;
                                    
-            $passthrough->{'offset'} = ($nextstart - 1);
+            $passthrough->{'offset'} = $nextoffset;
             
             push @$menu,
               {
