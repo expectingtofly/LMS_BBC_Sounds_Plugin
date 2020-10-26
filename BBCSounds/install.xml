@@ -3,7 +3,7 @@
 <extension>
 	<name>PLUGIN_BBCSOUNDS</name>
 	<module>Plugins::BBCSounds::Plugin</module>
-	<version>0.2.6</version>
+	<version>1.0.0</version>
 	<description>PLUGIN_BBCSOUNDS_DESC</description>
 	<creator>expectingtofly</creator>
 	<email></email>

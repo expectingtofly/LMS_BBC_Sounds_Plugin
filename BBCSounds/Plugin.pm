@@ -13,7 +13,7 @@ use Plugins::BBCSounds::BBCSoundsFeeder;
 my $log = Slim::Utils::Log->addLogCategory(
     {
         'category'     => 'plugin.bbcsounds',
-        'defaultLevel' => 'WARNING',
+        'defaultLevel' => 'ERROR',
         'description'  => getDisplayName(),
     }
 );

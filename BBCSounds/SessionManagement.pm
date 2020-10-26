@@ -112,16 +112,23 @@ sub isSignedIn {
     my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
     if ( defined $key ) {
         my $cookieepoch = @{$key}[5];
-        my $epoch       = time();
-
-        if ( $epoch < $cookieepoch ) {
-            $log->debug("--isSignedIn - true");
-            return 1;
-        }
-        else {
-            $log->debug("--isSignedIn - false");
-            return;
-        }
+        if (defined $cookieepoch) {
+			my $epoch       = time();        
+			if ( $epoch < $cookieepoch ) {
+				$log->debug("--isSignedIn - true");
+				return 1;
+			}
+			else
+			{
+				$log->debug("--isSignedIn - false");
+				return;        
+			}
+		}        
+		else
+		{
+			$log->debug("--isSignedIn - false");
+			return;        
+		}	
     }
     else {
         $log->debug("--_isSignedIn - false");

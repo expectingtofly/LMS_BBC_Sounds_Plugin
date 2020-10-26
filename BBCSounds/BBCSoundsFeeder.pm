@@ -77,7 +77,7 @@ sub toplevel {
         }
 
     ];
- 
+
     #Obtain the variable editorial content title
 
     my $fetch;
@@ -149,9 +149,11 @@ sub getPage {
 'https://rms.api.bbc.co.uk/v2/collections/p07fz59r/members/playable?experience=domestic';
     }
     elsif ( $menuType eq 'tleo' ) {
-        $callurl = 'https://rms.api.bbc.co.uk/v2/programmes/items?'
+        $callurl =
+            'https://rms.api.bbc.co.uk/v2/programmes/items?'
           . $passDict->{'filter'}
-          . '&offset=' . $passDict->{'offset'};
+          . '&offset='
+          . $passDict->{'offset'};
         $denominator = "";
     }
     elsif ( $menuType eq 'container' ) {
@@ -159,7 +161,8 @@ sub getPage {
             'https://rms.api.bbc.co.uk/v2/programmes/playable?category='
           . $passDict->{'category'}
           . '&sort=-release_date'
-          . '&offset=' . $passDict->{'offset'};
+          . '&offset='
+          . $passDict->{'offset'};
         $denominator = $passDict->{'category'};
     }
     elsif ( $menuType eq 'search' ) {
@@ -320,6 +323,9 @@ sub getJSONMenu {
     if ( $menuType eq 'playable' ) {
         _getPlayableItemMenu( $jsonData, $menu );
         $callback->( { items => $menu } );
+    }
+    elsif ( $menuType eq 'subcategory' ) {
+        _parseCategories( { data => $jsonData->{child_categories} }, $menu );
     }
 
     $log->debug("--getJSONMenu");
@@ -527,8 +533,9 @@ sub _parse {
         _parseItems( $JSON->{data}, $menu );
         _createOffset( $JSON, $passthrough, $menu );
     }
-    elsif ( $optstr eq 'categories' || $optstr eq 'catitem' ) {
-        _parseCategories( $http->contentRef, $menu );
+    elsif ( $optstr eq 'categories' ) {
+        my $JSON = decode_json ${ $http->contentRef };
+        _parseCategories( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'latest' ) {
         my $JSON = decode_json ${ $http->contentRef };
@@ -640,9 +647,23 @@ sub _parsePlayableItem {
 
     my $title1 = $item->{titles}->{primary};
     my $title2 = $item->{titles}->{secondary};
-    my $title3 = $item->{synopses}->{short};
+    my $title3 = $item->{titles}->{tertiary};
+    if ( defined $title3 ) {
+        $title3 = ' ' . $title3;
+    }
+    else {
+        $title3 = '';
+    }
 
-    my $title = $title1 . ' - ' . $title2 . ' -' . $item->{release}->{label};
+    my $release = $item->{release}->{label};
+    if ( defined $release ) {
+        $release = ' : ' . $release;
+    }
+    else {
+        $release = '';
+    }
+
+    my $title = $title1 . ' - ' . $title2 . $title3 . $release;
     my $pid   = _getPidfromSoundsURN( $item->{urn} );
 
     my $iurl = $item->{image_url};
@@ -693,26 +714,26 @@ sub _parseBroadcastItem {
 }
 
 sub _createOffset {
-    my $json       = shift;
+    my $json        = shift;
     my $passthrough = shift;
-    my $menu = shift;
-    
+    my $menu        = shift;
+
     $log->debug("++_createOffset");
 
     if ( defined $json->{offset} ) {
         my $offset = $json->{offset};
         my $total  = $json->{total};
         my $limit  = $json->{limit};
-        
-              
+
         if ( ( $offset + $limit ) < $total ) {
-            my $nextstart = $offset + $limit + 1;
-            my $nextend   = $nextstart + $limit;
-            if ( ( $limit + $nextstart ) > $total ) { $nextend = $total; }
-            my $title = 'Next - ' . $nextstart . ' to ' . ($nextend-1) . ' of ' . $total;
-                                   
-            $passthrough->{'offset'} = ($nextstart - 1);
-            
+            my $nextoffset = $offset + $limit;
+            my $nextend    = $nextoffset + $limit;
+            if ( $nextend > $total ) { $nextend = $total; }
+            my $title =
+              'Next - ' . $nextoffset . ' to ' . $nextend . ' of ' . $total;
+
+            $passthrough->{'offset'} = $nextoffset;
+
             push @$menu,
               {
                 name        => $title,
@@ -720,7 +741,7 @@ sub _createOffset {
                 url         => \&getPage,
                 passthrough => [$passthrough],
               };
-              
+
         }
     }
     $log->debug("--_createOffset");
@@ -756,33 +777,52 @@ sub _parseContainerItem {
 }
 
 sub _parseCategories {
-    my $htmlref = shift;
-    my $menu    = shift;
+    my $jsonData = shift;
+    my $menu     = shift;
     $log->debug("++_parseCategories");
 
-    my $catJSON = decode_json $$htmlref;
-    my $results = $catJSON->{data};
-
-    my $size = scalar @$results;
+    my $size = scalar @$jsonData;
 
     $log->info("Number of cats : $size ");
 
-    for my $cat (@$results) {
-        my $children = $cat->{child_categories};
-        my $title    = $cat->{titles}->{primary};
+    for my $cat (@$jsonData) {
+        my $title = $cat->{titles}->{primary};
         my $image =
           Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
             _getPidfromImageURL( $cat->{image_url} ) );
-        push @$menu,
-          {
-            name => $title,
-            type => 'link',
-            icon => $image,
-            url  => \&getPage,
-            passthrough =>
-              [ { type => 'container', category => $cat->{id}, offset => 0 } ],
-          };
 
+        my $childCat = $cat->{child_categories};
+        my $catsize  = 0;
+        if ( defined $childCat ) {
+            $catsize = scalar @$childCat;
+        }
+        if ( $catsize == 0 ) {
+            push @$menu,
+              {
+                name        => $title,
+                type        => 'link',
+                icon        => $image,
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type     => 'container',
+                        category => $cat->{id},
+                        offset   => 0
+                    }
+                ],
+              };
+        }
+        else {
+
+            push @$menu,
+              {
+                name        => $title,
+                type        => 'link',
+                icon        => $image,
+                url         => \&getJSONMenu,
+                passthrough => [ { type => 'subcategory', json => $childCat } ],
+              };
+        }
     }
     $log->debug("--_parseCategories");
     return;
@@ -882,5 +922,4 @@ sub _getPlayableItemMenu {
     return;
 }
 
-#Why does perl make you put this 1 at the end?  who knows?
 1;
