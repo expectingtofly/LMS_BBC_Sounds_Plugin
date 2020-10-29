@@ -41,7 +41,7 @@ sub handler {
                         {
                             $isValid = 0;
                             $msg =
-                              '<strong">Successfully signed in</strong>';
+                              '<strong>Successfully signed in</strong>';
                         }
                         $params->{warning} .= $msg . '<br/>';
                         my $body = $class->SUPER::handler( $client, $params );
@@ -60,7 +60,7 @@ sub handler {
                     },
                     sub {
                         my $msg =
-                          '<strong">There was a problem with sign in, please try again</strong>';
+                          '<strong>There was a problem with sign in, please try again</strong>';
                         $params->{warning} .= $msg . '<br/>';
                         if ( $params->{AJAX} ) {
                             $params->{warning} = $msg;
