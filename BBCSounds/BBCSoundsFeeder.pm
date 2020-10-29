@@ -7,9 +7,11 @@ use URI::Escape;
 
 use Slim::Utils::Log;
 use Slim::Networking::Async::HTTP;
+use Slim::Utils::Cache;
 use JSON::XS::VersionOneAndTwo;
 use POSIX qw(strftime);
 use HTTP::Date;
+use Digest::MD5 qw(md5_hex);
 
 use Data::Dumper;
 
@@ -19,64 +21,14 @@ use Plugins::BBCSounds::ActivityManagement;
 
 my $log = logger('plugin.bbcsounds');
 
+my $cache = Slim::Utils::Cache->new();
+sub flushCache { $cache->cleanup(); }
+
 sub toplevel {
     my ( $client, $callback, $args ) = @_;
     $log->debug("++toplevel");
 
-    my $menu;
-    my $editorialTitle = "Our Daily Picks";
-    $menu = [
-        {
-            name        => 'Search',
-            type        => 'search',
-            url         => \&getPage,
-            passthrough => [ { type => 'search' } ],
-            order       => 1,
-        },
-        {
-            name        => 'Featured Podcasts & More',
-            type        => 'link',
-            url         => \&getPage,
-            passthrough => [ { type => 'editorial' } ],
-            order       => 3,
-        },
-        {
-            name        => 'Music Mixes',
-            type        => 'link',
-            url         => \&getSubMenu,
-            passthrough => [ { type => 'mixes' } ],
-            order       => 5,
-        },
-        {
-            name        => 'My Sounds',
-            type        => 'link',
-            url         => \&getSubMenu,
-            passthrough => [ { type => 'mysounds' } ],
-            order       => 2,
-        },
-        {
-            name        => 'Recommended For You',
-            type        => 'link',
-            url         => \&getPersonalisedPage,
-            passthrough => [ { type => 'recommended' } ],
-            order       => 6,
-        },
-        {
-            name        => 'Station Schedules',
-            type        => 'link',
-            url         => \&getPage,
-            passthrough => [ { type => 'stationlist' } ],
-            order       => 7,
-        },
-        {
-            name        => 'Browse Categories',
-            type        => 'link',
-            url         => \&getSubMenu,
-            passthrough => [ { type => 'categories' } ],
-            order       => 7,
-        }
-
-    ];
+    my $menu = [];
 
     #Obtain the variable editorial content title
 
@@ -84,6 +36,65 @@ sub toplevel {
     my $callurl = 'https://rms.api.bbc.co.uk/v2/collections/p07fz59r/container';
 
     $fetch = sub {
+        my $editorialTitle = "Our Daily Picks";
+        $menu = [
+            {
+                name        => 'Search',
+                type        => 'search',
+                url         => '',
+                passthrough => [ { type => 'search', codeRef => 'getPage' } ],
+                order       => 1,
+            },
+            {
+                name => 'Featured Podcasts & More',
+                type => 'link',
+                url  => '',
+                passthrough =>
+                  [ { type => 'editorial', codeRef => 'getPage' } ],
+                order => 3,
+            },
+            {
+                name        => 'Music Mixes',
+                type        => 'link',
+                url         => '',
+                passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
+                order       => 5,
+            },
+            {
+                name => 'My Sounds',
+                type => 'link',
+                url  => '',
+                passthrough =>
+                  [ { type => 'mysounds', codeRef => 'getSubMenu' } ],
+                order => 2,
+            },
+            {
+                name        => 'Recommended For You',
+                type        => 'link',
+                url         => '',
+                passthrough => [
+                    { type => 'recommended', codeRef => 'getPersonalisedPage' }
+                ],
+                order => 6,
+            },
+            {
+                name => 'Station Schedules',
+                type => 'link',
+                url  => '',
+                passthrough =>
+                  [ { type => 'stationlist', codeRef => 'getPage' } ],
+                order => 7,
+            },
+            {
+                name => 'Browse Categories',
+                type => 'link',
+                url  => '',
+                passthrough =>
+                  [ { type => 'categories', codeRef => 'getSubMenu' } ],
+                order => 7,
+            }
+
+        ];
 
         $log->debug("fetching: $callurl");
 
@@ -93,13 +104,16 @@ sub toplevel {
                 $editorialTitle = _parseEditorialTitle( $http->contentRef );
                 push @$menu,
                   {
-                    name        => $editorialTitle,
-                    type        => 'link',
-                    url         => \&getPage,
-                    passthrough => [ { type => 'daily' } ],
-                    order       => 4,
+                    name => $editorialTitle,
+                    type => 'link',
+                    url  => '',
+                    passthrough =>
+                      [ { type => 'daily', codeRef => 'getPage' } ],
+                    order => 4,
                   };
                 @$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+                _cacheMenu( 'toplevel', $menu );
+                _renderMenuCodeRefs($menu);
                 $callback->($menu);
             },
 
@@ -108,22 +122,33 @@ sub toplevel {
                 $log->warn("error: $_[1]");
                 push @$menu,
                   {
-                    name        => $editorialTitle,
-                    type        => 'link',
-                    url         => \&getPage,
-                    passthrough => [ { type => 'daily' } ],
-                    order       => 4,
+                    name => $editorialTitle,
+                    type => 'link',
+                    url  => '',
+                    passthrough =>
+                      [ { type => 'daily', codeRef => 'getPage' } ],
+                    order => 4,
                   };
 
                 #sort the list by order
                 @$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+                _cacheMenu( 'toplevel', $menu );
+                _renderMenuCodeRefs($menu);
                 $callback->($menu);
             },
             { cache => 1, expires => '1h' }
         )->get($callurl);
     };
 
-    $fetch->();
+    if ( my $cachemenu = _getCachedMenu('toplevel') ) {
+        $log->debug("Have cached menu");
+        _renderMenuCodeRefs($cachemenu);
+        $callback->( { items => $cachemenu } );
+    }
+    else {
+        $log->debug("No cache");
+        $fetch->();
+    }
 
     $log->debug("--toplevel");
     return;
@@ -136,6 +161,7 @@ sub getPage {
     my $menuType    = $passDict->{'type'};
     my $callurl     = "";
     my $denominator = "";
+    my $cacheIt     = 1;
 
     if ( $menuType eq 'stationlist' ) {
         $callurl = 'https://rms.api.bbc.co.uk/v2/experience/inline/stations';
@@ -171,6 +197,7 @@ sub getPage {
             'https://rms.api.bbc.co.uk/v2/experience/inline/search?q='
           . $searchstr
           . '&format=suggest';
+        $cacheIt = 0;
     }
     elsif ( $menuType eq 'mixes' ) {
         $callurl =
@@ -181,6 +208,11 @@ sub getPage {
     elsif ( $menuType eq 'categories' ) {
         $callurl = 'https://rms.api.bbc.co.uk/v2/categories/container?kind='
           . $passDict->{'categorytype'};
+    }
+    elsif ( $menuType eq 'childcategories' ) {
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/categories/' . $passDict->{'category'};
+
     }
     elsif ( $menuType eq 'stationsdayschedule' ) {
         $callurl =
@@ -200,6 +232,8 @@ sub getPage {
             sub {
                 my $http = shift;
                 _parse( $http, $menuType, $menu, $denominator, $passDict );
+                if ($cacheIt) { _cacheMenu( $callurl, $menu ); }
+                _renderMenuCodeRefs($menu);
                 $callback->( { items => $menu } );
             },
 
@@ -212,7 +246,15 @@ sub getPage {
         )->get($callurl);
     };
 
-    $fetch->();
+    if ( $cacheIt && ( my $cachemenu = _getCachedMenu($callurl) ) ) {
+        $log->debug("Have cached menu");
+        _renderMenuCodeRefs($cachemenu);
+        $callback->( { items => $cachemenu } );
+    }
+    else {
+        $log->debug("No cache");
+        $fetch->();
+    }
 
     $log->debug("--getPage");
     return;
@@ -250,7 +292,8 @@ sub getScheduleDates {
                 {
                     type         => 'stationsdayschedule',
                     stationid    => $stationid,
-                    scheduledate => $scheduledate
+                    scheduledate => $scheduledate,
+                    codeRef      => 'getPage'
                 }
             ],
           };
@@ -289,6 +332,7 @@ sub getPersonalisedPage {
                 sub {
                     my $http = shift;
                     _parse( $http, $menuType, $menu, $denominator );
+                    _renderMenuCodeRefs($menu);
                     $callback->( { items => $menu } );
                 },
                 sub {
@@ -322,10 +366,13 @@ sub getJSONMenu {
 
     if ( $menuType eq 'playable' ) {
         _getPlayableItemMenu( $jsonData, $menu );
+        _renderMenuCodeRefs($menu);
         $callback->( { items => $menu } );
     }
     elsif ( $menuType eq 'subcategory' ) {
         _parseCategories( { data => $jsonData->{child_categories} }, $menu );
+        _renderMenuCodeRefs($menu);
+        $callback->( { items => $menu } );
     }
 
     $log->debug("--getJSONMenu");
@@ -343,40 +390,54 @@ sub getSubMenu {
     if ( $menuType eq 'categories' ) {
         $menu = [
             {
-                name => 'Browse all Music',
-                type => 'link',
-                url  => \&getPage,
-                passthrough =>
-                  [ { type => 'categories', categorytype => 'music' } ],
+                name        => 'Browse all Music',
+                type        => 'link',
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type         => 'categories',
+                        categorytype => 'music',
+                        codeRef      => 'getPage'
+                    }
+                ],
             },
             {
-                name => 'Browse all Speech',
-                type => 'link',
-                url  => \&getPage,
-                passthrough =>
-                  [ { type => 'categories', categorytype => 'speech' } ],
+                name        => 'Browse all Speech',
+                type        => 'link',
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type         => 'categories',
+                        categorytype => 'speech',
+                        codeRef      => 'getPage'
+                    }
+                ],
             }
         ];
     }
     elsif ( $menuType eq 'mysounds' ) {
         $menu = [
             {
-                name        => 'Latest',
-                type        => 'link',
-                url         => \&getPersonalisedPage,
-                passthrough => [ { type => 'latest' } ],
+                name => 'Latest',
+                type => 'link',
+                url  => \&getPersonalisedPage,
+                passthrough =>
+                  [ { type => 'latest', codeRef => 'getPersonalisedPage' } ],
             },
             {
-                name        => 'Bookmarks',
-                type        => 'link',
-                url         => \&getPersonalisedPage,
-                passthrough => [ { type => 'bookmarks' } ],
+                name => 'Bookmarks',
+                type => 'link',
+                url  => \&getPersonalisedPage,
+                passthrough =>
+                  [ { type => 'bookmarks', codeRef => 'getPersonalisedPage' } ],
             },
             {
                 name        => 'Subscribed',
                 type        => 'link',
                 url         => \&getPersonalisedPage,
-                passthrough => [ { type => 'subscribed' } ],
+                passthrough => [
+                    { type => 'subscribed', codeRef => 'getPersonalisedPage' }
+                ],
             }
 
         ];
@@ -384,46 +445,75 @@ sub getSubMenu {
     elsif ( $menuType eq 'mixes' ) {
         $menu = [
             {
-                name => 'Fresh New Music',
-                type => 'link',
-                url  => \&getPage,
-                passthrough =>
-                  [ { type => 'mixes', tag => 'fresh_new_music' } ],
-            },
-            {
-                name        => 'Music to Chill to',
+                name        => 'Fresh New Music',
                 type        => 'link',
                 url         => \&getPage,
-                passthrough => [ { type => 'mixes', tag => 'chill' } ],
+                passthrough => [
+                    {
+                        type    => 'mixes',
+                        tag     => 'fresh_new_music',
+                        codeRef => 'getPage'
+                    }
+                ],
             },
             {
-                name => 'Dance Music',
+                name => 'Music to Chill to',
                 type => 'link',
                 url  => \&getPage,
                 passthrough =>
-                  [ { type => 'mixes', tag => 'dance', page => '1' } ],
+                  [ { type => 'mixes', tag => 'chill', codeRef => 'getPage' } ],
+            },
+            {
+                name        => 'Dance Music',
+                type        => 'link',
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type    => 'mixes',
+                        tag     => 'dance',
+                        page    => '1',
+                        codeRef => 'getPage'
+                    }
+                ],
             },
             {
                 name        => 'Feel Good Tunes',
                 type        => 'link',
                 url         => \&getPage,
                 passthrough => [
-                    { type => 'mixes', tag => 'feel_good_tunes', page => '1' }
+                    {
+                        type    => 'mixes',
+                        tag     => 'feel_good_tunes',
+                        page    => '1',
+                        codeRef => 'getPage'
+                    }
                 ],
             },
             {
-                name => 'Music to Focus to',
-                type => 'link',
-                url  => \&getPage,
-                passthrough =>
-                  [ { type => 'mixes', tag => 'focus', page => '1' } ],
+                name        => 'Music to Focus to',
+                type        => 'link',
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type    => 'mixes',
+                        tag     => 'focus',
+                        page    => '1',
+                        codeRef => 'getPage'
+                    }
+                ],
             },
             {
-                name => 'Greatest Hits',
-                type => 'link',
-                url  => \&getPage,
-                passthrough =>
-                  [ { type => 'mixes', tag => 'greatest_hits', page => '1' } ],
+                name        => 'Greatest Hits',
+                type        => 'link',
+                url         => \&getPage,
+                passthrough => [
+                    {
+                        type    => 'mixes',
+                        tag     => 'greatest_hits',
+                        page    => '1',
+                        codeRef => 'getPage'
+                    }
+                ],
             },
         ];
     }
@@ -537,6 +627,11 @@ sub _parse {
         my $JSON = decode_json ${ $http->contentRef };
         _parseCategories( $JSON->{data}, $menu );
     }
+    elsif ( $optstr eq 'childcategories' ) {
+        my $JSON = decode_json ${ $http->contentRef };
+        _parseChildCategories( $JSON, $menu );
+    }
+
     elsif ( $optstr eq 'latest' ) {
         my $JSON = decode_json ${ $http->contentRef };
         _parseItems( _getDataNode( $JSON->{data}, 'latest' ), $menu );
@@ -628,12 +723,17 @@ sub _parseStationlist {
           . '/128x128.png';
         push @$menu,
           {
-            name => $item->{network}->{short_title},
-            type => 'link',
-            icon => $image,
-            url  => \&getScheduleDates,
-            passthrough =>
-              [ { type => 'stationschedule', stationid => $item->{id} } ],
+            name        => $item->{network}->{short_title},
+            type        => 'link',
+            icon        => $image,
+            url         => '',
+            passthrough => [
+                {
+                    type      => 'stationschedule',
+                    stationid => $item->{id},
+                    codeRef   => 'getScheduleDates'
+                }
+            ],
           };
     }
     $log->debug("--_parseStationlist");
@@ -647,6 +747,12 @@ sub _parsePlayableItem {
 
     my $title1 = $item->{titles}->{primary};
     my $title2 = $item->{titles}->{secondary};
+    if ( defined $title2 ) {
+        $title2 = ' - ' . $title2;
+    }
+    else {
+        $title2 = '';
+    }
     my $title3 = $item->{titles}->{tertiary};
     if ( defined $title3 ) {
         $title3 = ' ' . $title3;
@@ -663,7 +769,7 @@ sub _parsePlayableItem {
         $release = '';
     }
 
-    my $title = $title1 . ' - ' . $title2 . $title3 . $release;
+    my $title = $title1 . $title2 . $title3 . $release;
     my $pid   = _getPidfromSoundsURN( $item->{urn} );
 
     my $iurl = $item->{image_url};
@@ -673,11 +779,12 @@ sub _parsePlayableItem {
 
     push @$menu,
       {
-        name        => $title,
-        type        => 'link',
-        icon        => $image,
-        url         => \&getJSONMenu,
-        passthrough => [ { type => 'playable', json => $item } ],
+        name => $title,
+        type => 'link',
+        icon => $image,
+        url  => '',
+        passthrough =>
+          [ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
       };
 }
 
@@ -702,11 +809,12 @@ sub _parseBroadcastItem {
 
     push @$menu,
       {
-        name        => $title,
-        type        => 'link',
-        icon        => $image,
-        url         => \&getJSONMenu,
-        passthrough => [ { type => 'playable', json => $item } ],
+        name => $title,
+        type => 'link',
+        icon => $image,
+        url  => '',
+        passthrough =>
+          [ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
       };
 
     $log->debug("--_parseBroadcastItem");
@@ -738,7 +846,7 @@ sub _createOffset {
               {
                 name        => $title,
                 type        => 'link',
-                url         => \&getPage,
+                url         => '',
                 passthrough => [$passthrough],
               };
 
@@ -764,12 +872,18 @@ sub _parseContainerItem {
 
     push @$menu,
       {
-        name => $title . ' - ' . $desc,
-        type => 'link',
-        icon => $image,
-        url  => \&getPage,
-        passthrough =>
-          [ { type => 'tleo', filter => 'container=' . $pid, offset => 0 } ],
+        name        => $title . ' - ' . $desc,
+        type        => 'link',
+        icon        => $image,
+        url         => '',
+        passthrough => [
+            {
+                type    => 'tleo',
+                filter  => 'container=' . $pid,
+                offset  => 0,
+                codeRef => 'getPage'
+            }
+        ],
       };
 
     $log->debug("--_parseContainerItem");
@@ -790,41 +904,71 @@ sub _parseCategories {
         my $image =
           Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
             _getPidfromImageURL( $cat->{image_url} ) );
-
-        my $childCat = $cat->{child_categories};
-        my $catsize  = 0;
-        if ( defined $childCat ) {
-            $catsize = scalar @$childCat;
-        }
-        if ( $catsize == 0 ) {
-            push @$menu,
-              {
-                name        => $title,
-                type        => 'link',
-                icon        => $image,
-                url         => \&getPage,
-                passthrough => [
-                    {
-                        type     => 'container',
-                        category => $cat->{id},
-                        offset   => 0
-                    }
-                ],
-              };
-        }
-        else {
-
-            push @$menu,
-              {
-                name        => $title,
-                type        => 'link',
-                icon        => $image,
-                url         => \&getJSONMenu,
-                passthrough => [ { type => 'subcategory', json => $childCat } ],
-              };
-        }
+        push @$menu,
+          {
+            name        => $title,
+            type        => 'link',
+            icon        => $image,
+            url         => '',
+            passthrough => [
+                {
+                    type     => 'childcategories',
+                    category => $cat->{id},
+                    offset   => 0,
+                    codeRef  => 'getPage'
+                }
+            ],
+          };
     }
+
     $log->debug("--_parseCategories");
+    return;
+}
+
+sub _parseChildCategories {
+    my $json = shift;
+    my $menu = shift;
+
+    $log->debug("++_parseChildCategories");
+
+    my $catId    = $json->{id};
+    my $catTitle = $json->{title};
+
+    my $children = $json->{child_categories};
+
+    for my $cat (@$children) {
+        my $title = $cat->{title};
+        push @$menu,
+          {
+            name        => $catTitle . ' - ' . $title,
+            type        => 'link',
+            url         => '',
+            passthrough => [
+                {
+                    type     => 'container',
+                    category => $cat->{id},
+                    offset   => 0,
+                    codeRef  => 'getPage'
+                }
+            ],
+          };
+    }
+    push @$menu,
+      {
+        name        => 'All ' . $catTitle,
+        type        => 'link',
+        url         => '',
+        passthrough => [
+            {
+                type     => 'container',
+                category => $catId,
+                offset   => 0,
+                codeRef  => 'getPage'
+            }
+        ],
+      };
+
+    $log->debug("--_parseChildCategories");
     return;
 }
 
@@ -875,9 +1019,9 @@ sub _getPlayableItemMenu {
 
     push @$menu,
       {
-        name => 'Play',
-        url  => \&Plugins::BBCSounds::BBCIplayerCompatability::handlePlaylist,
-        passthrough => [ { pid => $pid } ],
+        name        => 'Play',
+        url         => '',
+        passthrough => [ { pid => $pid, codeRef => 'handlePlaylist' } ],
         type        => 'playlist',
         on_select   => 'play',
       };
@@ -886,32 +1030,40 @@ sub _getPlayableItemMenu {
       {
         name        => 'Bookmark',
         type        => 'link',
-        url         => \&Plugins::BBCSounds::ActivityManagement::createActivity,
-        passthrough => [ { activitytype => 'bookmark', urn => $urn } ],
+        url         => '',
+        passthrough => [
+            {
+                activitytype => 'bookmark',
+                urn          => $urn,
+                codeRef      => 'createActivity'
+            }
+        ],
       };
 
     if ( defined $item->{container}->{id} ) {
         push @$menu,
           {
-            name => 'Subscribe',
-            type => 'link',
-            url  => \&Plugins::BBCSounds::ActivityManagement::createActivity,
+            name        => 'Subscribe',
+            type        => 'link',
+            url         => '',
             passthrough => [
                 {
                     activitytype => 'subscribe',
-                    urn          => $item->{container}->{urn}
+                    urn          => $item->{container}->{urn},
+                    codeRef      => 'createActivity'
                 }
             ],
           };
         push @$menu, {
             name        => 'All Episodes',
             type        => 'link',
-            url         => \&getPage,
+            url         => '',
             passthrough => [
                 {
-                    type   => 'tleo',
-                    filter => 'container=' . $item->{container}->{id},
-                    offset => 0,
+                    type    => 'tleo',
+                    filter  => 'container=' . $item->{container}->{id},
+                    offset  => 0,
+                    codeRef => 'getPage'
                 }
             ],
 
@@ -919,6 +1071,74 @@ sub _getPlayableItemMenu {
     }
 
     $log->debug("--_getPlayableItemMenu");
+    return;
+}
+
+sub _getCachedMenu {
+    my $url = shift;
+    $log->debug("++_getCachedMenu");
+
+    my $cacheKey = 'BS:' . md5_hex($url);
+
+    if ( my $cachedMenu = $cache->get($cacheKey) ) {
+        my $menu = ${$cachedMenu};
+        $log->debug("--_getCachedMenu got cached menu");
+        return $menu;
+    }
+    else {
+        $log->debug("--_getCachedMenu no cache");
+        return;
+    }
+}
+
+sub _cacheMenu {
+    my $url  = shift;
+    my $menu = shift;
+    $log->debug("++_cacheMenu");
+    my $cacheKey = 'BS:' . md5_hex($url);
+
+    $cache->set( $cacheKey, \$menu, 600 );
+
+    $log->debug("--_cacheMenu");
+    return;
+}
+
+sub _renderMenuCodeRefs {
+    my $menu = shift;
+    $log->debug("++_renderMenuCodeRefs");
+
+    for my $menuItem (@$menu) {
+        my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
+
+        if ( $codeRef eq 'getPage' ) {
+            $menuItem->{'url'} = \&getPage;
+        }
+        elsif ( $codeRef eq 'getSubMenu' ) {
+            $menuItem->{'url'} = \&getSubMenu;
+        }
+        elsif ( $codeRef eq 'getScheduleDates' ) {
+            $menuItem->{'url'} = \&getScheduleDates;
+        }
+        elsif ( $codeRef eq 'getJSONMenu' ) {
+            $menuItem->{'url'} = \&getJSONMenu;
+        }
+        elsif ( $codeRef eq 'handlePlaylist' ) {
+            $menuItem->{'url'} =
+              \&Plugins::BBCSounds::BBCIplayerCompatability::handlePlaylist;
+        }
+        elsif ( $codeRef eq 'createActivity' ) {
+            $menuItem->{'url'} =
+              \&Plugins::BBCSounds::ActivityManagement::createActivity;
+        }
+        elsif ( $codeRef eq 'getPersonalisedPage' ) {
+            $menuItem->{'url'} = \&getPersonalisedPage;
+        }
+        else {
+            $log->error("Unknown Code Reference : $codeRef");
+        }
+
+    }
+    $log->debug("--_renderMenuCodeRefs");
     return;
 }
 
