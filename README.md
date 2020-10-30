@@ -13,4 +13,4 @@ Provides access to the BBC Sounds features as an LMS plugin, it includes :
 
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
-<strong>Requires the BBC Iplayer Plugin to also be installed.</strong>
+<strong>Requires the BBC Iplayer Plugin 1.6 or higher to also be installed.</strong>
