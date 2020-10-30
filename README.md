@@ -1,4 +1,4 @@
-BBC Sounds Plugin for LMS.
+<strong>BBC Sounds Plugin for LMS</strong>
 
 Provides access to the BBC Sounds features as a LMS plugin includes :
 
@@ -11,10 +11,6 @@ Provides access to the BBC Sounds features as a LMS plugin includes :
 7. Categories Browsing
 8. Subscribing and Bookmarking from within the plugin
 
-Add the plugin to your SMS from the following repo (add it as an additional repostiories on your plugin settings)
+The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
-  For the stable version :  http://plugins.expectingtofly.co.uk/stablerepo.xml
-  
-  For the latest beta version : http://plugins.expectingtofly.co.uk/betarepo.xml 
-  
-  Requires the BBC Iplayer Plugin to also be installed. 
+<strong>Requires the BBC Iplayer Plugin to also be installed.</strong>
