@@ -9,6 +9,7 @@ use Slim::Utils::Strings qw(string);
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Plugins::BBCSounds::BBCSoundsFeeder;
+use Plugins::BBCSounds::ProtocolHandler;
 
 my $log = Slim::Utils::Log->addLogCategory(
     {

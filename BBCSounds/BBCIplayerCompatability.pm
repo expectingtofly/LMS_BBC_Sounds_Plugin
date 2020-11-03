@@ -138,7 +138,10 @@ sub parsePlaylist {
       . URI::Escape::uri_escape_utf8($desc);
 
     $log->info("aod stream $stream");
-
+    
+    $stream =  'sounds://' . $pid;
+    
+    $log->info("aod stream $stream");
     push @$menu,
       {
         'name'        => $title,
