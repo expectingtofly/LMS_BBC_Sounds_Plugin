@@ -1,5 +1,23 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
+# (c) stu@expectingtofly.co.uk
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+
 use warnings;
 use strict;
 
@@ -15,7 +33,7 @@ use Digest::MD5 qw(md5_hex);
 
 use Data::Dumper;
 
-use Plugins::BBCSounds::BBCIplayerCompatability;
+use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
 
@@ -377,6 +395,27 @@ sub getJSONMenu {
 
     $log->debug("--getJSONMenu");
     return;
+}
+
+sub getPidDataForMeta {
+    my $pid = shift;
+    my $cb  = shift;
+
+    Slim::Networking::SimpleAsyncHTTP->new(
+        sub {
+            my $http = shift;
+            my $JSON = decode_json ${ $http->contentRef };
+            $cb->($JSON);
+        },
+
+        # Called when no response was received or an error occurred.
+        sub {
+            $log->warn("error: $_[1]");
+            $cb->( {} );
+        },
+        { cache => 1, expires => '1h' }
+    )->get("https://rms.api.bbc.co.uk/v2/programmes/$pid/playable");
+
 }
 
 sub getSubMenu {
@@ -774,7 +813,7 @@ sub _parsePlayableItem {
 
     my $iurl = $item->{image_url};
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         ( _getPidfromImageURL($iurl) ) );
 
     push @$menu,
@@ -804,7 +843,7 @@ sub _parseBroadcastItem {
 
     my $iurl = $item->{image_url};
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         ( _getPidfromImageURL($iurl) ) );
 
     push @$menu,
@@ -867,7 +906,7 @@ sub _parseContainerItem {
     my $pid = $podcast->{id};
 
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         _getPidfromImageURL( $podcast->{image_url} ) );
 
     push @$menu,
@@ -902,7 +941,7 @@ sub _parseCategories {
     for my $cat (@$jsonData) {
         my $title = $cat->{titles}->{primary};
         my $image =
-          Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+          Plugins::BBCSounds::PlayManager::createIcon(
             _getPidfromImageURL( $cat->{image_url} ) );
         push @$menu,
           {
@@ -1124,7 +1163,7 @@ sub _renderMenuCodeRefs {
         }
         elsif ( $codeRef eq 'handlePlaylist' ) {
             $menuItem->{'url'} =
-              \&Plugins::BBCSounds::BBCIplayerCompatability::handlePlaylist;
+              \&Plugins::BBCSounds::PlayManager::handlePlaylist;
         }
         elsif ( $codeRef eq 'createActivity' ) {
             $menuItem->{'url'} =
