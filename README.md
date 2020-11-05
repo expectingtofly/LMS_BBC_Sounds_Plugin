@@ -10,7 +10,7 @@ Provides access to the BBC Sounds features as an LMS plugin, it includes :
 6. 30 day Station Schedules for catch up listening
 7. Categories Browsing
 8. Subscribing and Bookmarking from within the plugin
+9. Integration with BBC Account for "Continue Listening".
 
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
-<strong>Requires the BBC Iplayer Plugin 1.6 or higher to also be installed.</strong>
