@@ -165,7 +165,17 @@ sub toplevel {
     }
     else {
         $log->debug("No cache");
-        $fetch->();
+        if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
+            $fetch->();
+        }
+        else {
+            $menu = [
+                {
+                    name =>
+'Not Signed In!  Please sign in to your BBC Account in preferences'
+                }
+            ];
+        }
     }
 
     $log->debug("--toplevel");
@@ -329,14 +339,23 @@ sub getPersonalisedPage {
     my $menuType = $passDict->{'type'};
     my $callurl  = "";
 
-    if (   ( $menuType eq 'bookmarks' )
-        || ( $menuType eq 'latest' )
-        || ( $menuType eq 'subscribed' ) )
-    {
-        $callurl = 'https://rms.api.bbc.co.uk/v2/my/experience/inline/sounds';
+    if ( $menuType eq 'latest' ) {
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable';
+    }
+    elsif ( $menuType eq 'subscribed' ) {
+        $callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows';
+    }
+    elsif ( $menuType eq 'bookmarks' ) {
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable';
     }
     elsif ( $menuType eq 'recommended' ) {
-        $callurl = 'https://rms.api.bbc.co.uk/v2/my/experience/inline/listen';
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
+    }
+    elsif ( $menuType eq 'continue' ) {
+        $callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable';
     }
 
     my $menu        = [];
@@ -477,6 +496,13 @@ sub getSubMenu {
                 passthrough => [
                     { type => 'subscribed', codeRef => 'getPersonalisedPage' }
                 ],
+            },
+            {
+                name => 'Continue Listening',
+                type => 'link',
+                url  => \&getPersonalisedPage,
+                passthrough =>
+                  [ { type => 'continue', codeRef => 'getPersonalisedPage' } ],
             }
 
         ];
@@ -673,19 +699,24 @@ sub _parse {
 
     elsif ( $optstr eq 'latest' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'latest' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'bookmarks' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'favourites' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'subscribed' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'follows' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'recommended' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'recommendations' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
+    }
+    elsif ( $optstr eq 'continue' ) {
+        my $JSON = decode_json ${ $http->contentRef };
+        _parseItems( $JSON->{data}, $menu );
+        _createOffset( $JSON, $passthrough, $menu );
     }
     elsif ( $optstr eq 'stationlist' ) {
         my $JSON = decode_json ${ $http->contentRef };
