@@ -1,4 +1,21 @@
-package Plugins::BBCSounds::BBCIplayerCompatability;
+package Plugins::BBCSounds::PlayManager;
+
+#  (c) stu@expectingtofly.co.uk  2020
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
 
 use warnings;
 use strict;
@@ -10,51 +27,23 @@ use Slim::Utils::Log;
 
 my $log = logger('plugin.bbcsounds');
 
-sub createIplayerParser {
-    my $pid   = shift;
-    my $icon  = shift;
-    my $title = shift;
-    my $desc  = shift;
+sub createIcon {
+    my $pid = shift;
+    $log->debug("++createIcon");
 
-    $log->debug("++createIplayerParser");
+    my $icon = "http://ichef.bbci.co.uk/images/ic/320x320/$pid.jpg";
 
-    my $dashmediaSelector =
-"http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/$pid";
-    my $hlsmediaselector =
-"http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/$pid/mediaset/audio-syndication/proto/http";
-
-    my $iplayerParser =
-        'Plugins::BBCiPlayer::PlaylistParser?' . 'dash='
-      . $dashmediaSelector . '&hls='
-      . $hlsmediaselector
-      . '&icon='
-      . $icon
-      . '&title='
-      . URI::Escape::uri_escape_utf8($title)
-      . '&desc='
-      . URI::Escape::uri_escape_utf8($desc);
-
-    $log->debug("--createIplayerParser");
-    return $iplayerParser;
+    $log->debug("--createIcon - $icon");
+    return $icon;
 }
 
-sub createIplayerIcon {
+sub createPlaylist {
     my $pid = shift;
-    $log->debug("++createIplayerIcon");
-
-    my $iplayerIcon = "http://ichef.bbci.co.uk/images/ic/320x320/$pid.jpg";
-
-    $log->debug("--createIplayerIcon - $iplayerIcon");
-    return $iplayerIcon;
-}
-
-sub createIplayerPlaylist {
-    my $pid = shift;
-    $log->debug("++createIplayerPlaylist");
+    $log->debug("++createPlaylist");
 
     my $playlist_url = "http://www.bbc.co.uk/programmes/$pid/playlist.json";
 
-    $log->debug("--createIplayerPlaylist - $playlist_url");
+    $log->debug("--createPlaylist - $playlist_url");
     return $playlist_url;
 }
 
@@ -63,7 +52,7 @@ sub handlePlaylist {
     $log->debug("++handlePlaylist");
 
     my $gpid = $passDict->{'pid'};
-    my $url  = createIplayerPlaylist($gpid);
+    my $url  = createPlaylist($gpid);
 
     my $menu = [];
     my $fetch;
@@ -113,32 +102,18 @@ sub parsePlaylist {
 
     my $pid = $playlistJSON->{defaultAvailableVersion}->{pid};
 
-    my $dashmediaSelector =
-"http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/$pid";
-    my $hlsmediaselector =
-"http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/$pid/mediaset/audio-syndication/proto/http";
     my $title = $playlistJSON->{defaultAvailableVersion}->{smpConfig}->{title};
     my $desc = $playlistJSON->{defaultAvailableVersion}->{smpConfig}->{summary};
-    my $icon = createIplayerIcon(
+    my $icon = createIcon(
         _getPidfromImageURL(
             $playlistJSON->{defaultAvailableVersion}->{smpConfig}
               ->{holdingImageURL}
         )
     );
 
-    my $stream =
-        'iplayer://aod?' . 'dash='
-      . URI::Escape::uri_escape_utf8($dashmediaSelector) . '&hls='
-      . URI::Escape::uri_escape_utf8($hlsmediaselector)
-      . '&icon='
-      . URI::Escape::uri_escape_utf8($icon)
-      . '&title='
-      . URI::Escape::uri_escape_utf8($title)
-      . '&desc='
-      . URI::Escape::uri_escape_utf8($desc);
+    my $stream = 'sounds://_' . $pid . '_' . $gpid;
 
     $log->info("aod stream $stream");
-
     push @$menu,
       {
         'name'        => $title,

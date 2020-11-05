@@ -1,5 +1,23 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
+# (c) stu@expectingtofly.co.uk
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+
 use warnings;
 use strict;
 
@@ -15,7 +33,7 @@ use Digest::MD5 qw(md5_hex);
 
 use Data::Dumper;
 
-use Plugins::BBCSounds::BBCIplayerCompatability;
+use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
 
@@ -147,7 +165,18 @@ sub toplevel {
     }
     else {
         $log->debug("No cache");
-        $fetch->();
+        if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
+            $fetch->();
+        }
+        else {
+            $menu = [
+                {
+                    name =>
+'Not Signed In!  Please sign in to your BBC Account in preferences'
+                }             
+            ];
+            $callback->( { items => $menu } );
+        }
     }
 
     $log->debug("--toplevel");
@@ -311,14 +340,23 @@ sub getPersonalisedPage {
     my $menuType = $passDict->{'type'};
     my $callurl  = "";
 
-    if (   ( $menuType eq 'bookmarks' )
-        || ( $menuType eq 'latest' )
-        || ( $menuType eq 'subscribed' ) )
-    {
-        $callurl = 'https://rms.api.bbc.co.uk/v2/my/experience/inline/sounds';
+    if ( $menuType eq 'latest' ) {
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable';
+    }
+    elsif ( $menuType eq 'subscribed' ) {
+        $callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows';
+    }
+    elsif ( $menuType eq 'bookmarks' ) {
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable';
     }
     elsif ( $menuType eq 'recommended' ) {
-        $callurl = 'https://rms.api.bbc.co.uk/v2/my/experience/inline/listen';
+        $callurl =
+          'https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
+    }
+    elsif ( $menuType eq 'continue' ) {
+        $callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable';
     }
 
     my $menu        = [];
@@ -377,6 +415,27 @@ sub getJSONMenu {
 
     $log->debug("--getJSONMenu");
     return;
+}
+
+sub getPidDataForMeta {
+    my $pid = shift;
+    my $cb  = shift;
+
+    Slim::Networking::SimpleAsyncHTTP->new(
+        sub {
+            my $http = shift;
+            my $JSON = decode_json ${ $http->contentRef };
+            $cb->($JSON);
+        },
+
+        # Called when no response was received or an error occurred.
+        sub {
+            $log->warn("error: $_[1]");
+            $cb->( {} );
+        },
+        { cache => 1, expires => '1h' }
+    )->get("https://rms.api.bbc.co.uk/v2/programmes/$pid/playable");
+
 }
 
 sub getSubMenu {
@@ -438,6 +497,13 @@ sub getSubMenu {
                 passthrough => [
                     { type => 'subscribed', codeRef => 'getPersonalisedPage' }
                 ],
+            },
+            {
+                name => 'Continue Listening',
+                type => 'link',
+                url  => \&getPersonalisedPage,
+                passthrough =>
+                  [ { type => 'continue', codeRef => 'getPersonalisedPage' } ],
             }
 
         ];
@@ -634,19 +700,24 @@ sub _parse {
 
     elsif ( $optstr eq 'latest' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'latest' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'bookmarks' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'favourites' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'subscribed' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'follows' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
     }
     elsif ( $optstr eq 'recommended' ) {
         my $JSON = decode_json ${ $http->contentRef };
-        _parseItems( _getDataNode( $JSON->{data}, 'recommendations' ), $menu );
+        _parseItems( $JSON->{data}, $menu );
+    }
+    elsif ( $optstr eq 'continue' ) {
+        my $JSON = decode_json ${ $http->contentRef };
+        _parseItems( $JSON->{data}, $menu );
+        _createOffset( $JSON, $passthrough, $menu );
     }
     elsif ( $optstr eq 'stationlist' ) {
         my $JSON = decode_json ${ $http->contentRef };
@@ -774,7 +845,7 @@ sub _parsePlayableItem {
 
     my $iurl = $item->{image_url};
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         ( _getPidfromImageURL($iurl) ) );
 
     push @$menu,
@@ -804,7 +875,7 @@ sub _parseBroadcastItem {
 
     my $iurl = $item->{image_url};
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         ( _getPidfromImageURL($iurl) ) );
 
     push @$menu,
@@ -867,7 +938,7 @@ sub _parseContainerItem {
     my $pid = $podcast->{id};
 
     my $image =
-      Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+      Plugins::BBCSounds::PlayManager::createIcon(
         _getPidfromImageURL( $podcast->{image_url} ) );
 
     push @$menu,
@@ -902,7 +973,7 @@ sub _parseCategories {
     for my $cat (@$jsonData) {
         my $title = $cat->{titles}->{primary};
         my $image =
-          Plugins::BBCSounds::BBCIplayerCompatability::createIplayerIcon(
+          Plugins::BBCSounds::PlayManager::createIcon(
             _getPidfromImageURL( $cat->{image_url} ) );
         push @$menu,
           {
@@ -1124,7 +1195,7 @@ sub _renderMenuCodeRefs {
         }
         elsif ( $codeRef eq 'handlePlaylist' ) {
             $menuItem->{'url'} =
-              \&Plugins::BBCSounds::BBCIplayerCompatability::handlePlaylist;
+              \&Plugins::BBCSounds::PlayManager::handlePlaylist;
         }
         elsif ( $codeRef eq 'createActivity' ) {
             $menuItem->{'url'} =
