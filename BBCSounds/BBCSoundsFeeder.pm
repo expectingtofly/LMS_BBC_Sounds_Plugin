@@ -173,8 +173,9 @@ sub toplevel {
                 {
                     name =>
 'Not Signed In!  Please sign in to your BBC Account in preferences'
-                }
+                }             
             ];
+            $callback->( { items => $menu } );
         }
     }
 
