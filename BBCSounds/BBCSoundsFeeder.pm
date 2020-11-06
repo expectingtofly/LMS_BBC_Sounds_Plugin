@@ -1094,9 +1094,13 @@ sub _parseEditorialTitle {
 }
 
 sub _getPlayableItemMenu {
-    my $item = shift;
+    my $JSON = shift;
     my $menu = shift;
     $log->debug("++_getPlayableItemMenu");
+    my $item = $JSON;
+    if (defined $JSON->{'playable_item'}) {
+		$item = $JSON->{'playable_item'};
+	}
 
     my $urn        = $item->{urn};
     my $pid        = _getPidfromSoundsURN( $item->{urn} );
