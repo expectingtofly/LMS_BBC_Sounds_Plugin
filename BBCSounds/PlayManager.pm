@@ -37,49 +37,6 @@ sub createIcon {
     return $icon;
 }
 
-sub createPlaylist {
-    my $pid = shift;
-    $log->debug("++createPlaylist");
-
-    my $playlist_url = "http://www.bbc.co.uk/programmes/$pid/playlist.json";
-
-    $log->debug("--createPlaylist - $playlist_url");
-    return $playlist_url;
-}
-
-sub handlePlaylist {
-    my ( $client, $callback, $args, $passDict ) = @_;
-    $log->debug("++handlePlaylist");
-
-    my $gpid = $passDict->{'pid'};
-    my $url  = createPlaylist($gpid);
-
-    my $menu = [];
-    my $fetch;
-
-    $fetch = sub {
-
-        $log->debug("fetching: $url");
-        Slim::Networking::SimpleAsyncHTTP->new(
-            sub {
-                my $http = shift;
-                parsePlaylist( $http->contentRef, $menu, $gpid );
-                $callback->(
-                    { items => $menu, cachetime => 0, replaceparent => 1 } );
-            },
-
-            # Called when no response was received or an error occurred.
-            sub {
-                $log->warn("error: $_[1]");
-                $callback->( [ { name => $_[1], type => 'text' } ] );
-            },
-        )->get($url);
-    };
-
-    $fetch->();
-    $log->debug("--handlePlaylist");
-    return;
-}
 
 sub _placeImageRecipe {
     my $url = shift;

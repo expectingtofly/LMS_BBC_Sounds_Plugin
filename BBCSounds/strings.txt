@@ -2,7 +2,7 @@ PLUGIN_BBCSOUNDS
 	EN	BBC Sounds
 
 PLUGIN_BBCSOUNDS_DESC
-	EN	BBC Sounds Plugin to access "My Sounds", Station Schedules, curated content and search of all bbc audio content
+	EN	BBC Sounds Plugin to access "My Sounds", station schedules, curated content and search of all bbc audio content
 	
 PLUGIN_BBCSOUNDS_USERNAME
 	EN	BBC Account Username (or email)
