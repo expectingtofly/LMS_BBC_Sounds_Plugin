@@ -166,14 +166,27 @@ sub toplevel {
     else {
         $log->debug("No cache");
         if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
-            $fetch->();
+            Plugins::BBCSounds::SessionManagement::renewSession(
+                sub {
+                    $fetch->();
+                },
+                sub {
+                    $menu = [
+                        {
+                            name =>
+'Not Signed In!  Please sign in to your BBC Account in preferences'
+                        }
+                    ];
+                    $callback->( { items => $menu } );
+                }
+            );
         }
         else {
             $menu = [
                 {
                     name =>
 'Not Signed In!  Please sign in to your BBC Account in preferences'
-                }             
+                }
             ];
             $callback->( { items => $menu } );
         }
@@ -1085,16 +1098,24 @@ sub _getPlayableItemMenu {
     my $menu = shift;
     $log->debug("++_getPlayableItemMenu");
 
-    my $urn = $item->{urn};
-    my $pid = _getPidfromSoundsURN( $item->{urn} );
-    my $id  = $item->{id};
+    my $urn        = $item->{urn};
+    my $pid        = _getPidfromSoundsURN( $item->{urn} );
+    my $id         = $item->{id};
+    my $progress   = $item->{'progress'};
+    my $timeOffset = 0;
+    my $playLabel  = '';
+    if ( defined $progress ) {
+        $timeOffset = $progress->{'value'};
+        $playLabel  = ' - ' . $progress->{'label'};
+    }
 
     push @$menu,
       {
-        name        => 'Play',
-        url         => 'sounds://_' . $id . '_' . $pid ,        
-        type        => 'audio',
-        passthrough => [{}],
+        name => 'Play' . $playLabel,
+        url  => 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset,
+        type => 'audio',
+        ,
+        passthrough => [ {} ],
         on_select   => 'play',
       };
 
@@ -1181,34 +1202,34 @@ sub _renderMenuCodeRefs {
 
     for my $menuItem (@$menu) {
         my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
-        if (defined $codeRef) {
-			if ( $codeRef eq 'getPage' ) {
-				$menuItem->{'url'} = \&getPage;
-			}
-			elsif ( $codeRef eq 'getSubMenu' ) {
-				$menuItem->{'url'} = \&getSubMenu;
-			}
-			elsif ( $codeRef eq 'getScheduleDates' ) {
-				$menuItem->{'url'} = \&getScheduleDates;
-			}
-			elsif ( $codeRef eq 'getJSONMenu' ) {
-				$menuItem->{'url'} = \&getJSONMenu;
-			}
-			elsif ( $codeRef eq 'handlePlaylist' ) {
-				$menuItem->{'url'} =
-				  \&Plugins::BBCSounds::PlayManager::handlePlaylist;
-			}
-			elsif ( $codeRef eq 'createActivity' ) {
-				$menuItem->{'url'} =
-				  \&Plugins::BBCSounds::ActivityManagement::createActivity;
-			}
-			elsif ( $codeRef eq 'getPersonalisedPage' ) {
-				$menuItem->{'url'} = \&getPersonalisedPage;
-			}
-			else {
-				$log->error("Unknown Code Reference : $codeRef");
-			}
-		}
+        if ( defined $codeRef ) {
+            if ( $codeRef eq 'getPage' ) {
+                $menuItem->{'url'} = \&getPage;
+            }
+            elsif ( $codeRef eq 'getSubMenu' ) {
+                $menuItem->{'url'} = \&getSubMenu;
+            }
+            elsif ( $codeRef eq 'getScheduleDates' ) {
+                $menuItem->{'url'} = \&getScheduleDates;
+            }
+            elsif ( $codeRef eq 'getJSONMenu' ) {
+                $menuItem->{'url'} = \&getJSONMenu;
+            }
+            elsif ( $codeRef eq 'handlePlaylist' ) {
+                $menuItem->{'url'} =
+                  \&Plugins::BBCSounds::PlayManager::handlePlaylist;
+            }
+            elsif ( $codeRef eq 'createActivity' ) {
+                $menuItem->{'url'} =
+                  \&Plugins::BBCSounds::ActivityManagement::createActivity;
+            }
+            elsif ( $codeRef eq 'getPersonalisedPage' ) {
+                $menuItem->{'url'} = \&getPersonalisedPage;
+            }
+            else {
+                $log->error("Unknown Code Reference : $codeRef");
+            }
+        }
 
     }
     $log->debug("--_renderMenuCodeRefs");

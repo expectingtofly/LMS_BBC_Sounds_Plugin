@@ -101,7 +101,7 @@ sub new {
 
     my $seekdata =
       $song->can('seekdata') ? $song->seekdata : $song->{'seekdata'};
-    my $startTime = $seekdata->{'timeOffset'} || $song->pluginData('lastpos');
+    my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
     $song->pluginData( 'lastpos', 0 );
 
     if ($startTime) {
@@ -332,9 +332,8 @@ sub sysread {
 sub getId {
     my ( $class, $url ) = @_;
 
-    my @pid  = split /_/x, $url;
-    my $pid  = pop(@pid);
-    my $vpid = pop(@pid);
+    my @pid  = split /_/x, $url;    
+    my $vpid =  @pid[1];
 
     return $vpid;
 }
@@ -343,10 +342,22 @@ sub getPid {
     my ( $class, $url ) = @_;
 
     my @pid = split /_/x, $url;
-    my $pid = pop(@pid);
+    my $pid  = @pid[2];    
 
     return $pid;
 }
+
+sub getLastPos {
+    my ( $class, $url ) = @_;
+    my $lastpos = 0;
+    my @pid = split /_/x, $url;
+    if ((scalar @pid) == 4) {  
+		$lastpos = @pid[3];
+	}
+    return $lastpos;
+ }
+
+
 
 # fetch the Sounds player url and extract a playable stream
 sub getNextTrack {
