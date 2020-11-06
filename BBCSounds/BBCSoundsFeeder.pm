@@ -1087,13 +1087,14 @@ sub _getPlayableItemMenu {
 
     my $urn = $item->{urn};
     my $pid = _getPidfromSoundsURN( $item->{urn} );
+    my $id  = $item->{id};
 
     push @$menu,
       {
         name        => 'Play',
-        url         => '',
-        passthrough => [ { pid => $pid, codeRef => 'handlePlaylist' } ],
-        type        => 'playlist',
+        url         => 'sounds://_' . $id . '_' . $pid ,        
+        type        => 'audio',
+        passthrough => [{}],
         on_select   => 'play',
       };
 
@@ -1180,33 +1181,34 @@ sub _renderMenuCodeRefs {
 
     for my $menuItem (@$menu) {
         my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
-
-        if ( $codeRef eq 'getPage' ) {
-            $menuItem->{'url'} = \&getPage;
-        }
-        elsif ( $codeRef eq 'getSubMenu' ) {
-            $menuItem->{'url'} = \&getSubMenu;
-        }
-        elsif ( $codeRef eq 'getScheduleDates' ) {
-            $menuItem->{'url'} = \&getScheduleDates;
-        }
-        elsif ( $codeRef eq 'getJSONMenu' ) {
-            $menuItem->{'url'} = \&getJSONMenu;
-        }
-        elsif ( $codeRef eq 'handlePlaylist' ) {
-            $menuItem->{'url'} =
-              \&Plugins::BBCSounds::PlayManager::handlePlaylist;
-        }
-        elsif ( $codeRef eq 'createActivity' ) {
-            $menuItem->{'url'} =
-              \&Plugins::BBCSounds::ActivityManagement::createActivity;
-        }
-        elsif ( $codeRef eq 'getPersonalisedPage' ) {
-            $menuItem->{'url'} = \&getPersonalisedPage;
-        }
-        else {
-            $log->error("Unknown Code Reference : $codeRef");
-        }
+        if (defined $codeRef) {
+			if ( $codeRef eq 'getPage' ) {
+				$menuItem->{'url'} = \&getPage;
+			}
+			elsif ( $codeRef eq 'getSubMenu' ) {
+				$menuItem->{'url'} = \&getSubMenu;
+			}
+			elsif ( $codeRef eq 'getScheduleDates' ) {
+				$menuItem->{'url'} = \&getScheduleDates;
+			}
+			elsif ( $codeRef eq 'getJSONMenu' ) {
+				$menuItem->{'url'} = \&getJSONMenu;
+			}
+			elsif ( $codeRef eq 'handlePlaylist' ) {
+				$menuItem->{'url'} =
+				  \&Plugins::BBCSounds::PlayManager::handlePlaylist;
+			}
+			elsif ( $codeRef eq 'createActivity' ) {
+				$menuItem->{'url'} =
+				  \&Plugins::BBCSounds::ActivityManagement::createActivity;
+			}
+			elsif ( $codeRef eq 'getPersonalisedPage' ) {
+				$menuItem->{'url'} = \&getPersonalisedPage;
+			}
+			else {
+				$log->error("Unknown Code Reference : $codeRef");
+			}
+		}
 
     }
     $log->debug("--_renderMenuCodeRefs");
