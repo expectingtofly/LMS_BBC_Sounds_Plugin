@@ -130,7 +130,7 @@ sub toplevel {
                     order => 4,
                   };
                 @$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-                _cacheMenu( 'toplevel', $menu );
+                _cacheMenu( 'toplevel', $menu, 1200 );
                 _renderMenuCodeRefs($menu);
                 $callback->($menu);
             },
@@ -150,7 +150,7 @@ sub toplevel {
 
                 #sort the list by order
                 @$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-                _cacheMenu( 'toplevel', $menu );
+                _cacheMenu( 'toplevel', $menu, 600 );
                 _renderMenuCodeRefs($menu);
                 $callback->($menu);
             },
@@ -274,7 +274,7 @@ sub getPage {
             sub {
                 my $http = shift;
                 _parse( $http, $menuType, $menu, $denominator, $passDict );
-                if ($cacheIt) { _cacheMenu( $callurl, $menu ); }
+                if ($cacheIt) { _cacheMenu( $callurl, $menu, 600); }
                 _renderMenuCodeRefs($menu);
                 $callback->( { items => $menu } );
             },
@@ -283,8 +283,7 @@ sub getPage {
             sub {
                 $log->warn("error: $_[1]");
                 $callback->( [ { name => $_[1], type => 'text' } ] );
-            },
-            { cache => 1, expires => '1h' }
+            }            
         )->get($callurl);
     };
 
@@ -1191,10 +1190,11 @@ sub _getCachedMenu {
 sub _cacheMenu {
     my $url  = shift;
     my $menu = shift;
+    my $seconds = shift;
     $log->debug("++_cacheMenu");
     my $cacheKey = 'BS:' . md5_hex($url);
 
-    $cache->set( $cacheKey, \$menu, 600 );
+    $cache->set( $cacheKey, \$menu, $seconds );
 
     $log->debug("--_cacheMenu");
     return;
