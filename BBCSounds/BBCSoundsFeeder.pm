@@ -432,6 +432,7 @@ sub getJSONMenu {
 sub getPidDataForMeta {
     my $pid = shift;
     my $cb  = shift;
+    my $cbError = shift;
 
     Slim::Networking::SimpleAsyncHTTP->new(
         sub {
@@ -443,7 +444,7 @@ sub getPidDataForMeta {
         # Called when no response was received or an error occurred.
         sub {
             $log->warn("error: $_[1]");
-            $cb->( {} );
+            $cbError->();
         },
         { cache => 1, expires => '1h' }
     )->get("https://rms.api.bbc.co.uk/v2/programmes/$pid/playable");
