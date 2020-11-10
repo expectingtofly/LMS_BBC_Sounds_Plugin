@@ -146,8 +146,7 @@ sub toplevel {
 				_cacheMenu( 'toplevel', $menu, 600 );
 				_renderMenuCodeRefs($menu);
 				$callback->($menu);
-			},
-			{ cache => 1, expires => '1h' }
+			}
 		)->get($callurl);
 	};
 
@@ -343,7 +342,6 @@ sub getPersonalisedPage {
 					$log->warn("error: $_[1]");
 					$callback->( [ { name => $_[1], type => 'text' } ] );
 				}
-
 			)->get($callurl);
 		},
 
@@ -1050,16 +1048,22 @@ sub _getPlayableItemMenu {
 		on_select   => 'play',
 	  };
 
+	my $booktype = 'Bookmark';
+	my $bookCodeRef = 'createActivity';
+	if (_isFavouritedActivity($item->{activities})) {
+		$booktype = 'Remove bookmark';
+		$bookCodeRef = 'deleteActivity';
+	}
 	push @$menu,
 	  {
-		name        => 'Bookmark',
+		name        => $booktype,
 		type        => 'link',
 		url         => '',
 		passthrough => [
 			{
 				activitytype => 'bookmark',
 				urn          => $urn,
-				codeRef      => 'createActivity'
+				codeRef      => $bookCodeRef
 			}
 		],
 	  };
@@ -1067,7 +1071,7 @@ sub _getPlayableItemMenu {
 	if ( defined $item->{container}->{id} ) {
 		my $subtype = 'Subscribe';
 		my $subCodeRef = 'createActivity';
-		if (_isFollowedActivity($item->{container}-{activities})) {
+		if (_isFollowedActivity($item->{container}->{activities})) {
 			$subtype = 'Unsubscribe';
 			$subCodeRef = 'deleteActivity';
 		}
@@ -1142,6 +1146,21 @@ sub _isFollowedActivity {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'follow_activity') {
 				if ($activity->{action} eq 'followed') {
+					return 1;
+				}
+			}
+		}
+	}
+	return;
+}
+
+
+sub _isFavouritedActivity {
+	my $activities = shift;
+	if (defined $activities) {
+		for my $activity (@$activities) {
+			if  ($activity->{type} eq 'favourite_activity') {
+				if ($activity->{action} eq 'favourited') {
 					return 1;
 				}
 			}
