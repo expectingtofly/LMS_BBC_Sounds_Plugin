@@ -41,7 +41,7 @@ sub signIn {
     my $cbYes = shift;
     my $cbNo  = shift;
         
-    $log->debug("++signIn");
+    main::DEBUGLOG && $log->is_debug && $log->debug("++signIn");
     
     my %body = (
         jsEnabled => 'true',
@@ -65,7 +65,7 @@ sub signIn {
                 my ($signinurl) =
                   $res->content =~ /<form\s+(?:[^>]*?\s+)?action="([^"]*)"/;
                   
-                $log->debug("url $signinurl");  
+                main::DEBUGLOG && $log->is_debug && $log->debug("url $signinurl");  
                 $signinurl = HTML::Entities::decode_entities($signinurl);
                 my $referUrl = $req->uri;
                 $signinurl = 'https://account.bbc.com' . $signinurl;
@@ -103,7 +103,7 @@ sub signIn {
                         onError => sub {
                             my ( $http, $self ) = @_;
                             my $res = $http->response;
-                            $log->debug(
+                            main::DEBUGLOG && $log->is_debug && $log->debug(
                                 'Error status - ' . $res->status_line );
                             $cbNo->();
                         }
@@ -120,12 +120,12 @@ sub signIn {
               }
         }
     );
-    $log->debug("--signIn");
+    main::DEBUGLOG && $log->is_debug && $log->debug("--signIn");
     return;
 }
 
 sub isSignedIn {
-    $log->debug("++isSignedIn");
+    main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
     my $session   = Slim::Networking::Async::HTTP->new;
     my $cookiejar = $session->cookie_jar;
     my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
@@ -134,23 +134,23 @@ sub isSignedIn {
         if (defined $cookieepoch) {
 			my $epoch       = time();        
 			if ( $epoch < $cookieepoch ) {
-				$log->debug("--isSignedIn - true");
+				main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - true");
 				return 1;
 			}
 			else
 			{
-				$log->debug("--isSignedIn - false");
+				main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - false");
 				return;        
 			}
 		}        
 		else
 		{
-			$log->debug("--isSignedIn - false");
+			main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - false");
 			return;        
 		}	
     }
     else {
-        $log->debug("--_isSignedIn - false");
+        main::DEBUGLOG && $log->is_debug && $log->debug("--_isSignedIn - false");
         return;
     }
 }
@@ -158,7 +158,7 @@ sub isSignedIn {
 sub signOut {
     my $cbYes = shift;
     my $cbNo  = shift;
-    $log->debug("++signOut");
+    main::DEBUGLOG && $log->is_debug && $log->debug("++signOut");
     my $session = Slim::Networking::Async::HTTP->new;
     my $sessionrequest =
       HTTP::Request->new( GET => 'https://session.bbc.com/session/signout?ptrt=https%3A%2F%2Faccount.bbc.com%2Fsignout&switchTld=1' );
@@ -170,15 +170,15 @@ sub signOut {
                 my ( $http, $self ) = @_;
                 $session->cookie_jar->save();
                 $cbYes->();
-                $log->debug("--signOut");
+                main::DEBUGLOG && $log->is_debug && $log->debug("--signOut");
                 return;
             },
             onError => sub {
                 my ( $http, $self ) = @_;
                 my $res = $http->response;
-                $log->debug( 'Error status - ' . $res->status_line );
+                main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
                 $cbNo->();
-                $log->debug("--signOut");
+                main::DEBUGLOG && $log->is_debug && $log->debug("--signOut");
                 return;
             }
         }
@@ -186,14 +186,14 @@ sub signOut {
 }
 
 sub renewSession {
-    $log->debug("++renewSession");
+    main::DEBUGLOG && $log->is_debug && $log->debug("++renewSession");
     my $cbYes = shift;
     my $cbNo  = shift;
 
     if (isSignedIn) {
         if ( _hasSession() ) {
             $cbYes->();
-            $log->debug("--renewSession");
+            main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
             return;
         }
         else {
@@ -210,21 +210,21 @@ sub renewSession {
                         $session->cookie_jar->save();
                         if ( _hasSession() ) {
                             $cbYes->();
-                            $log->debug("--renewSession");
+                            main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
                             return;
                         }
                         else {
                             $cbNo->();
-                            $log->debug("--renewSession");
+                            main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
                             return;
                         }
                     },
                     onError => sub {
                         my ( $http, $self ) = @_;
                         my $res = $http->response;
-                        $log->debug( 'Error status - ' . $res->status_line );
+                        main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
                         $cbNo->();
-                        $log->debug("--renewSession");
+                        main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
                         return;
                     }
                 }
@@ -233,13 +233,13 @@ sub renewSession {
     }
     else {
         $cbNo->();
-        $log->debug("--renewSession");
+        main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
         return;
     }
 }
 
 sub _hasSession {
-    $log->debug("++_hasSession");
+    main::DEBUGLOG && $log->is_debug && $log->debug("++_hasSession");
     my $session   = Slim::Networking::Async::HTTP->new;
     my $cookiejar = $session->cookie_jar;
     my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_atkn'};
@@ -248,17 +248,17 @@ sub _hasSession {
         my $epoch       = time();
 
         if ( $epoch < $cookieepoch ) {
-            $log->debug("--_hasSession - true");
+            main::DEBUGLOG && $log->is_debug && $log->debug("--_hasSession - true");
             return 1;
         }
         else {
-            $log->debug("--_hasSession - false");
+            main::DEBUGLOG && $log->is_debug && $log->debug("--_hasSession - false");
             return;
         }
 
     }
     else {
-        $log->debug("--_hasSession - false");
+        main::DEBUGLOG && $log->is_debug && $log->debug("--_hasSession - false");
         return;
     }
 }
