@@ -746,7 +746,7 @@ sub _parseStationlist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $image ='http://radio-service-information.api.bbci.co.uk/logos/'. _getPidfromSoundsURN( $item->{urn} ). '/128x128.png';
+		my $image = _createNetworkLogoUrl($item->{network}->{logo_url});
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
@@ -1244,6 +1244,20 @@ sub _globalSearchItems {
 	);
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_globalSearchItems");
 	return \@items;
+}
+
+
+sub _createNetworkLogoUrl {
+	my $logoTemplate = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_createNetworkLogoUrl");
+
+	my $logoUrl = $logoTemplate;
+	$logoUrl =~ s/{type}/blocks-colour/ig;
+	$logoUrl =~ s/{size}/600x600/ig;
+	$logoUrl =~ s/{format}/png/ig;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_createNetworkLogoUrl");
+	return $logoUrl;
 }
 
 1;
