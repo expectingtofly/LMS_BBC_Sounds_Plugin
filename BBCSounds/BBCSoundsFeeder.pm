@@ -124,7 +124,7 @@ sub toplevel {
 					order => 4,
 				  };
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_cacheMenu( 'toplevel', $menu, 1200 );
+				_cacheMenu( 'toplevel', $menu, 2400 );
 				_renderMenuCodeRefs($menu);
 				$callback->($menu);
 			},
@@ -201,7 +201,7 @@ sub getPage {
 	}elsif ( $menuType eq 'daily' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/collections/p07fz59r/members/playable?experience=domestic';
 	}elsif ( $menuType eq 'tleo' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/items?'. $passDict->{'filter'}. '&offset='. $passDict->{'offset'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'}. '&offset='. $passDict->{'offset'};		
 		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category='. $passDict->{'category'}. '&sort=-release_date'. '&offset='. $passDict->{'offset'};
@@ -216,7 +216,6 @@ sub getPage {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/categories/container?kind='. $passDict->{'categorytype'};
 	}elsif ( $menuType eq 'childcategories' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/categories/' . $passDict->{'category'};
-
 	}elsif ( $menuType eq 'stationsdayschedule' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
 	}else {
@@ -1142,6 +1141,7 @@ sub _cacheMenu {
 
 sub _isFollowedActivity {
 	my $activities = shift;
+	$log->debug("++_isFollowedActivity " . Dumper($activities) );
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'follow_activity') {
@@ -1151,12 +1151,14 @@ sub _isFollowedActivity {
 			}
 		}
 	}
+	$log->debug("--_isFollowedActivity");
 	return;
 }
 
 
 sub _isFavouritedActivity {
-	my $activities = shift;
+	my $activities = shift;	
+	$log->debug("++_isFavouritedActivity " . Dumper($activities) );
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'favourite_activity') {
@@ -1166,6 +1168,7 @@ sub _isFavouritedActivity {
 			}
 		}
 	}
+	$log->debug("--_isFavouritedActivity ");
 	return;
 }
 

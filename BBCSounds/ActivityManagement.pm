@@ -29,167 +29,147 @@ use JSON::XS::VersionOneAndTwo;
 
 my $log = logger('plugin.bbcsounds');
 
+
 sub createActivity {
-    my ( $client, $callback, $args, $passDict ) = @_;
-    $log->debug("++createActivity");
+	my ( $client, $callback, $args, $passDict ) = @_;
+	$log->debug("++createActivity");
 
-    my $urn          = $passDict->{'urn'};
-    my $activitytype = $passDict->{'activitytype'};
-    my $menu         = [ { name => 'Failed to create ' . $activitytype } ];
+	my $urn          = $passDict->{'urn'};
+	my $activitytype = $passDict->{'activitytype'};
+	my $menu         = [ { name => 'Failed to create ' . $activitytype } ];
 
-    my $body = '{"urn":"' . $urn . '"}';
+	my $body = '{"urn":"' . $urn . '"}';
 
-    Plugins::BBCSounds::SessionManagement::renewSession(
-        sub {
-            my $session = Slim::Networking::Async::HTTP->new;
-            my $request =
-              HTTP::Request->new(
-                POST => 'https://rms.api.bbc.co.uk/v2/my/activities' );
-            $request->header( 'Content-Type' => 'application/json' );
-            $request->content($body);
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			my $session = Slim::Networking::Async::HTTP->new;
+			my $request =HTTP::Request->new(POST => 'https://rms.api.bbc.co.uk/v2/my/activities' );
+			$request->header( 'Content-Type' => 'application/json' );
+			$request->content($body);
 
-            $session->send_request(
-                {
-                    request => $request,
-                    onBody  => sub {
-                        my ( $http, $self ) = @_;
-                        my $res = $http->response;
-                        $log->debug( 'status - ' . $res->status_line );
+			$session->send_request(
+				{
+					request => $request,
+					onBody  => sub {
+						my ( $http, $self ) = @_;
+						my $res = $http->response;
+						$log->debug( 'status - ' . $res->status_line );
 
-                        if (   ( $res->code eq '202' )
-                            || ( $res->code eq '200' ) )
-                        {
-                            $menu = [ { name => "$activitytype succeeded" } ];
-                        }
-                        $callback->( { items => $menu } );
-                    },
-                    onError => sub {
-                        my ( $http, $self ) = @_;
+						if (   ( $res->code eq '202' )
+							|| ( $res->code eq '200' ) ){
+							$menu = [ { name => ucfirst($activitytype) . ' succeeded' } ];
+						}
+						$callback->( { items => $menu } );
+					},
+					onError => sub {
+						my ( $http, $self ) = @_;
 
-                        my $res = $http->response;
-                        $log->debug( 'Error status - ' . $res->status_line );
-                        $callback->( { items => $menu } );
-                    }
-                }
-            );
-        },
-        sub {
-            $callback->( { items => $menu } );
-        }
-    );
-    $log->debug("--createActivity");
-    return;
+						my $res = $http->response;
+						$log->debug( 'Error status - ' . $res->status_line );
+						$callback->( { items => $menu } );
+					}
+				}
+			);
+		},
+		sub {
+			$callback->( { items => $menu } );
+		}
+	);
+	$log->debug("--createActivity");
+	return;
 }
+
 
 sub heartBeat {
-    my $vpid = shift;
-    my $pid  = shift;
-    my $type = shift;
-    my $time = shift;
+	my $vpid = shift;
+	my $pid  = shift;
+	my $type = shift;
+	my $time = shift;
 
-    my $body =
-        '{"resource_type":"episode","pid":"'
-      . $pid
-      . '","version_pid":"'
-      . $vpid
-      . '","elapsed_time":'
-      . $time
-      . ',"action":"'
-      . $type . '"}';
+	my $body ='{"resource_type":"episode","pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';
 
-    $log->info( 'heartbeat  - ' . $body );
+	$log->info( 'heartbeat  - ' . $body );
 
-    Plugins::BBCSounds::SessionManagement::renewSession(
-        sub {
-            my $session = Slim::Networking::Async::HTTP->new;
-            my $request =
-              HTTP::Request->new(
-                POST => 'https://rms.api.bbc.co.uk/v2/my/programmes/plays' );
-            $request->header( 'Content-Type' => 'application/json' );
-            $request->content($body);
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			my $session = Slim::Networking::Async::HTTP->new;
+			my $request =HTTP::Request->new(POST => 'https://rms.api.bbc.co.uk/v2/my/programmes/plays' );
+			$request->header( 'Content-Type' => 'application/json' );
+			$request->content($body);
 
-            $session->send_request(
-                {
-                    request => $request,
-                    onBody  => sub {
-                        my ( $http, $self ) = @_;
-                        my $res = $http->response;
-                        $log->debug(
-                            'heartbeat status - ' . $res->status_line );
-                    },
-                    onError => sub {
-                        my ( $http, $self ) = @_;
+			$session->send_request(
+				{
+					request => $request,
+					onBody  => sub {
+						my ( $http, $self ) = @_;
+						my $res = $http->response;
+						$log->debug('heartbeat status - ' . $res->status_line );
+					},
+					onError => sub {
+						my ( $http, $self ) = @_;
 
-                        my $res = $http->response;
-                        $log->error(
-                            'Heartbeat Error status - ' . $res->status_line );
-                    }
-                }
-            );
-        },
-        sub {
-            $log->error('heartbeat failed');
-        }
-    );
+						my $res = $http->response;
+						$log->error('Heartbeat Error status - ' . $res->status_line );
+					}
+				}
+			);
+		},
+		sub {
+			$log->error('heartbeat failed');
+		}
+	);
 
 }
 
+
 sub deleteActivity {
-    my ( $client, $callback, $args, $passDict ) = @_;
-    $log->debug("++deleteActivity");
+	my ( $client, $callback, $args, $passDict ) = @_;
+	$log->debug("++deleteActivity");
 
-    my $urn          = $passDict->{'urn'};
-    my $activitytype = $passDict->{'activitytype'};
-    my $menu         = [ { name => 'Failed to remove ' . $activitytype } ];
+	my $urn          = $passDict->{'urn'};
+	my $activitytype = $passDict->{'activitytype'};
+	my $menu         = [ { name => 'Failed to remove ' . $activitytype } ];
+	
 
-    my $body = '{"urn":"' . $urn . '"}';
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			my $session = Slim::Networking::Async::HTTP->new;
+			my $request =HTTP::Request->new(DELETE => 'https://rms.api.bbc.co.uk/v2/my/activities/' . $urn );			
 
-    Plugins::BBCSounds::SessionManagement::renewSession(
-        sub {
-            my $session = Slim::Networking::Async::HTTP->new;
-            my $request =
-              HTTP::Request->new(
-                DELETE => 'https://rms.api.bbc.co.uk/v2/my/activities' );
-            $request->header( 'Content-Type' => 'application/json' );
-            $request->content($body);
+			$session->send_request(
+				{
+					request => $request,
+					onBody  => sub {
+						my ( $http, $self ) = @_;
+						my $res = $http->response;
+						$log->debug( 'status - ' . $res->status_line );
 
-            $session->send_request(
-                {
-                    request => $request,
-                    onBody  => sub {
-                        my ( $http, $self ) = @_;
-                        my $res = $http->response;
-                        $log->debug( 'status - ' . $res->status_line );
+						if (   ( $res->code eq '202' )
+							|| ( $res->code eq '200' ) ){
+							$menu = [
+								{
+									name => 'Removal of '. $activitytype. ' succeeded'
+								}
+							];
+						}
+						$callback->( { items => $menu } );
+					},
+					onError => sub {
+						my ( $http, $self ) = @_;
 
-                        if (   ( $res->code eq '202' )
-                            || ( $res->code eq '200' ) )
-                        {
-                            $menu = [
-                                {
-                                        name => 'removal of '
-                                      . $activitytype
-                                      . ' succeeded'
-                                }
-                            ];
-                        }
-                        $callback->( { items => $menu } );
-                    },
-                    onError => sub {
-                        my ( $http, $self ) = @_;
-
-                        my $res = $http->response;
-                        $log->debug( 'Error status - ' . $res->status_line );
-                        $callback->( { items => $menu } );
-                    }
-                }
-            );
-        },
-        sub {
-            $callback->( { items => $menu } );
-        }
-    );
-    $log->debug("--deleteActivity");
-    return;
+						my $res = $http->response;
+						$log->error( 'Error status - ' . $res->status_line );
+						$callback->( { items => $menu } );
+					}
+				}
+			);
+		},
+		sub {
+			$callback->( { items => $menu } );
+		}
+	);
+	$log->debug("--deleteActivity");
+	return;
 }
 
 1;
