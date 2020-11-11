@@ -30,6 +30,7 @@ use JSON::XS::VersionOneAndTwo;
 use POSIX qw(strftime);
 use HTTP::Date;
 use Digest::MD5 qw(md5_hex);
+use Slim::Utils::Strings qw(string cstring);
 
 use Data::Dumper;
 
@@ -43,9 +44,25 @@ my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
 
 
+sub init {
+	Slim::Menu::GlobalSearch->registerInfoProvider(
+		bbcsounds => (
+			func => sub {
+				my ( $client, $tags ) = @_;
+
+				return {
+					name  => cstring($client, Plugins::BBCSounds::Plugin::getDisplayName()),
+					items => [ map { delete $_->{image}; $_ } @{_globalSearchItems($client, $tags->{search})} ],
+				};
+			},
+		)
+	);
+}
+
+
 sub toplevel {
 	my ( $client, $callback, $args ) = @_;
-	$log->debug("++toplevel");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++toplevel");
 
 	my $menu = [];
 
@@ -109,7 +126,7 @@ sub toplevel {
 
 		];
 
-		$log->debug("fetching: $callurl");
+		main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
 		Slim::Networking::SimpleAsyncHTTP->new(
 			sub {
@@ -151,11 +168,11 @@ sub toplevel {
 	};
 
 	if ( my $cachemenu = _getCachedMenu('toplevel') ) {
-		$log->debug("Have cached menu");
+		main::DEBUGLOG && $log->is_debug && $log->debug("Have cached menu");
 		_renderMenuCodeRefs($cachemenu);
 		$callback->( { items => $cachemenu } );
 	}else {
-		$log->debug("No cache");
+		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
 		if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
 			Plugins::BBCSounds::SessionManagement::renewSession(
 				sub {
@@ -180,14 +197,14 @@ sub toplevel {
 		}
 	}
 
-	$log->debug("--toplevel");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--toplevel");
 	return;
 }
 
 
 sub getPage {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++getPage");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getPage");
 
 	my $menuType    = $passDict->{'type'};
 	my $callurl     = "";
@@ -201,14 +218,26 @@ sub getPage {
 	}elsif ( $menuType eq 'daily' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/collections/p07fz59r/members/playable?experience=domestic';
 	}elsif ( $menuType eq 'tleo' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'}. '&offset='. $passDict->{'offset'};		
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'}. '&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category='. $passDict->{'category'}. '&sort=-release_date'. '&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
 	}elsif ( $menuType eq 'search' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $args->{'search'} );
-		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr. '&format=suggest';
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
+		$cacheIt = 0;
+	}elsif ( $menuType eq 'searchshows' ) {
+		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
+		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/search/container?q='. $searchstr;
+		$cacheIt = 0;
+	}elsif ( $menuType eq 'searchepisodes' ) {
+		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
+		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/search/playable?q='. $searchstr;
+		$cacheIt = 0;
+	}elsif ( $menuType eq 'searchall' ) {
+		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
 		$cacheIt = 0;
 	}elsif ( $menuType eq 'mixes' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/tagged/'. $passDict->{'tag'}. '/playable?experience=domestic';
@@ -226,7 +255,7 @@ sub getPage {
 
 	$fetch = sub {
 
-		$log->debug("fetching: $callurl");
+		main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
 		Slim::Networking::SimpleAsyncHTTP->new(
 			sub {
@@ -246,22 +275,22 @@ sub getPage {
 	};
 
 	if ( $cacheIt && ( my $cachemenu = _getCachedMenu($callurl) ) ) {
-		$log->debug("Have cached menu");
+		main::DEBUGLOG && $log->is_debug && $log->debug("Have cached menu");
 		_renderMenuCodeRefs($cachemenu);
 		$callback->( { items => $cachemenu } );
 	}else {
-		$log->debug("No cache");
+		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
 		$fetch->();
 	}
 
-	$log->debug("--getPage");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getPage");
 	return;
 }
 
 
 sub getScheduleDates {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getScheduleDates");
 
 	my $now       = time();
 	my $stationid = $passDict->{'stationid'};
@@ -297,14 +326,14 @@ sub getScheduleDates {
 
 	}
 	$callback->( { items => $menu } );
-	$log->debug("--getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getScheduleDates");
 	return;
 }
 
 
 sub getPersonalisedPage {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++getPersonalisedPage");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getPersonalisedPage");
 
 	my $menuType = $passDict->{'type'};
 	my $callurl  = "";
@@ -326,12 +355,12 @@ sub getPersonalisedPage {
 
 	Plugins::BBCSounds::SessionManagement::renewSession(
 		sub {
-			$log->debug("fetching: $callurl");
+			main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
 			Slim::Networking::SimpleAsyncHTTP->new(
 				sub {
 					my $http = shift;
-					_parse( $http, $menuType, $menu, $denominator );
+					_parse( $http, $menuType, $menu, $denominator, $passDict );
 					_renderMenuCodeRefs($menu);
 					$callback->( { items => $menu } );
 				},
@@ -351,14 +380,14 @@ sub getPersonalisedPage {
 		}
 	);
 
-	$log->debug("--getPersonalisedPage");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getPersonalisedPage");
 	return;
 }
 
 
 sub getJSONMenu {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++getJSONMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getJSONMenu");
 
 	my $menu     = [];
 	my $menuType = $passDict->{'type'};
@@ -374,7 +403,7 @@ sub getJSONMenu {
 		$callback->( { items => $menu } );
 	}
 
-	$log->debug("--getJSONMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getJSONMenu");
 	return;
 }
 
@@ -404,7 +433,7 @@ sub getPidDataForMeta {
 
 sub getSubMenu {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++getSubMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getSubMenu");
 
 	my $menuType = $passDict->{'type'};
 
@@ -541,20 +570,20 @@ sub getSubMenu {
 	}
 
 	$callback->( { items => $menu } );
-	$log->debug("--getSubMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getSubMenu");
 	return;
 }
 
 
 sub initSignin {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++initSignin");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++initSignin");
 	my $menu = [];
 
 	Plugins::BBCSounds::SessionManagement::signIn(
 		sub {
 
-			$log->debug("Sign In Succeeded");
+			main::DEBUGLOG && $log->is_debug && $log->debug("Sign In Succeeded");
 			$menu = [
 				{
 					name => 'Sign In Succeeded'
@@ -564,7 +593,7 @@ sub initSignin {
 		},
 		sub {
 
-			$log->debug("Sign In Failed");
+			main::DEBUGLOG && $log->is_debug && $log->debug("Sign In Failed");
 			$menu = [
 				{
 					name => 'Sign In Failed'
@@ -573,20 +602,20 @@ sub initSignin {
 			$callback->( { items => $menu } );
 		}
 	);
-	$log->debug("--initSignin");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--initSignin");
 	return;
 }
 
 
 sub initSignout {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	$log->debug("++initSignout");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++initSignout");
 	my $menu = [];
 
 	Plugins::BBCSounds::SessionManagement::signOut(
 		sub {
 
-			$log->debug("Sign Out Succeeded");
+			main::DEBUGLOG && $log->is_debug && $log->debug("Sign Out Succeeded");
 			$menu = [
 				{
 					name => 'Sign Out Succeeded'
@@ -596,7 +625,7 @@ sub initSignout {
 		},
 		sub {
 
-			$log->debug("Sign Out Failed");
+			main::DEBUGLOG && $log->is_debug && $log->debug("Sign Out Failed");
 			$menu = [
 				{
 					name => 'Sign Out Failed'
@@ -605,7 +634,7 @@ sub initSignout {
 			$callback->( { items => $menu } );
 		}
 	);
-	$log->debug("--initSignout");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--initSignout");
 	return;
 }
 
@@ -616,54 +645,40 @@ sub _parse {
 	my $menu        = shift;
 	my $denominator = shift;
 	my $passthrough = shift;
-	$log->debug("++parse");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++parse");
 
 	if ( $optstr eq 'live' ) {
 		_parseLiveStations( $http->contentRef, $menu );
-	}elsif ( $optstr eq 'daily' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'editorial' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'priority_brands' ), $menu );
-	}elsif ( $optstr eq 'search' ) {
+	}elsif (( $optstr eq 'search' )
+		|| ( $optstr eq 'searchall' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'container_search' ), $menu );
 		_parseItems( _getDataNode( $JSON->{data}, 'playable_search' ),  $menu );
 	}elsif ( $optstr eq 'mixes' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
-	}elsif ( $optstr eq 'tleo' ) {
+	}elsif (( $optstr eq 'tleo' )
+		|| ( $optstr eq 'container' )
+		|| ( $optstr eq 'latest' )
+		|| ( $optstr eq 'bookmarks' )
+		|| ( $optstr eq 'daily' )
+		|| ( $optstr eq 'subscribed' )
+		|| ( $optstr eq 'recommended' )
+		|| ( $optstr eq 'continue' )
+		|| ( $optstr eq 'searchepisodes')
+		|| ( $optstr eq 'searchshows' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
 		_createOffset( $JSON, $passthrough, $menu );
-	}elsif ( $optstr eq 'container' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-		_createOffset( $JSON, $passthrough, $menu );
-	}elsif ( $optstr eq 'categories' ) {
+	}elsif( $optstr eq 'categories' )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseCategories( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'childcategories' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseChildCategories( $JSON, $menu );
-
-	}elsif ( $optstr eq 'latest' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-	}elsif ( $optstr eq 'bookmarks' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-	}elsif ( $optstr eq 'subscribed' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-	}elsif ( $optstr eq 'recommended' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-	}elsif ( $optstr eq 'continue' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
-		_createOffset( $JSON, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationlist' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseStationlist( _getDataNode( $JSON->{data}, 'promoted_stations' ),$menu );
@@ -671,12 +686,11 @@ sub _parse {
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
-
 	}else {
 		$log->error("Invalid BBC HTML Parse option");
 	}
 
-	$log->debug("--parse");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--parse");
 	return;
 }
 
@@ -684,7 +698,7 @@ sub _parse {
 sub _getDataNode {
 	my $json = shift;
 	my $id   = shift;
-	$log->debug("--_getDataNode");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getDataNode");
 
 	my $item = [];
 
@@ -693,7 +707,7 @@ sub _getDataNode {
 			$item = $top->{data};
 		}
 	}
-	$log->debug("--_getDataNode");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getDataNode");
 	return $item;
 }
 
@@ -701,7 +715,7 @@ sub _getDataNode {
 sub _parseItems {
 	my $jsonData = shift;
 	my $menu     = shift;
-	$log->debug("++_parseItems");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
 	my $size = scalar @$jsonData;
 
 	$log->info("Number of items : $size ");
@@ -716,7 +730,7 @@ sub _parseItems {
 			_parseBroadcastItem( $item, $menu );
 		}
 	}
-	$log->debug("--_parseItems");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseItems");
 	return;
 }
 
@@ -724,10 +738,10 @@ sub _parseItems {
 sub _parseStationlist {
 	my $jsonData = shift;
 	my $menu     = shift;
-	$log->debug("++_parseStationlist");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseStationlist");
 	my $size = scalar @$jsonData;
 
-	$log->debug( 'dump' . Dumper($jsonData) );
+	main::DEBUGLOG && $log->is_debug && $log->debug( 'dump' . Dumper($jsonData) );
 
 	$log->info("Number of items : $size ");
 
@@ -748,7 +762,7 @@ sub _parseStationlist {
 			],
 		  };
 	}
-	$log->debug("--_parseStationlist");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseStationlist");
 	return;
 }
 
@@ -756,7 +770,7 @@ sub _parseStationlist {
 sub _parsePlayableItem {
 	my $item = shift;
 	my $menu = shift;
-	$log->debug("++_parsePlayableItem");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parsePlayableItem");
 
 	my $title1 = $item->{titles}->{primary};
 	my $title2 = $item->{titles}->{secondary};
@@ -799,7 +813,7 @@ sub _parsePlayableItem {
 sub _parseBroadcastItem {
 	my $item = shift;
 	my $menu = shift;
-	$log->debug("++_parseBroadcastItem");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseBroadcastItem");
 
 	my $title1 = $item->{titles}->{primary};
 	my $title2 = $item->{titles}->{secondary};
@@ -822,7 +836,7 @@ sub _parseBroadcastItem {
 		passthrough =>[ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
 	  };
 
-	$log->debug("--_parseBroadcastItem");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
 	return;
 }
 
@@ -832,7 +846,7 @@ sub _createOffset {
 	my $passthrough = shift;
 	my $menu        = shift;
 
-	$log->debug("++_createOffset");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_createOffset");
 
 	if ( defined $json->{offset} ) {
 		my $offset = $json->{offset};
@@ -857,7 +871,7 @@ sub _createOffset {
 
 		}
 	}
-	$log->debug("--_createOffset");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_createOffset");
 	return;
 }
 
@@ -865,7 +879,7 @@ sub _createOffset {
 sub _parseContainerItem {
 	my $podcast = shift;
 	my $menu    = shift;
-	$log->debug("++_parseContainerItem");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseContainerItem");
 
 	my $title = $podcast->{titles}->{primary};
 	my $desc  = $podcast->{synopses}->{short};
@@ -890,7 +904,7 @@ sub _parseContainerItem {
 		],
 	  };
 
-	$log->debug("--_parseContainerItem");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseContainerItem");
 	return;
 }
 
@@ -898,7 +912,7 @@ sub _parseContainerItem {
 sub _parseCategories {
 	my $jsonData = shift;
 	my $menu     = shift;
-	$log->debug("++_parseCategories");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseCategories");
 
 	my $size = scalar @$jsonData;
 
@@ -924,7 +938,7 @@ sub _parseCategories {
 		  };
 	}
 
-	$log->debug("--_parseCategories");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseCategories");
 	return;
 }
 
@@ -933,7 +947,7 @@ sub _parseChildCategories {
 	my $json = shift;
 	my $menu = shift;
 
-	$log->debug("++_parseChildCategories");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseChildCategories");
 
 	my $catId    = $json->{id};
 	my $catTitle = $json->{title};
@@ -972,47 +986,47 @@ sub _parseChildCategories {
 		],
 	  };
 
-	$log->debug("--_parseChildCategories");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseChildCategories");
 	return;
 }
 
 
 sub _getPidfromImageURL {
 	my $url = shift;
-	$log->debug("++_getPidfromImageURL");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPidfromImageURL");
 
-	$log->debug("url to create pid : $url");
+	main::DEBUGLOG && $log->is_debug && $log->debug("url to create pid : $url");
 	my @pid = split /\//x, $url;
 	my $pid = pop(@pid);
 	$pid = substr $pid, 0, -4;
 
-	$log->debug("--_getPidfromImageURL - $pid");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPidfromImageURL - $pid");
 	return $pid;
 }
 
 
 sub _getPidfromSoundsURN {
 	my $urn = shift;
-	$log->debug("++_getPidfromSoundsURN");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPidfromSoundsURN");
 
-	$log->debug("urn to create pid : $urn");
+	main::DEBUGLOG && $log->is_debug && $log->debug("urn to create pid : $urn");
 	my @pid = split /:/x, $urn;
 	my $pid = pop(@pid);
 
-	$log->debug("--_getPidfromSoundsURN - $pid");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPidfromSoundsURN - $pid");
 	return $pid;
 }
 
 
 sub _parseEditorialTitle {
 	my $htmlref = shift;
-	$log->debug("++_parseEditorialTitle");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseEditorialTitle");
 
 	my $edJSON = decode_json $$htmlref;
 	my $title =
 	  $edJSON->{titles}->{primary} . ' - ' . $edJSON->{synopses}->{short};
 
-	$log->debug("--_parseEditorialTitle - $title");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseEditorialTitle - $title");
 	return $title;
 }
 
@@ -1020,7 +1034,7 @@ sub _parseEditorialTitle {
 sub _getPlayableItemMenu {
 	my $JSON = shift;
 	my $menu = shift;
-	$log->debug("++_getPlayableItemMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPlayableItemMenu");
 	my $item = $JSON;
 	if (defined $JSON->{'playable_item'}) {
 		$item = $JSON->{'playable_item'};
@@ -1103,23 +1117,23 @@ sub _getPlayableItemMenu {
 		};
 	}
 
-	$log->debug("--_getPlayableItemMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
 }
 
 
 sub _getCachedMenu {
 	my $url = shift;
-	$log->debug("++_getCachedMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_getCachedMenu");
 
 	my $cacheKey = 'BS:' . md5_hex($url);
 
 	if ( my $cachedMenu = $cache->get($cacheKey) ) {
 		my $menu = ${$cachedMenu};
-		$log->debug("--_getCachedMenu got cached menu");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--_getCachedMenu got cached menu");
 		return $menu;
 	}else {
-		$log->debug("--_getCachedMenu no cache");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--_getCachedMenu no cache");
 		return;
 	}
 }
@@ -1129,19 +1143,19 @@ sub _cacheMenu {
 	my $url  = shift;
 	my $menu = shift;
 	my $seconds = shift;
-	$log->debug("++_cacheMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_cacheMenu");
 	my $cacheKey = 'BS:' . md5_hex($url);
 
 	$cache->set( $cacheKey, \$menu, $seconds );
 
-	$log->debug("--_cacheMenu");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_cacheMenu");
 	return;
 }
 
 
 sub _isFollowedActivity {
 	my $activities = shift;
-	$log->debug("++_isFollowedActivity " . Dumper($activities) );
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFollowedActivity " . Dumper($activities) );
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'follow_activity') {
@@ -1151,14 +1165,14 @@ sub _isFollowedActivity {
 			}
 		}
 	}
-	$log->debug("--_isFollowedActivity");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_isFollowedActivity");
 	return;
 }
 
 
 sub _isFavouritedActivity {
-	my $activities = shift;	
-	$log->debug("++_isFavouritedActivity " . Dumper($activities) );
+	my $activities = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFavouritedActivity " . Dumper($activities) );
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'favourite_activity') {
@@ -1168,14 +1182,14 @@ sub _isFavouritedActivity {
 			}
 		}
 	}
-	$log->debug("--_isFavouritedActivity ");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_isFavouritedActivity ");
 	return;
 }
 
 
 sub _renderMenuCodeRefs {
 	my $menu = shift;
-	$log->debug("++_renderMenuCodeRefs");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs");
 
 	for my $menuItem (@$menu) {
 		my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
@@ -1202,8 +1216,34 @@ sub _renderMenuCodeRefs {
 		}
 
 	}
-	$log->debug("--_renderMenuCodeRefs");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
 	return;
+}
+
+
+sub _globalSearchItems {
+	my ($client, $query) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_globalSearchItems");
+
+	my @items = (
+		{
+			name  => 'Search Shows',
+			url   => \&getPage,
+			passthrough => [ { type => 'searchshows', codeRef => 'getPage', query => $query } ]
+		},
+		{
+			name  => 'Search Episodes',
+			url   => \&getPage,
+			passthrough => [ { type => 'searchepisodes', codeRef => 'getPage',query => $query } ]
+		},
+		{
+			name  => 'Search All',
+			url   => \&getPage,
+			passthrough => [ { type => 'searchall', codeRef => 'getPage', query => $query } ]
+		}
+	);
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_globalSearchItems");
+	return \@items;
 }
 
 1;

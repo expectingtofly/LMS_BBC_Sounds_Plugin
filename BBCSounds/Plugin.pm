@@ -57,6 +57,13 @@ sub initPlugin {
     return;
 }
 
+## not sure why we need the main::transcoding.  doing just in case.
+sub postinitPlugin {if (main::TRANSCODING) {
+	my $class = shift;
+
+	Plugins::BBCSounds::BBCSoundsFeeder::init();
+} }
+
 sub getDisplayName { return 'PLUGIN_BBCSOUNDS'; }
 
 1;
