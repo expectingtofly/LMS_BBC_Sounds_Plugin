@@ -1,3 +1,5 @@
+package Plugins::BBCSounds::Utilities;
+
 # Copyright (C) 2020 mcleanexpectingtofly
 # 
 # This file is part of LMS_BBC_Sounds_Plugin.
@@ -15,10 +17,12 @@
 # You should have received a copy of the GNU General Public License
 # along with LMS_BBC_Sounds_Plugin.  If not, see <http://www.gnu.org/licenses/>.
 
-package Plugins::BBCSounds::Utilities;
+
 
 use warnings;
 use strict;
+
+use Slim::Utils::Log;
 
 my $log = logger('plugin.bbcsounds');
 

@@ -1,21 +1,21 @@
+package Plugins::BBCSounds::BBCSoundsFeeder;
+
 # Copyright (C) 2020 mcleanexpectingtofly
-# 
+#
 # This file is part of LMS_BBC_Sounds_Plugin.
-# 
+#
 # LMS_BBC_Sounds_Plugin is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # LMS_BBC_Sounds_Plugin is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with LMS_BBC_Sounds_Plugin.  If not, see <http://www.gnu.org/licenses/>.
-
-package Plugins::BBCSounds::BBCSoundsFeeder;
 
 use warnings;
 use strict;
@@ -36,7 +36,7 @@ use Data::Dumper;
 use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
-use Plugins::BBCSounds::Utilities qw(createNetworkLogoUrl);
+use Plugins::BBCSounds::Utilities;
 
 my $log = logger('plugin.bbcsounds');
 
@@ -288,13 +288,23 @@ sub getPage {
 }
 
 
-sub getScheduleDates {
+sub getStationMenu {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getStationMenu");
 
 	my $now       = time();
 	my $stationid = $passDict->{'stationid'};
-	my $menu      = [];
+	my $NetworkDetails = $passDict->{'networkDetails'};
+
+	my $menu      = [
+		{
+			name        => $NetworkDetails->{short_title} . ' LIVE',
+			type        => 'audio',
+			icon        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+			url         => 'sounds://_LIVE_'. $stationid,
+			on_select   => 'play'
+		}
+	];
 
 	for ( my $i = 0 ; $i < 30 ; $i++ ) {
 		my $d = '';
@@ -326,7 +336,7 @@ sub getScheduleDates {
 
 	}
 	$callback->( { items => $menu } );
-	main::DEBUGLOG && $log->is_debug && $log->debug("--getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getStationMenu");
 	return;
 }
 
@@ -746,7 +756,7 @@ sub _parseStationlist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $image = createNetworkLogoUrl($item->{network}->{logo_url});
+		my $image = Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url});
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
@@ -757,7 +767,8 @@ sub _parseStationlist {
 				{
 					type      => 'stationschedule',
 					stationid => $item->{id},
-					codeRef   => 'getScheduleDates'
+					codeRef   => 'getStationMenu',
+					networkDetails => $item->{network}
 				}
 			],
 		  };
@@ -1198,8 +1209,8 @@ sub _renderMenuCodeRefs {
 				$menuItem->{'url'} = \&getPage;
 			}elsif ( $codeRef eq 'getSubMenu' ) {
 				$menuItem->{'url'} = \&getSubMenu;
-			}elsif ( $codeRef eq 'getScheduleDates' ) {
-				$menuItem->{'url'} = \&getScheduleDates;
+			}elsif ( $codeRef eq 'getStationMenu' ) {
+				$menuItem->{'url'} = \&getStationMenu;
 			}elsif ( $codeRef eq 'getJSONMenu' ) {
 				$menuItem->{'url'} = \&getJSONMenu;
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
