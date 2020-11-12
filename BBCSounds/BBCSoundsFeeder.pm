@@ -1,22 +1,21 @@
-package Plugins::BBCSounds::BBCSoundsFeeder;
+# Copyright (C) 2020 mcleanexpectingtofly
+# 
+# This file is part of LMS_BBC_Sounds_Plugin.
+# 
+# LMS_BBC_Sounds_Plugin is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# LMS_BBC_Sounds_Plugin is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with LMS_BBC_Sounds_Plugin.  If not, see <http://www.gnu.org/licenses/>.
 
-# (c) stu@expectingtofly.co.uk
-#
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
-#
+package Plugins::BBCSounds::BBCSoundsFeeder;
 
 use warnings;
 use strict;
@@ -37,6 +36,7 @@ use Data::Dumper;
 use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
+use Plugins::BBCSounds::Utilities qw(createNetworkLogoUrl);
 
 my $log = logger('plugin.bbcsounds');
 
@@ -746,7 +746,7 @@ sub _parseStationlist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $image = _createNetworkLogoUrl($item->{network}->{logo_url});
+		my $image = createNetworkLogoUrl($item->{network}->{logo_url});
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
@@ -1246,18 +1246,5 @@ sub _globalSearchItems {
 	return \@items;
 }
 
-
-sub _createNetworkLogoUrl {
-	my $logoTemplate = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_createNetworkLogoUrl");
-
-	my $logoUrl = $logoTemplate;
-	$logoUrl =~ s/{type}/blocks-colour/ig;
-	$logoUrl =~ s/{size}/600x600/ig;
-	$logoUrl =~ s/{format}/png/ig;
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_createNetworkLogoUrl");
-	return $logoUrl;
-}
 
 1;
