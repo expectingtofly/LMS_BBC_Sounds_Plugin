@@ -363,6 +363,7 @@ sub getNextTrack {
 	  && $log->info("url: $url master: $masterUrl");
 
 	push @allowDASH,([ 'audio_eng=320000',  'aac', 320_000 ],[ 'audio_eng=128000',  'aac', 128_000 ],[ 'audio_eng_1=96000', 'aac', 96_000 ],[ 'audio_eng_1=48000', 'aac', 48_000 ]);
+	push @allowDASH,([ 'audio_eng=96000', 'aac', 96_000 ],[ 'audio_eng=48000', 'aac', 48_000 ]);
 	@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
 
 	my $dashmpd = $url;
