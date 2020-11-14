@@ -5,8 +5,8 @@
 	<module>Plugins::BBCSounds::Plugin</module>
 	<version>2.1.1</version>
 	<description>PLUGIN_BBCSOUNDS_DESC</description>
-	<creator>expectingtofly</creator>
-	<email></email>
+	<creator>ExpectingToFly</creator>
+	<email>stu@expectingtofly.co.uk</email>
 	<icon>plugins/BBCSounds/html/images/BBCSounds.png</icon>
 	<defaultState>enabled</defaultState>
 	<targetApplication>
