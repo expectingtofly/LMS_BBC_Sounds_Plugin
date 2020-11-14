@@ -69,7 +69,9 @@ sub canDoAction {
 
 	main::INFOLOG && $log->is_info && $log->info("action=$action");
 	if ( $action eq 'pause' ) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($url),Plugins::BBCSounds::ProtocolHandler->getPid($url),'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
+		if (!($class->isLive($url))) {
+			Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($url),Plugins::BBCSounds::ProtocolHandler->getPid($url),'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
+		}
 	}
 
 	return 1;
@@ -182,7 +184,9 @@ sub onStream {
 	my $meta = $cache->get("bs:meta-$id") || {};
 
 	#perform starting heartbeat
-	Plugins::BBCSounds::ActivityManagement::heartBeat($id,       Plugins::BBCSounds::ProtocolHandler->getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
+	if (!($class->isLive($url))) {
+		Plugins::BBCSounds::ActivityManagement::heartBeat($id,       Plugins::BBCSounds::ProtocolHandler->getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
+	}
 
 	$nextHeartbeat = time() + 30;
 
@@ -240,15 +244,30 @@ sub sysread {
 		return undef;
 	}
 
+
 	# need more data
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ){
 		my $url = $baseURL;
 		my @range;
+		if ($props->{isDynamic}) {
+
+			#check if we can get more if not leave
+			my $edge = ((($v->{'offset'} - $props->{startNumber}) * ($props->{segmentDuration} / $props->{segmentTimescale})) + $props->{comparisonTime});
+			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. time());
+			if ($edge > time()){
+
+				#bail
+				main::DEBUGLOG && $log->is_debug && $log->debug('bailing');
+				$! = EINTR;
+				return undef;
+			}
+		}
+
 
 		$url .= $props->{'segmentURL'};
-		my $replOffset = ( $v->{'offset'} + 1 );
+		my $replOffset = ( $v->{'offset'} );
 
 		$url =~ s/\$Number\$/$replOffset/;
 		$v->{'offset'}++;
@@ -297,7 +316,9 @@ sub sysread {
 		if ( time() > $nextHeartbeat ) {
 			my $song      = ${*$self}{'song'};
 			my $masterUrl = $song->track()->url;
-			Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
+			if (!($self->isLive($masterUrl))) {
+				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
+			}
 			$nextHeartbeat = time() + 30;
 		}
 		$! = EINTR;
@@ -351,10 +372,15 @@ sub getNextTrack {
 	$song->pluginData( lastpos => ( $masterUrl =~ /&lastpos=([\d]+)/ )[0]|| 0 );
 	$masterUrl =~ s/&.*//;
 
-	my $id = $class->getId($masterUrl);
+	my $url ='';
+	if ($class->isLive($masterUrl)) {
+		my $stationid = $class->getStationID($masterUrl);
+		$url ='http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/dash/uk/dash_full/llnws/' . $stationid . '.mpd';
 
-	#sm	  sounds://PID
-	my $url ='http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/'. $id;
+	}else{
+		my $id = $class->getId($masterUrl);
+		$url ='http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/'. $id;
+	}
 
 	my @allowDASH = ();
 
@@ -362,7 +388,7 @@ sub getNextTrack {
 	  && $log->is_info
 	  && $log->info("url: $url master: $masterUrl");
 
-	push @allowDASH,([ 'audio_eng=320000',  'aac', 320_000 ],[ 'audio_eng=128000',  'aac', 128_000 ],[ 'audio_eng_1=96000', 'aac', 96_000 ],[ 'audio_eng_1=48000', 'aac', 48_000 ]);
+	push @allowDASH,([ 'audio_eng=320000',  'aac', 320_000 ],[ 'audio=320000',  'aac', 320_000 ],[ 'audio_eng=128000',  'aac', 128_000 ],[ 'audio=128000',  'aac', 128_000 ],[ 'audio_eng_1=96000', 'aac', 96_000 ],[ 'audio=96000', 'aac', 96_000 ],[ 'audio_eng_1=48000', 'aac', 48_000 ],[ 'audio=48000', 'aac', 48_000 ]);
 	@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
 
 	my $dashmpd = $url;
@@ -385,6 +411,10 @@ sub getMPD {
 
 	my $session = Slim::Networking::Async::HTTP->new;
 	my $mpdrequest = HTTP::Request->new( GET => $dashmpd );
+
+	main::INFOLOG
+	  && $log->is_info
+	  && $log->info("In Get MPD");
 	$session->send_request(
 		{
 			request => $mpdrequest,
@@ -394,7 +424,11 @@ sub getMPD {
 				my $req = $http->request;
 
 				my $endURI = URI->new( $res->base );
-				my $startBase ='http://' . $endURI->host . dirname( $endURI->path ) . '/';
+
+				main::INFOLOG
+				  && $log->is_info
+				  && $log->info("have mpd");
+
 
 				my $selIndex;
 				my ( $selRepres, $selAdapt );
@@ -404,6 +438,19 @@ sub getMPD {
 					ForceContent => 1,
 					ForceArray =>[ 'AdaptationSet', 'Representation', 'Period' ]
 				);
+
+				#if not dynamic then we start from a relative position.
+				my $startBase = '';
+				if ($mpd->{'type'} eq 'static') {
+					$startBase ='http://' . $endURI->host . dirname( $endURI->path ) . '/';
+				}
+
+
+				main::INFOLOG
+				  && $log->is_info
+				  && $log->info(Dumper($mpd));
+
+
 				my $period        = $mpd->{'Period'}[0];
 				my $adaptationSet = $period->{'AdaptationSet'};
 
@@ -437,9 +484,18 @@ sub getMPD {
 				  && $log->is_info
 				  && $log->info("selected $selRepres->{'id'}");
 
+				my $timeShiftDepth	= $mpd->{'timeShiftBufferDepth'};
+				my ($misc, $hour, $min, $sec) = $timeShiftDepth =~ /P(?:([^T]*))T(?:(\d+)H)?(?:(\d+)M)?(?:([+-]?([0-9]*[.])?[0-9]+)S)?/;
+				$timeShiftDepth	= ($sec || 0) + (($min || 0) * 60) + (($hour || 0) * 3600);
+
 				my $duration = $mpd->{'mediaPresentationDuration'};
 				my ( $misc, $hour, $min, $sec ) = $duration =~/P(?:([^T]*))T(?:(\d+)H)?(?:(\d+)M)?(?:([+-]?([0-9]*[.])?[0-9]+)S)?/;
 				$duration =( $sec || 0 ) +( ( $min  || 0 ) * 60 ) +( ( $hour || 0 ) * 3600 );
+
+				my $scaleDuration	= $selAdapt->{'SegmentTemplate'}->{'duration'};
+				my $timescale 		= $selAdapt->{'SegmentTemplate'}->{'timescale'};
+				$duration = $scaleDuration / $timescale if $scaleDuration;
+
 
 				main::INFOLOG
 				  && $log->is_info
@@ -447,19 +503,21 @@ sub getMPD {
 
 				my $props = {
 					format       => $$allow[$selIndex][1],
+					isDynamic  =>  ($mpd->{'type'} eq 'dynamic'),
 					updatePeriod => 0,
-					baseURL      => $startBase. ($selRepres->{'BaseURL'}->{'content'}// $selAdapt->{'BaseURL'}->{'content'}// $period->{'BaseURL'}->{'content'}// $mpd->{'BaseURL'}->{'content'}),
+					baseURL      => $startBase . ($period->{'BaseURL'}->{'content'} // $mpd->{'BaseURL'}->{'content'}),
 					segmentTimescale =>$selRepres->{'SegmentTemplate'}->{'timescale'}// $selAdapt->{'SegmentTemplate'}->{'timescale'}// $period->{'SegmentTemplate'}->{'timescale'},
 					segmentDuration =>$selRepres->{'SegmentTemplate'}->{'duration'}// $selAdapt->{'SegmentTemplate'}->{'duration'}// $period->{'SegmentTemplate'}->{'duration'},
 					segmentURL => $selRepres->{'SegmentTemplate'}->{'media'}// $selAdapt->{'SegmentTemplate'}->{'media'}// $period->{'SegmentTemplate'}->{'media'},
 					initializeURL =>$selRepres->{'SegmentTemplate'}->{'initialization'}// $selAdapt->{'SegmentTemplate'}->{'initialization'}// $period->{'SegmentTemplate'}->{'initialization'},
-					endNumber    => 1,
-					startNumber  => 1,
+					endNumber    => 0,
+					startNumber  => $selAdapt->{'SegmentTemplate'}->{'startNumber'} // 0,
 					samplingRate => $selRepres->{'audioSamplingRate'}// $selAdapt->{'audioSamplingRate'},
-					channels =>$selRepres->{'AudioChannelConfiguration'}->{'value'}// $selAdapt->{'AudioChannelConfiguration'}->{'value'},
+					channels =>  	$selRepres->{'AudioChannelConfiguration'}->{'value'}// $selAdapt->{'AudioChannelConfiguration'}->{'value'},
 					bitrate        => $selRepres->{'bandwidth'},
 					duration       => $duration,
-					timescale      => 1,
+					timescale      => $timescale || 1,
+					comparisonTime => 0,
 					timeShiftDepth => 0,
 					mpd            => {
 						url      => $dashmpd,
@@ -472,9 +530,38 @@ sub getMPD {
 				#fix urls
 				$props->{initializeURL} =~s/\$RepresentationID\$/$selRepres->{id}/;
 				$props->{segmentURL} =~s/\$RepresentationID\$/$selRepres->{id}/;
-				$props->{endNumber} = ceil($duration / ($props->{segmentDuration} / $props->{segmentTimescale}));
 
-				$cb->($props);
+				#force http
+				$props->{baseURL} =~s/https:/http:/;
+
+				if ($mpd->{'type'} eq 'dynamic') {
+					main::DEBUGLOG && $log->is_debug && $log->debug('dynamic');
+
+					#dynamic
+					_getDashUTCTime(
+						$mpd->{'UTCTiming'}->{'value'},
+						sub {
+							my $epochTime = shift;
+							$props->{comparisonTime} = time();
+							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime});
+
+							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
+							$props->{startNumber} = $index + $props->{startNumber} - 1;
+							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
+							$cb->($props);
+						},
+						sub {
+							$log->error('Failed to get dash time ' . $mpd->{'UTCTiming'}->{'value'});
+							$cb->();
+						}
+					);
+				} else {
+
+					#static
+					$props->{endNumber} = ceil($duration / ($props->{segmentDuration} / $props->{segmentTimescale}));
+					$cb->($props);
+
+				}
 			},
 			onError => sub {
 				$log->error("cannot get MPD file $dashmpd");
@@ -518,54 +605,57 @@ sub getMetadataFor {
 			cover => $icon,
 		};
 	}
+	if (!($class->isLive($url))) {
 
-	# Fetch metadata for Sounds Item
 
-	$client->master->pluginData( fetchingBSMeta => 1 );
+		# Fetch metadata for Sounds Item
 
-	Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
-		$pid,
-		sub {
-			my $json  = shift;
-			my $title = $json->{'titles'}->{'primary'};
-			if ( defined $json->{'titles'}->{'secondary'} ) {
-				$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+		$client->master->pluginData( fetchingBSMeta => 1 );
+
+		Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
+			$pid,
+			sub {
+				my $json  = shift;
+				my $title = $json->{'titles'}->{'primary'};
+				if ( defined $json->{'titles'}->{'secondary'} ) {
+					$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+				}
+				if ( defined $json->{'titles'}->{'tertiary'} ) {
+					$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
+				}
+				my $image = $json->{'image_url'};
+				$image =~ s/{recipe}/320x320/;
+				my $syn = '';
+				if ( defined $json->{'synopses'}->{'medium'} ) {
+					$syn = $json->{'synopses'}->{'medium'};
+				}
+				my $meta = {
+					title    => $title,
+					artist   => $syn,
+					duration => $json->{'duration'}->{'value'},
+					icon     => $image,
+					cover    => $image,
+					type     => 'BBCSounds',
+				};
+
+				$cache->set( "bs:meta-" . $id, $meta, 86400 );
+				$client->master->pluginData( fetchingBSMeta => 0 );
+			},
+			sub {
+				my $meta = {
+					type  => 'BBCSounds',
+					title => $url,
+					icon  => $icon,
+					cover => $icon,
+				};
+
+				#an error occurred lets just cache the default menu for 5 mins then it will try later so we don't flood
+				$cache->set( "bs:meta-" . $id, $meta, 300 );
+				$client->master->pluginData( fetchingBSMeta => 0 );
+
 			}
-			if ( defined $json->{'titles'}->{'tertiary'} ) {
-				$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
-			}
-			my $image = $json->{'image_url'};
-			$image =~ s/{recipe}/320x320/;
-			my $syn = '';
-			if ( defined $json->{'synopses'}->{'medium'} ) {
-				$syn = $json->{'synopses'}->{'medium'};
-			}
-			my $meta = {
-				title    => $title,
-				artist   => $syn,
-				duration => $json->{'duration'}->{'value'},
-				icon     => $image,
-				cover    => $image,
-				type     => 'BBCSounds',
-			};
-
-			$cache->set( "bs:meta-" . $id, $meta, 86400 );
-			$client->master->pluginData( fetchingBSMeta => 0 );
-		},
-		sub {
-			my $meta = {
-				type  => 'BBCSounds',
-				title => $url,
-				icon  => $icon,
-				cover => $icon,
-			};
-
-			#an error occurred lets just cache the default menu for 5 mins then it will try later so we don't flood
-			$cache->set( "bs:meta-" . $id, $meta, 300 );
-			$client->master->pluginData( fetchingBSMeta => 0 );
-
-		}
-	);
+		);
+	}
 
 	return {
 		type  => 'BBCSounds',
@@ -580,6 +670,47 @@ sub getIcon {
 	my ( $class, $url ) = @_;
 
 	return Plugins::BBCSounds::Plugin->_pluginDataFor('icon');
+}
+
+
+sub isLive {
+	my ( $class, $url ) = @_;
+
+	my @pid  = split /_/x, $url;
+	if ( @pid[1] eq 'LIVE') {
+		return 1;
+	}else {
+
+		return;
+	}
+}
+
+
+sub _getDashUTCTime {
+	my $url  = shift;
+	my $cbY  = shift;
+	my $cbN  = shift;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug('utc time ' . $url);
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug(${ $http->contentRef });
+			$cbY->(str2time(${ $http->contentRef }));
+		},
+		sub {
+			$cbN->();
+		}
+	)->get($url);
+}
+
+
+sub getStationID {
+	my ( $class, $url ) = @_;
+
+	my @stationid  = split /_LIVE_/x, $url;
+	return @stationid[1];
 }
 
 1;

@@ -47,11 +47,14 @@ sub getStartOffset {
     my $index = 0;
     my $time  = 0;
 
-    return $cb->(0) unless $startTime;
-
+    return $cb->($props->{startNumber}) unless $startTime;
+    
     $index = floor(
         $startTime / ( $props->{segmentDuration} / $props->{segmentTimescale} )
     );
+
+    #add on start number
+    $index += $props->{startNumber};
 
     main::INFOLOG
       && $log->is_info
@@ -142,7 +145,11 @@ sub setProperties {
 sub parseAtoms {
     my ( $atom, $dataref, $context ) = @_;
 
+
+    main::INFOLOG && $log->is_info && $log->info('in here');
+
     if ( !defined $context->{offset} ) {
+        main::INFOLOG && $log->is_info && $log->info('no offset');
         $context->{offset}  = 0;
         $context->{_parser} = {
             'inBuf'  => '',
@@ -156,9 +163,12 @@ sub parseAtoms {
     $v->{'inBuf'} .= $$dataref;
 
     while ( $v->{need} <= length $v->{inBuf} ) {
+        main::INFOLOG && $log->is_info && $log->info('needed');
 
         if ( $v->{state} == ATOM ) {
             my ( $atom, $size ) = get_next_atom( $v->{inBuf} );
+
+            main::INFOLOG && $log->is_info && $log->info('Atom');
 
             $v->{need}  = $size - 8;
             $v->{atom}  = $atom;
@@ -166,8 +176,10 @@ sub parseAtoms {
             $v->{inBuf} = substr( $v->{inBuf}, 8 );
             $context->{offset} += $size;
         }
+        main::INFOLOG && $log->is_info && $log->info('out');
 
         return undef if $v->{need} > length $v->{inBuf};
+        main::INFOLOG && $log->is_info && $log->info('still here');
 
         # enough data to process box and all included sub-boxes
         $v->{ $v->{atom} } = process_atom( $v->{atom}, $v->{need},
@@ -176,9 +188,11 @@ sub parseAtoms {
         $v->{inBuf} = substr( $v->{inBuf}, $v->{need} );
         $v->{state} = ATOM;
         $v->{need}  = ATOM_NEED;
+        main::INFOLOG && $log->is_info && $log->info('and agaim');
 
         # have we acquired the desired atom
         return $v->{$atom} if $v->{$atom};
+        main::INFOLOG && $log->is_info && $log->info('oops');
     }
 
     return undef;
