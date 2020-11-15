@@ -46,6 +46,8 @@ use Slim::Utils::Errno;
 use Slim::Utils::Cache;
 
 use Plugins::BBCSounds::M4a;
+use Plugins::BBCSounds::BBCSoundsFeeder;
+
 
 use constant MIN_OUT    => 8192;
 use constant DATA_CHUNK => 128 * 1024;
@@ -88,8 +90,6 @@ sub new {
 	my $masterUrl = $song->track()->url;
 
 	return undef if !defined $props;
-
-	main::DEBUGLOG && $log->is_debug && $log->debug( Dumper($props) );
 
 	# erase last position from cache
 	$cache->remove( "bs:lastpos-" . $class->getId($masterUrl) );
@@ -166,7 +166,10 @@ sub onStop {
 	my $elapsed = $song->master->controller->playingSongElapsed;
 	my $id = Plugins::BBCSounds::ProtocolHandler->getId( $song->track->url );
 
-	Plugins::BBCSounds::ActivityManagement::heartBeat( $id,Plugins::BBCSounds::ProtocolHandler->getPid( $song->track->url ),'paused', floor($elapsed) );
+
+	if (!($class->isLive($song->track->url))) {
+		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,Plugins::BBCSounds::ProtocolHandler->getPid( $song->track->url ),'paused', floor($elapsed) );
+	}
 
 	if ( $elapsed < $song->duration - 15 ) {
 		$cache->set( "bs:lastpos-$id", int($elapsed), '30days' );
@@ -319,6 +322,16 @@ sub sysread {
 			if (!($self->isLive($masterUrl))) {
 				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
 			}
+			else
+			{
+				#update the meta epoch.
+				my $client = ${*$self}{'client'};
+				my $song = $client->playingSong();
+				my $props = $client->playingSong()->pluginData('props');
+				$props->{metaEpoch} = floor($v->{'offset'} * ($props->{segmentDuration} / $props->{segmentTimescale}));
+				main::INFOLOG && $log->is_info && $log->info('New Epoch ' . $props->{metaEpoch});			
+				$song->pluginData( props   => $props );
+			}
 			$nextHeartbeat = time() + 30;
 		}
 		$! = EINTR;
@@ -338,6 +351,10 @@ sub getId {
 
 	my @pid  = split /_/x, $url;
 	my $vpid =  @pid[1];
+	if ($vpid eq 'LIVE') {
+		@pid  = split /_LIVE_/x, $url;
+		$vpid =  @pid[1];
+	}
 
 	return $vpid;
 }
@@ -446,12 +463,6 @@ sub getMPD {
 					$startBase ='http://' . $endURI->host . dirname( $endURI->path ) . '/';
 				}
 
-
-				main::INFOLOG
-				  && $log->is_info
-				  && $log->info(Dumper($mpd));
-
-
 				my $period        = $mpd->{'Period'}[0];
 				my $adaptationSet = $period->{'AdaptationSet'};
 
@@ -513,6 +524,7 @@ sub getMPD {
 					initializeURL =>$selRepres->{'SegmentTemplate'}->{'initialization'}// $selAdapt->{'SegmentTemplate'}->{'initialization'}// $period->{'SegmentTemplate'}->{'initialization'},
 					endNumber    => 0,
 					startNumber  => $selAdapt->{'SegmentTemplate'}->{'startNumber'} // 0,
+					metaEpoch    => 0,
 					samplingRate => $selRepres->{'audioSamplingRate'}// $selAdapt->{'audioSamplingRate'},
 					channels =>  	$selRepres->{'AudioChannelConfiguration'}->{'value'}// $selAdapt->{'AudioChannelConfiguration'}->{'value'},
 					bitrate        => $selRepres->{'bandwidth'},
@@ -548,6 +560,7 @@ sub getMPD {
 
 							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index + $props->{startNumber} - 1;
+							$props->{metaEpoch} = $epochTime;
 							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
 							$cb->($props);
 						},
@@ -579,14 +592,77 @@ sub getMetadataFor {
 
 	my ($url) = $full_url =~ /([^&]*)/;
 	my $id = $class->getId($url) || return {};
-	my $pid = $class->getPid($url);
+	my $pid = '';
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url");
 
+	if ($class->isLive($url)) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("live metadata");
+		if ( $client->master->pluginData('fetchingBSMeta') ) {
+			main::DEBUGLOG
+			  && $log->is_debug
+			  && $log->debug("already fetching metadata: $id");
+			return {
+				type  => 'BBCSounds',
+				title => $url,
+				icon  => $icon,
+				cover => $icon,
+			};
+		}
+
+		my $station = $class->getStationID($url);
+
+
+		if (my $schedule = $cache->get("bs:schedule-$station")) {
+			main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $station");
+
+			my $song = $client->playingSong();
+
+			if ($song && ( $song->currentTrack()->url eq $full_url)) {
+				my $retId = _getIDForBroadcast($schedule, $song);
+				main::DEBUGLOG && $log->is_debug && $log->debug("Have ID $retId");
+				$id = $retId;
+
+			} else {
+
+				main::DEBUGLOG && $log->is_debug && $log->debug("Nothing there");
+				return {
+					type  => 'BBCSounds',
+					title => $url,
+					icon  => $icon,
+					cover => $icon,
+				};
+			}
+
+		}else {
+			main::DEBUGLOG && $log->is_debug && $log->debug("Fetching Station Schedule ");
+
+			$client->master->pluginData( fetchingBSMeta => 1 );
+			_getLiveSchedule(
+				$station,
+
+				#success
+				sub {
+					$client->master->pluginData( fetchingBSMeta => 0 );
+				},
+
+				#fail
+				sub {
+					$client->master->pluginData( fetchingBSMeta => 0 );
+				}
+			);
+
+		}
+	} else {
+		$pid = $class->getPid($url);
+	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("Getting Meta for $id");
+
 	if ( my $meta = $cache->get("bs:meta-$id") ) {
 		my $song = $client->playingSong();
-
 		if ( $song && $song->currentTrack()->url eq $full_url ) {
+		
 			$song->track->secs( $meta->{duration} );
 		}
 
@@ -606,42 +682,47 @@ sub getMetadataFor {
 			cover => $icon,
 		};
 	}
-	if (!($class->isLive($url))) {
 
+	# Fetch metadata for Sounds Item
 
-		# Fetch metadata for Sounds Item
+	$client->master->pluginData( fetchingBSMeta => 1 );
+	if ($class->isLive($url)) {
+		_getLiveMeta(
+			$id,
 
-		$client->master->pluginData( fetchingBSMeta => 1 );
-
-		Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
-			$pid,
+			#success
 			sub {
-				my $json  = shift;
-				my $title = $json->{'titles'}->{'primary'};
-				if ( defined $json->{'titles'}->{'secondary'} ) {
-					$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
-				}
-				if ( defined $json->{'titles'}->{'tertiary'} ) {
-					$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
-				}
-				my $image = $json->{'image_url'};
-				$image =~ s/{recipe}/320x320/;
-				my $syn = '';
-				if ( defined $json->{'synopses'}->{'medium'} ) {
-					$syn = $json->{'synopses'}->{'medium'};
-				}
-				my $meta = {
-					title    => $title,
-					artist   => $syn,
-					duration => $json->{'duration'}->{'value'},
-					icon     => $image,
-					cover    => $image,
-					type     => 'BBCSounds',
-				};
+				my $retMeta = shift;
 
-				$cache->set( "bs:meta-" . $id, $meta, 86400 );
+				$cache->set( "bs:meta-" . $id, $retMeta, 3600 );
 				$client->master->pluginData( fetchingBSMeta => 0 );
 			},
+
+			#failed
+			sub {
+				my $meta = {
+					type  => 'BBCSounds',
+					title => $url,
+					icon  => $icon,
+					cover => $icon,
+				};
+				$cache->set( "bs:meta-" . $id, $meta, 300 );
+				$client->master->pluginData( fetchingBSMeta => 0 );
+			}
+		);
+	} else {
+		_getAODMeta(
+			$pid,
+
+			#success
+			sub {
+				my $retMeta = shift;
+
+				$cache->set( "bs:meta-" . $id, $retMeta, 86400 );
+				$client->master->pluginData( fetchingBSMeta => 0 );
+			},
+
+			#failed
 			sub {
 				my $meta = {
 					type  => 'BBCSounds',
@@ -650,14 +731,12 @@ sub getMetadataFor {
 					cover => $icon,
 				};
 
-				#an error occurred lets just cache the default menu for 5 mins then it will try later so we don't flood
 				$cache->set( "bs:meta-" . $id, $meta, 300 );
 				$client->master->pluginData( fetchingBSMeta => 0 );
-
 			}
 		);
-	}
 
+	}
 	return {
 		type  => 'BBCSounds',
 		title => $url,
@@ -684,6 +763,144 @@ sub isLive {
 
 		return;
 	}
+}
+
+
+sub _getLiveSchedule {
+	my $network = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+	Plugins::BBCSounds::BBCSoundsFeeder::getNetworkSchedule(
+		$network,
+		sub {
+			my $scheduleJSON = shift;
+
+			#place in cache for half an hour
+			$cache->set("bs:schedule-$network",$scheduleJSON, 1800);
+			main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $network");
+			$cbY->();
+		},
+		sub {
+			#place in cache for a couple of hours
+			$log->error('Failed to get schedule for ' . $network);
+
+			#try again in 2 mins to prevent flooding
+			$cache->set("bs:schedule-$network",{}, 120);
+			$cbN->();
+		}
+	);
+}
+
+
+sub _getIDForBroadcast {
+	my $schedule = shift;
+	my $song = shift;
+
+
+	my $items = $schedule->{data};
+
+	my $props = $song->pluginData('props');
+	my $metaEpoch = $props->{metaEpoch};
+	main::DEBUGLOG && $log->is_debug && $log->debug(' offset : ' . $metaEpoch .' ' . $props->{segmentDuration} . ' '. $props->{segmentTimescale});
+	for my $item (@$items){
+		if ($metaEpoch >= str2time($item->{start})) {
+			if ($metaEpoch <= str2time($item->{end})) {
+				my $id = $item->{id};				
+				main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
+				return $id;
+			}
+		}
+	}
+	$log->warn("No schedule found ");
+	return;
+}
+
+
+sub _getAODMeta {
+	my $pid = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+	Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
+		0,$pid,
+		sub {
+			my $json  = shift;
+			my $duration = $json->{'duration'}->{'value'};
+			my $title = $json->{'titles'}->{'primary'};
+			if ( defined $json->{'titles'}->{'secondary'} ) {
+				$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+			}
+			if ( defined $json->{'titles'}->{'tertiary'} ) {
+				$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
+			}
+			my $image = $json->{'image_url'};
+			$image =~ s/{recipe}/320x320/;
+			my $syn = '';
+			if ( defined $json->{'synopses'}->{'medium'} ) {
+				$syn = $json->{'synopses'}->{'medium'};
+			}
+			my $meta = {
+				title    => $title,
+				artist   => $syn,
+				duration => $duration,
+				icon     => $image,
+				cover    => $image,
+				type     => 'BBCSounds',
+			};
+			$cbY->($meta);
+
+		},
+		sub {
+			$cbN->();
+		}
+	);
+	return;
+}
+
+
+sub _getLiveMeta {
+	my $id = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+	Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
+		1,$id,
+		sub {
+			my $ret  = shift;
+
+			my $duration = $ret->{'duration'};
+			my $json = $ret->{'programme'};
+
+			my $title = $json->{'titles'}->{'primary'};
+			if ( defined $json->{'titles'}->{'secondary'} ) {
+				$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+			}
+			if ( defined $json->{'titles'}->{'tertiary'} ) {
+				$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
+			}
+			my $image = $json->{'images'}[0]->{url};
+			$image =~ s/{recipe}/320x320/;
+			my $syn = '';
+			if ( defined $json->{'synopses'}->{'medium'} ) {
+				$syn = $json->{'synopses'}->{'medium'};
+			}
+			my $meta = {
+				title    => $title,
+				artist   => $syn,
+				duration => $duration,
+				icon     => $image,
+				cover    => $image,
+				type     => 'BBCSounds',
+			};
+			$cbY->($meta);
+
+		},
+		sub {
+			$cbN->();
+		}
+	);
+	return;
 }
 
 

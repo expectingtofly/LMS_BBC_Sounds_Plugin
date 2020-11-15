@@ -419,9 +419,20 @@ sub getJSONMenu {
 
 
 sub getPidDataForMeta {
+	my $isLive = shift;
 	my $pid = shift;
 	my $cb  = shift;
 	my $cbError = shift;
+
+	my $url = '';
+
+	if ($isLive) {
+		$url = "https://rms.api.bbc.co.uk/v2/broadcasts/$pid";
+	}
+	else{
+		$url = "https://rms.api.bbc.co.uk/v2/programmes/$pid/playable";
+	}
+
 
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
@@ -436,7 +447,7 @@ sub getPidDataForMeta {
 			$cbError->();
 		},
 		{ cache => 1, expires => '1h' }
-	)->get("https://rms.api.bbc.co.uk/v2/programmes/$pid/playable");
+	)->get($url);
 
 }
 
@@ -1228,6 +1239,30 @@ sub _renderMenuCodeRefs {
 
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
+	return;
+}
+
+
+sub getNetworkSchedule {
+	my $network = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkSchedule");
+	my $callurl = 'https://rms.api.bbc.co.uk//v2/broadcasts/poll/' . $network;
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $schedule = decode_json ${ $http->contentRef };
+			$cbY->($schedule);
+		},
+		sub {
+			# Called when no response was received or an error occurred.
+			$log->warn("error: $_[1]");
+			$cbN->();
+		}
+	)->get($callurl);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getNetworkSchedule");
 	return;
 }
 
