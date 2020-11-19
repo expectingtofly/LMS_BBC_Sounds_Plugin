@@ -86,14 +86,14 @@ sub toplevel {
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
-				order => 3,
+				order => 5,
 			},
 			{
 				name        => 'Music Mixes',
 				type        => 'link',
 				url         => '',
 				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
-				order       => 5,
+				order       => 6,
 			},
 			{
 				name => 'My Sounds',
@@ -107,21 +107,21 @@ sub toplevel {
 				type        => 'link',
 				url         => '',
 				passthrough => [{ type => 'recommended', codeRef => 'getPersonalisedPage' }],
-				order => 6,
+				order => 7,
 			},
 			{
 				name => 'Station Schedules',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
-				order => 7,
+				order => 3,
 			},
 			{
 				name => 'Browse Categories',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 7,
+				order => 8,
 			}
 
 		];
@@ -1248,7 +1248,7 @@ sub getNetworkSchedule {
 	my $cbY = shift;
 	my $cbN = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkSchedule");
-	my $callurl = 'https://rms.api.bbc.co.uk//v2/broadcasts/poll/' . $network;
+	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;

@@ -145,11 +145,7 @@ sub setProperties {
 sub parseAtoms {
     my ( $atom, $dataref, $context ) = @_;
 
-
-    main::INFOLOG && $log->is_info && $log->info('in here');
-
-    if ( !defined $context->{offset} ) {
-        main::INFOLOG && $log->is_info && $log->info('no offset');
+    if ( !defined $context->{offset} ) {        
         $context->{offset}  = 0;
         $context->{_parser} = {
             'inBuf'  => '',
@@ -162,13 +158,10 @@ sub parseAtoms {
     my $v = $context->{_parser};
     $v->{'inBuf'} .= $$dataref;
 
-    while ( $v->{need} <= length $v->{inBuf} ) {
-        main::INFOLOG && $log->is_info && $log->info('needed');
+    while ( $v->{need} <= length $v->{inBuf} ) {        
 
         if ( $v->{state} == ATOM ) {
             my ( $atom, $size ) = get_next_atom( $v->{inBuf} );
-
-            main::INFOLOG && $log->is_info && $log->info('Atom');
 
             $v->{need}  = $size - 8;
             $v->{atom}  = $atom;
@@ -176,10 +169,8 @@ sub parseAtoms {
             $v->{inBuf} = substr( $v->{inBuf}, 8 );
             $context->{offset} += $size;
         }
-        main::INFOLOG && $log->is_info && $log->info('out');
-
-        return undef if $v->{need} > length $v->{inBuf};
-        main::INFOLOG && $log->is_info && $log->info('still here');
+        
+        return undef if $v->{need} > length $v->{inBuf};        
 
         # enough data to process box and all included sub-boxes
         $v->{ $v->{atom} } = process_atom( $v->{atom}, $v->{need},
@@ -187,12 +178,10 @@ sub parseAtoms {
 
         $v->{inBuf} = substr( $v->{inBuf}, $v->{need} );
         $v->{state} = ATOM;
-        $v->{need}  = ATOM_NEED;
-        main::INFOLOG && $log->is_info && $log->info('and agaim');
+        $v->{need}  = ATOM_NEED;        
 
         # have we acquired the desired atom
-        return $v->{$atom} if $v->{$atom};
-        main::INFOLOG && $log->is_info && $log->info('oops');
+        return $v->{$atom} if $v->{$atom};      
     }
 
     return undef;

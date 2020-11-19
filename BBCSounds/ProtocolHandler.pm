@@ -104,7 +104,9 @@ sub new {
 		$song->can('startOffset')
 		  ? $song->startOffset($startTime)
 		  : ( $song->{startOffset} = $startTime );
-		$args->{'client'}->master->remoteStreamStartTime( Time::HiRes::time() - $startTime );
+		my $remote = Time::HiRes::time() - $startTime;
+		main::INFOLOG && $log->is_info && $log->info( "Remote Stream Start Time = " . $remote );
+		$args->{'client'}->master->remoteStreamStartTime($remote);
 		$offset = undef;
 	}
 
@@ -125,6 +127,8 @@ sub new {
 			'streaming' =>1,    # flag for streaming, changes to 0 when all data received
 			'fetching' => 0,        # waiting for HTTP data
 			'offset'   => $offset, # offset for next HTTP request in webm/stream or segment index in dash
+			'endOffset' => $props->{endNumber}, #the end number of this track.
+			'liveId'   => '',  # The ID of the live programme playing
 		};
 	}
 
@@ -142,9 +146,6 @@ sub new {
 	# set timer for updating the MPD if needed (dash)
 	${*$self}{'active'} = 1;    #SM Removed timer
 
-	# for live stream, always set duration to timeshift depth
-	#SM not supporting live stream
-	$song->pluginData( 'liveStream', 0 );
 
 	return $self;
 }
@@ -219,6 +220,8 @@ sub canSeek { 1 }
 sub getSeekData {
 	my ( $class, $client, $song, $newtime ) = @_;
 
+	main::INFOLOG && $log->info( 'Trying to seek ' . $newtime . 'seconds for offset ' . $song->track->audio_offset );
+
 	return { timeOffset => $newtime };
 }
 
@@ -228,6 +231,87 @@ sub vars {
 }
 
 my $nextWarning = 0;
+
+
+sub liveMetaData {
+	my $self = shift;
+	my $client = ${*$self}{'client'};
+	my $v        = $self->vars;
+	my $song      = ${*$self}{'song'};
+	my $masterUrl = $song->track()->url;
+	my $station = _getStationID($masterUrl);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug('Processing Live Meta');
+
+	_getLiveSchedule(
+		$station, ${*$self}{'props'},
+
+		#success schedule
+		sub {
+			my $schedule = shift;
+			my $resp = _getIDForBroadcast($schedule, $v->{'offset'}, ${*$self}{'props'});
+			my $id = '';
+			if ($resp){
+				$id = $resp->{id};
+			}
+			if (!($id eq $v->{'liveId'})) {
+				$v->{'liveId'} = $id;
+				main::DEBUGLOG && $log->is_debug && $log->debug('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $v->{'offset'} . ' end offset' . $resp->{endOffset});
+				_getLiveMeta(
+					$id,
+
+					#success meta
+					sub {
+						my $retMeta = shift;
+						main::DEBUGLOG && $log->is_debug && $log->debug('Setting Title to ' .$retMeta->{title});
+						$song->pluginData( meta  => $retMeta );
+
+						#fix progress bar
+						$client->playingSong()->can('startOffset')
+						  ? $client->playingSong()->startOffset($resp->{secondsIn})
+						  : ( $client->playingSong()->{startOffset} = $resp->{secondsIn} );
+						$client->master()->remoteStreamStartTime( Time::HiRes::time() - $resp->{secondsIn} );
+						$client->playingSong()->duration( $retMeta->{duration} );
+
+						#we can now set the end point for this
+						$v->{endOffset} = $resp->{endOffset};
+
+						#update in the props
+						my $props      = ${*$self}{'props'};
+						$props->{endNumber} = $resp->{endOffset};
+
+						#ensure plug in data up to date
+						$song->pluginData( props   => $props );
+
+
+						main::DEBUGLOG && $log->is_debug && $log->debug('End Offset set :' . $v->{endOffset});
+
+					},
+
+					#failed
+					sub {
+						$log->warn('Could not retrieve live meta data ' . $masterUrl);
+					}
+				);
+			}
+		},
+		sub {
+			$log->warn('Could not retrieve station schedule');
+		}
+	);
+}
+
+
+sub _calculateEdge {
+	my ( $class, $currentOffset, $props) = @_;
+
+	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
+	my $edge = ($currentOffset - $props->{startNumber}) * $seglength;
+	$edge += ($props->{comparisonTime} - $seglength);
+
+	return $edge;
+
+}
 
 
 sub sysread {
@@ -240,6 +324,8 @@ sub sysread {
 	my $v        = $self->vars;
 	my $baseURL  = ${*$self}{'url'};
 	my $props    = ${*$self}{'props'};
+	my $song      = ${*$self}{'song'};
+	my $masterUrl = $song->track()->url;
 
 	# means waiting for offset to be set
 	if ( !defined $v->{offset} ) {
@@ -251,22 +337,24 @@ sub sysread {
 	# need more data
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
-		&& $v->{'streaming'} ){
+		&& $v->{'streaming'} ) {
 		my $url = $baseURL;
 		my @range;
 		if ($props->{isDynamic}) {
+			main::INFOLOG && $log->is_info && $log->info("Need More data");
 
 			#check if we can get more if not leave
-			my $edge = ((($v->{'offset'} - $props->{startNumber}) * ($props->{segmentDuration} / $props->{segmentTimescale})) + $props->{comparisonTime});
-			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. time());
-			if ($edge > time()){
+			my $edge = $self->_calculateEdge($v->{offset}, $props);
+			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
+			if ($edge > Time::HiRes::time()){
 
 				#bail
-				main::DEBUGLOG && $log->is_debug && $log->debug('bailing');
+				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
 				$! = EINTR;
 				return undef;
 			}
 		}
+		main::INFOLOG && $log->is_info && $log->info("Fetching More Data");
 
 
 		$url .= $props->{'segmentURL'};
@@ -283,9 +371,11 @@ sub sysread {
 				$v->{'fetching'} = 0;
 
 				$v->{'streaming'} = 0
-				  if $v->{'offset'} == $props->{'endNumber'};
+				  if (($v->{'offset'} == $v->{'endOffset'}) || (($props->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})));
 				main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
 
+				# get the meta data for this live track if we don't have it yet.
+				if ($self->isLive($masterUrl)) { $self->liveMetaData() if $v->{'endOffset'} == 0;}
 			},
 
 			sub {
@@ -312,27 +402,16 @@ sub sysread {
 	if ( my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
 		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . Time::HiRes::time());
 		return $bytes;
-	}elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
+	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
 
 		#bbc heartbeat at a quiet time.
-		if ( time() > $nextHeartbeat ) {
-			my $song      = ${*$self}{'song'};
-			my $masterUrl = $song->track()->url;
-			if (!($self->isLive($masterUrl))) {
+		if (!($self->isLive($masterUrl))) {
+			if ( time() > $nextHeartbeat ) {
 				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
+				$nextHeartbeat = time() + 30;
 			}
-			else
-			{
-				#update the meta epoch.
-				my $client = ${*$self}{'client'};
-				my $song = $client->playingSong();
-				my $props = $client->playingSong()->pluginData('props');
-				$props->{metaEpoch} = floor($v->{'offset'} * ($props->{segmentDuration} / $props->{segmentTimescale}));
-				main::INFOLOG && $log->is_info && $log->info('New Epoch ' . $props->{metaEpoch});			
-				$song->pluginData( props   => $props );
-			}
-			$nextHeartbeat = time() + 30;
 		}
 		$! = EINTR;
 		return undef;
@@ -385,16 +464,44 @@ sub getLastPos {
 sub getNextTrack {
 	my ( $class, $song, $successCb, $errorCb ) = @_;
 	my $masterUrl = $song->track()->url;
+	main::INFOLOG && $log->is_info && $log->info("Request for next track " . $masterUrl);
+
 
 	$song->pluginData( lastpos => ( $masterUrl =~ /&lastpos=([\d]+)/ )[0]|| 0 );
 	$masterUrl =~ s/&.*//;
 
 	my $url ='';
 	if ($class->isLive($masterUrl)) {
-		my $stationid = $class->getStationID($masterUrl);
-		$url ='http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/dash/uk/dash_full/llnws/' . $stationid . '.mpd';
 
+		my $stationid = _getStationID($masterUrl);
+
+		#if we already have props then this is a continuation
+		if (my $existingProps = $song->pluginData('props')){
+			return errorCb->() unless ($existingProps->{endNumber} > 0);
+			$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+			$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
+			$existingProps->{endNumber} = 0;
+			$song->pluginData( props   => $existingProps );
+
+			# reset the meta
+			$song->pluginData(meta => undef);
+
+			main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
+			$successCb->();
+			return;
+		}
+
+
+		$url ='http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/dash/uk/dash_full/llnws/' . $stationid . '.mpd';
+		$song->pluginData(
+			meta => {
+				type  => 'BBCSounds',
+				title => $stationid,
+				icon  => $class->getIcon(),
+			}
+		);
 	}else{
+
 		my $id = $class->getId($masterUrl);
 		$url ='http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/'. $id;
 	}
@@ -555,11 +662,11 @@ sub getMPD {
 						$mpd->{'UTCTiming'}->{'value'},
 						sub {
 							my $epochTime = shift;
-							$props->{comparisonTime} = time();
+							$props->{comparisonTime} = Time::HiRes::time();
 							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime});
 
 							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
-							$props->{startNumber} = $index + $props->{startNumber} - 1;
+							$props->{startNumber} = $index;
 							$props->{metaEpoch} = $epochTime;
 							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
 							$cb->($props);
@@ -593,39 +700,20 @@ sub getMetadataFor {
 	my ($url) = $full_url =~ /([^&]*)/;
 	my $id = $class->getId($url) || return {};
 	my $pid = '';
+	my $song = $client->playingSong();
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url");
 
 	if ($class->isLive($url)) {
-		main::DEBUGLOG && $log->is_debug && $log->debug("live metadata");
-		if ( $client->master->pluginData('fetchingBSMeta') ) {
-			main::DEBUGLOG
-			  && $log->is_debug
-			  && $log->debug("already fetching metadata: $id");
-			return {
-				type  => 'BBCSounds',
-				title => $url,
-				icon  => $icon,
-				cover => $icon,
-			};
-		}
+		if ( $song && $song->currentTrack()->url eq $full_url ) {
 
-		my $station = $class->getStationID($url);
+			if (my $meta = $song->pluginData('meta')) {
 
-
-		if (my $schedule = $cache->get("bs:schedule-$station")) {
-			main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $station");
-
-			my $song = $client->playingSong();
-
-			if ($song && ( $song->currentTrack()->url eq $full_url)) {
-				my $retId = _getIDForBroadcast($schedule, $song);
-				main::DEBUGLOG && $log->is_debug && $log->debug("Have ID $retId");
-				$id = $retId;
-
-			} else {
-
-				main::DEBUGLOG && $log->is_debug && $log->debug("Nothing there");
+				# if live, the only place it will be is on the song
+				main::DEBUGLOG && $log->is_debug && $log->debug("meta from song");
+				$song->track->secs( $meta->{duration} );
+				return $meta;
+			} else { # no props yet
 				return {
 					type  => 'BBCSounds',
 					title => $url,
@@ -633,40 +721,21 @@ sub getMetadataFor {
 					cover => $icon,
 				};
 			}
-
-		}else {
-			main::DEBUGLOG && $log->is_debug && $log->debug("Fetching Station Schedule ");
-
-			$client->master->pluginData( fetchingBSMeta => 1 );
-			_getLiveSchedule(
-				$station,
-
-				#success
-				sub {
-					$client->master->pluginData( fetchingBSMeta => 0 );
-				},
-
-				#fail
-				sub {
-					$client->master->pluginData( fetchingBSMeta => 0 );
-				}
-			);
-
 		}
-	} else {
+	}else{
+		#aod
 		$pid = $class->getPid($url);
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Getting Meta for $id");
 
 	if ( my $meta = $cache->get("bs:meta-$id") ) {
-		my $song = $client->playingSong();
 		if ( $song && $song->currentTrack()->url eq $full_url ) {
-		
+
 			$song->track->secs( $meta->{duration} );
 		}
 
-		main::DEBUGLOG && $log->is_debug && $log->debug("cache hit: $id");
+		main::DEBUGLOG && $log->is_debug && $log->debug('cache hit: ' . $id . ' title: ' . $meta->{'title'});
 
 		return $meta;
 	}
@@ -685,32 +754,9 @@ sub getMetadataFor {
 
 	# Fetch metadata for Sounds Item
 
-	$client->master->pluginData( fetchingBSMeta => 1 );
-	if ($class->isLive($url)) {
-		_getLiveMeta(
-			$id,
 
-			#success
-			sub {
-				my $retMeta = shift;
-
-				$cache->set( "bs:meta-" . $id, $retMeta, 3600 );
-				$client->master->pluginData( fetchingBSMeta => 0 );
-			},
-
-			#failed
-			sub {
-				my $meta = {
-					type  => 'BBCSounds',
-					title => $url,
-					icon  => $icon,
-					cover => $icon,
-				};
-				$cache->set( "bs:meta-" . $id, $meta, 300 );
-				$client->master->pluginData( fetchingBSMeta => 0 );
-			}
-		);
-	} else {
+	if (!($class->isLive($url))) {
+		$client->master->pluginData( fetchingBSMeta => 1 );
 		_getAODMeta(
 			$pid,
 
@@ -766,51 +812,74 @@ sub isLive {
 }
 
 
+sub isRepeatingStream {
+	my ( undef, $song ) = @_;
+
+	return isLive(undef, $song->track()->url);
+}
+
+
 sub _getLiveSchedule {
 	my $network = shift;
+	my $props = shift;
 	my $cbY = shift;
 	my $cbN = shift;
 
-	Plugins::BBCSounds::BBCSoundsFeeder::getNetworkSchedule(
-		$network,
-		sub {
-			my $scheduleJSON = shift;
 
-			#place in cache for half an hour
-			$cache->set("bs:schedule-$network",$scheduleJSON, 1800);
-			main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $network");
-			$cbY->();
-		},
-		sub {
-			#place in cache for a couple of hours
-			$log->error('Failed to get schedule for ' . $network);
+	main::DEBUGLOG && $log->is_debug && $log->debug("Checking Schedule for : $network");
 
-			#try again in 2 mins to prevent flooding
-			$cache->set("bs:schedule-$network",{}, 120);
-			$cbN->();
-		}
-	);
+
+	if (my $schedule = $cache->get("bs:schedule-$network")) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $network");
+		$cbY->($schedule);
+	} else {
+
+		Plugins::BBCSounds::BBCSoundsFeeder::getNetworkSchedule(
+			$network,
+			sub {
+				my $scheduleJSON = shift;
+				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $network");
+
+				#place in cache for half an hour
+				$cache->set("bs:schedule-$network",$scheduleJSON, 1800);
+				$cbY->($scheduleJSON);
+			},
+			sub {
+
+				#place in cache for a couple of hours
+				$log->error('Failed to get schedule for ' . $network);
+
+				#try again in 2 mins to prevent flooding
+				$cache->set("bs:schedule-$network",{}, 120);
+				$cbN->();
+			}
+		);
+	}
 }
 
 
 sub _getIDForBroadcast {
 	my $schedule = shift;
-	my $song = shift;
+	my $offset = shift;
+	my $props = shift;
 
+	my $offsetEpoch = floor($offset * ($props->{segmentDuration} / $props->{segmentTimescale}));
 
 	my $items = $schedule->{data};
 
-	my $props = $song->pluginData('props');
-	my $metaEpoch = $props->{metaEpoch};
-	main::DEBUGLOG && $log->is_debug && $log->debug(' offset : ' . $metaEpoch .' ' . $props->{segmentDuration} . ' '. $props->{segmentTimescale});
+	main::DEBUGLOG && $log->is_debug && $log->debug("Finding $offset as $offsetEpoch in ");
+
 	for my $item (@$items){
-		if ($metaEpoch >= str2time($item->{start})) {
-			if ($metaEpoch <= str2time($item->{end})) {
-				my $id = $item->{id};				
-				main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
-				return $id;
-			}
+		if (($offsetEpoch >= str2time($item->{start})) && ($offsetEpoch < str2time($item->{end}))) {
+			my $id = $item->{id};
+			main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
+			my $endOffset = floor((str2time($item->{end})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
+
+			#take one off it to make sure we end before we begin!
+
+			return {id => $id, secondsIn => ($offsetEpoch- str2time($item->{start})), endOffset => $endOffset};
 		}
+		main::DEBUGLOG && $log->is_debug && $log->debug('Not found - ' . $item->{start}  . ' - ' . $item->{end});
 	}
 	$log->warn("No schedule found ");
 	return;
@@ -864,42 +933,51 @@ sub _getLiveMeta {
 	my $cbY = shift;
 	my $cbN = shift;
 
-	Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
-		1,$id,
-		sub {
-			my $ret  = shift;
 
-			my $duration = $ret->{'duration'};
-			my $json = $ret->{'programme'};
+	if ( my $meta = $cache->get("bs:meta-$id") ) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Live Meta from cache  $id ");
+		$cbY->($meta);
+	}else {
+		Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
+			1,$id,
+			sub {
+				my $ret  = shift;
 
-			my $title = $json->{'titles'}->{'primary'};
-			if ( defined $json->{'titles'}->{'secondary'} ) {
-				$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
-			}
-			if ( defined $json->{'titles'}->{'tertiary'} ) {
-				$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
-			}
-			my $image = $json->{'images'}[0]->{url};
-			$image =~ s/{recipe}/320x320/;
-			my $syn = '';
-			if ( defined $json->{'synopses'}->{'medium'} ) {
-				$syn = $json->{'synopses'}->{'medium'};
-			}
-			my $meta = {
-				title    => $title,
-				artist   => $syn,
-				duration => $duration,
-				icon     => $image,
-				cover    => $image,
-				type     => 'BBCSounds',
-			};
-			$cbY->($meta);
+				my $duration = $ret->{'duration'};
+				my $json = $ret->{'programme'};
 
-		},
-		sub {
-			$cbN->();
-		}
-	);
+				my $title = $json->{'titles'}->{'primary'};
+				if ( defined $json->{'titles'}->{'secondary'} ) {
+					$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+				}
+				if ( defined $json->{'titles'}->{'tertiary'} ) {
+					$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
+				}
+				my $image = $json->{'images'}[0]->{url};
+				$image =~ s/{recipe}/320x320/;
+				my $syn = '';
+				if ( defined $json->{'synopses'}->{'medium'} ) {
+					$syn = $json->{'synopses'}->{'medium'};
+				}
+				my $meta = {
+					title    => $title,
+					artist   => $syn,
+					duration => $duration,
+					icon     => $image,
+					cover    => $image,
+					type     => 'BBCSounds',
+				};
+
+				$cache->set( "bs:meta-" . $id, $meta, 3600 );
+				main::DEBUGLOG && $log->is_debug && $log->debug("Live meta receiced and in cache  $id ");
+				$cbY->($meta);
+
+			},
+			sub {
+				$cbN->();
+			}
+		);
+	}
 	return;
 }
 
@@ -924,8 +1002,8 @@ sub _getDashUTCTime {
 }
 
 
-sub getStationID {
-	my ( $class, $url ) = @_;
+sub _getStationID {
+	my $url  = shift;
 
 	my @stationid  = split /_LIVE_/x, $url;
 	return @stationid[1];
