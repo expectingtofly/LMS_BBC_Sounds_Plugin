@@ -1,22 +1,21 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
-# (c) stu@expectingtofly.co.uk
+# Copyright (C) 2020 mcleanexpectingtofly
 #
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 3 of the License, or
-#  (at your option) any later version.
+# This file is part of LMS_BBC_Sounds_Plugin.
 #
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+# LMS_BBC_Sounds_Plugin is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
+# LMS_BBC_Sounds_Plugin is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
+# You should have received a copy of the GNU General Public License
+# along with LMS_BBC_Sounds_Plugin.  If not, see <http://www.gnu.org/licenses/>.
 
 use warnings;
 use strict;
@@ -37,6 +36,7 @@ use Data::Dumper;
 use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
+use Plugins::BBCSounds::Utilities;
 
 my $log = logger('plugin.bbcsounds');
 
@@ -57,6 +57,7 @@ sub init {
 			},
 		)
 	);
+	_removeCacheMenu('toplevel'); #force remove
 }
 
 
@@ -86,14 +87,14 @@ sub toplevel {
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
-				order => 3,
+				order => 5,
 			},
 			{
 				name        => 'Music Mixes',
 				type        => 'link',
 				url         => '',
 				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
-				order       => 5,
+				order       => 6,
 			},
 			{
 				name => 'My Sounds',
@@ -107,21 +108,21 @@ sub toplevel {
 				type        => 'link',
 				url         => '',
 				passthrough => [{ type => 'recommended', codeRef => 'getPersonalisedPage' }],
-				order => 6,
+				order => 7,
 			},
 			{
-				name => 'Station Schedules',
+				name => 'Stations & Schedules',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
-				order => 7,
+				order => 3,
 			},
 			{
 				name => 'Browse Categories',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 7,
+				order => 8,
 			}
 
 		];
@@ -288,13 +289,23 @@ sub getPage {
 }
 
 
-sub getScheduleDates {
+sub getStationMenu {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getStationMenu");
 
 	my $now       = time();
 	my $stationid = $passDict->{'stationid'};
-	my $menu      = [];
+	my $NetworkDetails = $passDict->{'networkDetails'};
+
+	my $menu      = [
+		{
+			name        => $NetworkDetails->{short_title} . ' LIVE',
+			type        => 'audio',
+			icon        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+			url         => 'sounds://_LIVE_'. $stationid,
+			on_select   => 'play'
+		}
+	];
 
 	for ( my $i = 0 ; $i < 30 ; $i++ ) {
 		my $d = '';
@@ -326,7 +337,7 @@ sub getScheduleDates {
 
 	}
 	$callback->( { items => $menu } );
-	main::DEBUGLOG && $log->is_debug && $log->debug("--getScheduleDates");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getStationMenu");
 	return;
 }
 
@@ -409,9 +420,20 @@ sub getJSONMenu {
 
 
 sub getPidDataForMeta {
+	my $isLive = shift;
 	my $pid = shift;
 	my $cb  = shift;
 	my $cbError = shift;
+
+	my $url = '';
+
+	if ($isLive) {
+		$url = "https://rms.api.bbc.co.uk/v2/broadcasts/$pid";
+	}
+	else{
+		$url = "https://rms.api.bbc.co.uk/v2/programmes/$pid/playable";
+	}
+
 
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
@@ -426,7 +448,7 @@ sub getPidDataForMeta {
 			$cbError->();
 		},
 		{ cache => 1, expires => '1h' }
-	)->get("https://rms.api.bbc.co.uk/v2/programmes/$pid/playable");
+	)->get($url);
 
 }
 
@@ -746,7 +768,7 @@ sub _parseStationlist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $image = _createNetworkLogoUrl($item->{network}->{logo_url});
+		my $image = Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url});
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
@@ -757,7 +779,8 @@ sub _parseStationlist {
 				{
 					type      => 'stationschedule',
 					stationid => $item->{id},
-					codeRef   => 'getScheduleDates'
+					codeRef   => 'getStationMenu',
+					networkDetails => $item->{network}
 				}
 			],
 		  };
@@ -1152,6 +1175,18 @@ sub _cacheMenu {
 	return;
 }
 
+sub _removeCacheMenu {
+	my $url  = shift;	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_removeCacheMenu");
+	my $cacheKey = 'BS:' . md5_hex($url);
+
+	$cache->remove($cacheKey);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_removeCacheMenu");
+	return;
+}
+
+
 
 sub _isFollowedActivity {
 	my $activities = shift;
@@ -1198,8 +1233,8 @@ sub _renderMenuCodeRefs {
 				$menuItem->{'url'} = \&getPage;
 			}elsif ( $codeRef eq 'getSubMenu' ) {
 				$menuItem->{'url'} = \&getSubMenu;
-			}elsif ( $codeRef eq 'getScheduleDates' ) {
-				$menuItem->{'url'} = \&getScheduleDates;
+			}elsif ( $codeRef eq 'getStationMenu' ) {
+				$menuItem->{'url'} = \&getStationMenu;
 			}elsif ( $codeRef eq 'getJSONMenu' ) {
 				$menuItem->{'url'} = \&getJSONMenu;
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
@@ -1217,6 +1252,30 @@ sub _renderMenuCodeRefs {
 
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
+	return;
+}
+
+
+sub getNetworkSchedule {
+	my $network = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkSchedule");
+	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $schedule = decode_json ${ $http->contentRef };
+			$cbY->($schedule);
+		},
+		sub {
+			# Called when no response was received or an error occurred.
+			$log->warn("error: $_[1]");
+			$cbN->();
+		}
+	)->get($callurl);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getNetworkSchedule");
 	return;
 }
 
@@ -1246,18 +1305,5 @@ sub _globalSearchItems {
 	return \@items;
 }
 
-
-sub _createNetworkLogoUrl {
-	my $logoTemplate = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_createNetworkLogoUrl");
-
-	my $logoUrl = $logoTemplate;
-	$logoUrl =~ s/{type}/blocks-colour/ig;
-	$logoUrl =~ s/{size}/600x600/ig;
-	$logoUrl =~ s/{format}/png/ig;
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_createNetworkLogoUrl");
-	return $logoUrl;
-}
 
 1;
