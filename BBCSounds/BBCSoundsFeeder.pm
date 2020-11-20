@@ -57,6 +57,7 @@ sub init {
 			},
 		)
 	);
+	_removeCacheMenu('toplevel'); #force remove
 }
 
 
@@ -110,7 +111,7 @@ sub toplevel {
 				order => 7,
 			},
 			{
-				name => 'Station Schedules',
+				name => 'Stations & Schedules',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
@@ -1173,6 +1174,18 @@ sub _cacheMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_cacheMenu");
 	return;
 }
+
+sub _removeCacheMenu {
+	my $url  = shift;	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_removeCacheMenu");
+	my $cacheKey = 'BS:' . md5_hex($url);
+
+	$cache->remove($cacheKey);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_removeCacheMenu");
+	return;
+}
+
 
 
 sub _isFollowedActivity {

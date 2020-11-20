@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::ProtocolHandler;
 
-#  stu@expectingtofly.co.uk and philippe_44@outlook.com
+#  stu@expectingtofly.co.uk 
 #  An adapted version (MPD Handling) of Plugins::YouTube::ProtocolHandler by philippe_44@outlook.com
 #
 #  This program is free software; you can redistribute it and/or modify
@@ -101,9 +101,34 @@ sub new {
 	$song->pluginData( 'lastpos', 0 );
 
 	if ($startTime) {
+
+		if ($props->{isDynamic}) {
+
+			#we can't go into the future
+			my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
+			my $maxStartTime = $edge - ($props->{virtualStartNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
+
+			#Remove a chunk to provide safety margin and less wait time on restart
+			$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
+
+			$startTime = $maxStartTime if ($startTime > $maxStartTime);
+
+			#This "song" has a maximum age
+			my $maximumAge = 18000;  # 5 hours
+			if ((Time::HiRes::time() - $props->{comparisonTime}) > $maximumAge) {
+
+				#we need to end this track and let it rise again
+				$log->error('Live stream to old after pause, stopping the continuation.');
+				$props->{isDynamic} = 0;
+				$song->pluginData( props   => $props );
+				return;
+			}
+		}
+
 		$song->can('startOffset')
 		  ? $song->startOffset($startTime)
 		  : ( $song->{startOffset} = $startTime );
+
 		my $remote = Time::HiRes::time() - $startTime;
 		main::INFOLOG && $log->is_info && $log->info( "Remote Stream Start Time = " . $remote );
 		$args->{'client'}->master->remoteStreamStartTime($remote);
@@ -220,7 +245,7 @@ sub canSeek { 1 }
 sub getSeekData {
 	my ( $class, $client, $song, $newtime ) = @_;
 
-	main::INFOLOG && $log->info( 'Trying to seek ' . $newtime . 'seconds for offset ' . $song->track->audio_offset );
+	main::INFOLOG && $log->info( 'Trying to seek ' . $newtime . ' seconds for offset ' . $song->track->audio_offset );
 
 	return { timeOffset => $newtime };
 }
@@ -241,7 +266,7 @@ sub liveMetaData {
 	my $masterUrl = $song->track()->url;
 	my $station = _getStationID($masterUrl);
 
-	main::DEBUGLOG && $log->is_debug && $log->debug('Processing Live Meta');
+	main::INFOLOG && $log->is_info && $log->info('Checking for new live meta data');
 
 	_getLiveSchedule(
 		$station, ${*$self}{'props'},
@@ -256,7 +281,7 @@ sub liveMetaData {
 			}
 			if (!($id eq $v->{'liveId'})) {
 				$v->{'liveId'} = $id;
-				main::DEBUGLOG && $log->is_debug && $log->debug('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $v->{'offset'} . ' end offset' . $resp->{endOffset});
+				main::INFOLOG && $log->is_info && $log->info('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $v->{'offset'} . ' end offset ' . $resp->{endOffset});
 				_getLiveMeta(
 					$id,
 
@@ -274,18 +299,17 @@ sub liveMetaData {
 						$client->playingSong()->duration( $retMeta->{duration} );
 
 						#we can now set the end point for this
-						$v->{endOffset} = $resp->{endOffset};
+						$v->{'endOffset'} = $resp->{endOffset};
 
 						#update in the props
 						my $props      = ${*$self}{'props'};
 						$props->{endNumber} = $resp->{endOffset};
+						$props->{virtualStartNumber} = $resp->{startOffset};
 
 						#ensure plug in data up to date
 						$song->pluginData( props   => $props );
 
-
-						main::DEBUGLOG && $log->is_debug && $log->debug('End Offset set :' . $v->{endOffset});
-
+						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
 					},
 
 					#failed
@@ -310,6 +334,16 @@ sub _calculateEdge {
 	$edge += ($props->{comparisonTime} - $seglength);
 
 	return $edge;
+
+}
+
+
+sub _calculateEdgeFromTime {
+	my ( $class, $currentTime, $props) = @_;
+
+	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
+
+	return $class->_calculateEdge(floor($currentTime / $seglength),$props);
 
 }
 
@@ -341,10 +375,10 @@ sub sysread {
 		my $url = $baseURL;
 		my @range;
 		if ($props->{isDynamic}) {
-			main::INFOLOG && $log->is_info && $log->info("Need More data");
+			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
 
 			#check if we can get more if not leave
-			my $edge = $self->_calculateEdge($v->{offset}, $props);
+			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
 			if ($edge > Time::HiRes::time()){
 
@@ -354,7 +388,7 @@ sub sysread {
 				return undef;
 			}
 		}
-		main::INFOLOG && $log->is_info && $log->info("Fetching More Data");
+		main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
 
 
 		$url .= $props->{'segmentURL'};
@@ -371,7 +405,8 @@ sub sysread {
 				$v->{'fetching'} = 0;
 
 				$v->{'streaming'} = 0
-				  if (($v->{'offset'} == $v->{'endOffset'}) || (($props->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})));
+				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+
 				main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
 
 				# get the meta data for this live track if we don't have it yet.
@@ -383,6 +418,7 @@ sub sysread {
 					$log->debug("error fetching $url");
 				}
 
+
 				# only log error every x seconds - it's too noisy for regular use
 				elsif ( time() > $nextWarning ) {
 					$log->warn("error fetching $url");
@@ -391,6 +427,9 @@ sub sysread {
 
 				$v->{'inBuf'}    = '';
 				$v->{'fetching'} = 0;
+				$v->{'streaming'} = 0
+				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+
 			},
 
 		)->get( $url, @range );
@@ -471,28 +510,58 @@ sub getNextTrack {
 	$masterUrl =~ s/&.*//;
 
 	my $url ='';
+
+
+	my $processMPD = sub {
+
+		my @allowDASH = ();
+
+		main::INFOLOG
+		  && $log->is_info
+		  && $log->info("url: $url master: $masterUrl");
+
+		push @allowDASH,([ 'audio_eng=320000',  'aac', 320_000 ],[ 'audio_eng=128000',  'aac', 128_000 ],[ 'audio_eng_1=96000', 'aac', 96_000 ],[ 'audio_eng_1=48000', 'aac', 48_000 ]);
+		push @allowDASH,([ 'audio=320000',  'aac', 320_000 ],[ 'audio=128000',  'aac', 128_000 ],[ 'audio=96000', 'aac', 96_000 ],[ 'audio=48000', 'aac', 48_000 ]);
+		push @allowDASH,([ 'audio_eng=96000', 'aac', 96_000 ],[ 'audio_eng=48000', 'aac', 48_000 ]);
+		@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
+
+		my $dashmpd = $url;
+		getMPD(
+			$dashmpd,
+			\@allowDASH,
+			sub {
+				my $props = shift;
+				return $errorCb->() unless $props;
+				$song->pluginData( props   => $props );
+				$song->pluginData( baseURL => $props->{'baseURL'} );
+				$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
+			}
+		);
+	};
+
+
 	if ($class->isLive($masterUrl)) {
 
 		my $stationid = _getStationID($masterUrl);
 
+
 		#if we already have props then this is a continuation
-		if (my $existingProps = $song->pluginData('props')){
-			return errorCb->() unless ($existingProps->{endNumber} > 0);
-			$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
-			$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
-			$existingProps->{endNumber} = 0;
-			$song->pluginData( props   => $existingProps );
+		if (my $existingProps = $song->pluginData('props')) {
+			if ( $existingProps->{isDynamic}) {
+				return errorCb->() unless ($existingProps->{endNumber} > 0);
+				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
+				$existingProps->{endNumber} = 0;
+				$song->pluginData( props   => $existingProps );
 
-			# reset the meta
-			$song->pluginData(meta => undef);
+				# reset the meta
+				$song->pluginData(meta => undef);
 
-			main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
-			$successCb->();
-			return;
+				main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
+				$successCb->();
+				return;
+			}
 		}
-
-
-		$url ='http://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/dash/uk/dash_full/llnws/' . $stationid . '.mpd';
 		$song->pluginData(
 			meta => {
 				type  => 'BBCSounds',
@@ -500,34 +569,26 @@ sub getNextTrack {
 				icon  => $class->getIcon(),
 			}
 		);
+
+		_getLiveMPDUrl(
+			$stationid,
+			sub {
+				$url = shift;
+				$processMPD->();
+			},
+			sub {
+				$log->error('Failed to get live MPD');
+				errorCb->();
+			}
+		);
+
+
 	}else{
 
 		my $id = $class->getId($masterUrl);
 		$url ='http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/'. $id;
+		$processMPD->();
 	}
-
-	my @allowDASH = ();
-
-	main::INFOLOG
-	  && $log->is_info
-	  && $log->info("url: $url master: $masterUrl");
-
-	push @allowDASH,([ 'audio_eng=320000',  'aac', 320_000 ],[ 'audio=320000',  'aac', 320_000 ],[ 'audio_eng=128000',  'aac', 128_000 ],[ 'audio=128000',  'aac', 128_000 ],[ 'audio_eng_1=96000', 'aac', 96_000 ],[ 'audio=96000', 'aac', 96_000 ],[ 'audio_eng_1=48000', 'aac', 48_000 ],[ 'audio=48000', 'aac', 48_000 ]);
-	push @allowDASH,([ 'audio_eng=96000', 'aac', 96_000 ],[ 'audio_eng=48000', 'aac', 48_000 ]);
-	@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
-
-	my $dashmpd = $url;
-	getMPD(
-		$dashmpd,
-		\@allowDASH,
-		sub {
-			my $props = shift;
-			return $errorCb->() unless $props;
-			$song->pluginData( props   => $props );
-			$song->pluginData( baseURL => $props->{'baseURL'} );
-			$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
-		}
-	);
 }
 
 
@@ -537,9 +598,6 @@ sub getMPD {
 	my $session = Slim::Networking::Async::HTTP->new;
 	my $mpdrequest = HTTP::Request->new( GET => $dashmpd );
 
-	main::INFOLOG
-	  && $log->is_info
-	  && $log->info("In Get MPD");
 	$session->send_request(
 		{
 			request => $mpdrequest,
@@ -552,7 +610,7 @@ sub getMPD {
 
 				main::INFOLOG
 				  && $log->is_info
-				  && $log->info("have mpd");
+				  && $log->info("Parsing MPD");
 
 
 				my $selIndex;
@@ -607,18 +665,15 @@ sub getMPD {
 				my ($misc, $hour, $min, $sec) = $timeShiftDepth =~ /P(?:([^T]*))T(?:(\d+)H)?(?:(\d+)M)?(?:([+-]?([0-9]*[.])?[0-9]+)S)?/;
 				$timeShiftDepth	= ($sec || 0) + (($min || 0) * 60) + (($hour || 0) * 3600);
 
-				my $duration = $mpd->{'mediaPresentationDuration'};
-				my ( $misc, $hour, $min, $sec ) = $duration =~/P(?:([^T]*))T(?:(\d+)H)?(?:(\d+)M)?(?:([+-]?([0-9]*[.])?[0-9]+)S)?/;
-				$duration =( $sec || 0 ) +( ( $min  || 0 ) * 60 ) +( ( $hour || 0 ) * 3600 );
+				my $duration = 0;
 
-				my $scaleDuration	= $selAdapt->{'SegmentTemplate'}->{'duration'};
-				my $timescale 		= $selAdapt->{'SegmentTemplate'}->{'timescale'};
-				$duration = $scaleDuration / $timescale if $scaleDuration;
+				if (defined $mpd->{'mediaPresentationDuration'}) {
+					$duration = $mpd->{'mediaPresentationDuration'};
+					my ( $misc, $hour, $min, $sec ) = $duration =~/P(?:([^T]*))T(?:(\d+)H)?(?:(\d+)M)?(?:([+-]?([0-9]*[.])?[0-9]+)S)?/;
+					$duration =( $sec || 0 ) +( ( $min  || 0 ) * 60 ) +( ( $hour || 0 ) * 3600 );
+				}
 
-
-				main::INFOLOG
-				  && $log->is_info
-				  && $log->info("MPD duration $duration");
+				my $timescale = $selAdapt->{'SegmentTemplate'}->{'timescale'};
 
 				my $props = {
 					format       => $$allow[$selIndex][1],
@@ -630,7 +685,8 @@ sub getMPD {
 					segmentURL => $selRepres->{'SegmentTemplate'}->{'media'}// $selAdapt->{'SegmentTemplate'}->{'media'}// $period->{'SegmentTemplate'}->{'media'},
 					initializeURL =>$selRepres->{'SegmentTemplate'}->{'initialization'}// $selAdapt->{'SegmentTemplate'}->{'initialization'}// $period->{'SegmentTemplate'}->{'initialization'},
 					endNumber    => 0,
-					startNumber  => $selAdapt->{'SegmentTemplate'}->{'startNumber'} // 0,
+					startNumber  => $selAdapt->{'SegmentTemplate'}->{'startNumber'} // 1,
+					virtualStartNumber  => $selAdapt->{'SegmentTemplate'}->{'startNumber'} // 1,
 					metaEpoch    => 0,
 					samplingRate => $selRepres->{'audioSamplingRate'}// $selAdapt->{'audioSamplingRate'},
 					channels =>  	$selRepres->{'AudioChannelConfiguration'}->{'value'}// $selAdapt->{'AudioChannelConfiguration'}->{'value'},
@@ -667,6 +723,7 @@ sub getMPD {
 
 							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index;
+							$props->{virtualStartNumber} = $index;
 							$props->{metaEpoch} = $epochTime;
 							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
 							$cb->($props);
@@ -717,8 +774,7 @@ sub getMetadataFor {
 				return {
 					type  => 'BBCSounds',
 					title => $url,
-					icon  => $icon,
-					cover => $icon,
+					icon  => 'https://sounds.files.bbci.co.uk/v2/networks/' . _getStationID($url) . '/blocks-colour_600x600.png',
 				};
 			}
 		}
@@ -731,8 +787,9 @@ sub getMetadataFor {
 
 	if ( my $meta = $cache->get("bs:meta-$id") ) {
 		if ( $song && $song->currentTrack()->url eq $full_url ) {
+			my $props = $song->pluginData('props');
 
-			$song->track->secs( $meta->{duration} );
+			$song->track->secs( $props->{duration});
 		}
 
 		main::DEBUGLOG && $log->is_debug && $log->debug('cache hit: ' . $id . ' title: ' . $meta->{'title'});
@@ -826,7 +883,7 @@ sub _getLiveSchedule {
 	my $cbN = shift;
 
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("Checking Schedule for : $network");
+	main::INFOLOG && $log->is_info && $log->info("Checking Schedule for : $network");
 
 
 	if (my $schedule = $cache->get("bs:schedule-$network")) {
@@ -873,11 +930,18 @@ sub _getIDForBroadcast {
 		if (($offsetEpoch >= str2time($item->{start})) && ($offsetEpoch < str2time($item->{end}))) {
 			my $id = $item->{id};
 			main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
+			my $startOffset = floor((str2time($item->{start})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
 			my $endOffset = floor((str2time($item->{end})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
 
 			#take one off it to make sure we end before we begin!
 
-			return {id => $id, secondsIn => ($offsetEpoch- str2time($item->{start})), endOffset => $endOffset};
+			return {
+				id => $id,
+				secondsIn => ($offsetEpoch- str2time($item->{start})),
+				startOffset => $startOffset,
+				endOffset => $endOffset
+			};
+
 		}
 		main::DEBUGLOG && $log->is_debug && $log->debug('Not found - ' . $item->{start}  . ' - ' . $item->{end});
 	}
@@ -999,6 +1063,33 @@ sub _getDashUTCTime {
 			$cbN->();
 		}
 	)->get($url);
+}
+
+
+sub _getLiveMPDUrl {
+	my $network  = shift;
+	my $cbY  = shift;
+	my $cbN  = shift;
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $json = decode_json ${ $http->contentRef };
+			main::DEBUGLOG && $log->is_debug && $log->debug(${ $http->contentRef });
+
+			my $mediaitems = [];
+			$mediaitems = $json->{media};
+			@$mediaitems = reverse sort { int($a->{bitrate}) <=> int($b->{bitrate}) } @$mediaitems;
+			my $mpd = @$mediaitems[0]->{connection}[0]->{href};
+			main::INFOLOG && $log->is_info && $log->info("Live MPD $mpd");
+			$cbY->($mpd);
+			return;					
+		},
+		sub {
+			$cbN->();
+		}
+	)->get("http://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$network/format/json/");
+	return;
 }
 
 
