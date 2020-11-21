@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::ProtocolHandler;
 
-#  stu@expectingtofly.co.uk 
+#  stu@expectingtofly.co.uk
 #  An adapted version (MPD Handling) of Plugins::YouTube::ProtocolHandler by philippe_44@outlook.com
 #
 #  This program is free software; you can redistribute it and/or modify
@@ -76,6 +76,37 @@ sub canDoAction {
 		}
 	}
 
+	if ($class->isLive($url)) {
+		if ($action eq 'stop') { #skip to next track
+			 #only allow skiping if we have an end number and it is in the past
+			my $song = $client->playingSong();
+			my $props = $song->pluginData('props');
+
+			main::INFOLOG && $log->is_info && $log->info('Skipping forward when end number is ' . $props->{endNumber});
+
+			#is the current endNumber in the past?
+			if ($props->{endNumber} > 0) {
+				if (Time::HiRes::time() > ($class->_timeFromOffset($props->{endNumber},$props)+10)){
+					return 1;
+				}
+				#force it to reload and therefore return to live
+				$props->{isDynamic} = 0;
+				$song->pluginData( props   => $props );
+				return 1;
+			}
+			return 0; #not ready to know what to do.
+		}
+		if ($action eq 'rew') { #skip back to start of track
+			 # make sure start number is correct for the programme (if we have it)
+			my $song = $client->playingSong();
+			my $props = $song->pluginData('props');
+			$props->{comparisonTime} -= (($props->{startNumber} - $props->{virtualStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
+			$props->{startNumber} = $props->{virtualStartNumber};
+			$song->pluginData( props   => $props );
+			return 1;
+		}
+	}
+
 	return 1;
 }
 
@@ -137,7 +168,7 @@ sub new {
 
 	main::INFOLOG
 	  && $log->is_info
-	  && $log->info( "url: $args->{url} master: $masterUrl offset: ",$startTime || 0 );
+	  && $log->info( "url: $args->{url} master: $masterUrl offset: ",$startTime|| 0 );
 
 	my $self = $class->SUPER::new;
 
@@ -335,6 +366,13 @@ sub _calculateEdge {
 
 	return $edge;
 
+}
+
+
+sub _timeFromOffset {
+	my ( $class, $currentOffset, $props) = @_;
+	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
+	return ($currentOffset * $seglength);
 }
 
 
@@ -1083,7 +1121,7 @@ sub _getLiveMPDUrl {
 			my $mpd = @$mediaitems[0]->{connection}[0]->{href};
 			main::INFOLOG && $log->is_info && $log->info("Live MPD $mpd");
 			$cbY->($mpd);
-			return;					
+			return;
 		},
 		sub {
 			$cbN->();
