@@ -589,6 +589,7 @@ sub getNextTrack {
 				return errorCb->() unless ($existingProps->{endNumber} > 0);
 				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
+				$existingProps->{virtualStartNumber} = $existingProps->{startNumber};
 				$existingProps->{endNumber} = 0;
 				$song->pluginData( props   => $existingProps );
 
