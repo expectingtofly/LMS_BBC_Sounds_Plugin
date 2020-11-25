@@ -55,7 +55,6 @@ use constant DATA_CHUNK => 128 * 1024;
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
 
-my $nextHeartbeat = 0;
 
 Slim::Player::ProtocolHandlers->registerHandler( 'sounds', __PACKAGE__ );
 
@@ -187,10 +186,12 @@ sub new {
 			'endOffset' => $props->{endNumber}, #the end number of this track.
 			'resetMeta'=> 1,
 			'liveId'   => '',  # The ID of the live programme playing
-			'liveTrack' => {   # For managing showing live track data
+			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
 				'isShowingTitle' => 0,   # indicates what cycle we are on
-			}
+				'awaitingCb' => 0      #flag for callback on track data
+			},
+			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC
 		};
 	}
 
@@ -270,7 +271,6 @@ sub onStream {
 		Plugins::BBCSounds::ActivityManagement::heartBeat($id,       Plugins::BBCSounds::ProtocolHandler->getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
 	}
 
-	$nextHeartbeat = time() + 30;
 
 }
 
@@ -316,34 +316,37 @@ sub liveTrackData {
 	my $client = ${*$self}{'client'};
 	my $v = $self->vars;
 
-	#if endoffset is still 0, leave as we don't have an meta data yet.
+	#if endoffset is still 0, leave as we don't have a meta data yet.
 	return if $v->{'endOffset'} == 0;
 
 	my $song  = ${*$self}{'song'};
 	my $masterUrl = $song->track()->url;
 	my $station = _getStationID($masterUrl);
 
-	$v->{'liveTrack'}->{chunkCounter}++;
+	$v->{'trackData'}->{chunkCounter}++;
 
+	# we must leave if we have a title waiting to be changed by buffer callback
+	return if $v->{'trackData'}->{awaitingCb};
+	
+	if ($v->{'trackData'}->{isShowingTitle}) {
 
-	if ($v->{'liveTrack'}->{isShowingTitle}) {
+		#we only need to reset the title if we have gone forward 2
+		return if ($v->{'trackData'}->{chunkCounter} < 3);
+		$v->{'trackData'}->{awaitingCb} = 1;
+		$v->{'trackData'}->{isShowingTitle} = 0;
+		$v->{'trackData'}->{chunkCounter} = 1;
 
-		#we only need to reset the title if we have gone forward 2 chunks
-		return if $v->{'liveTrack'}->{chunkCounter} < 3;
-
-
-		$v->{'liveTrack'}->{isShowingTitle} = 0;
-		$v->{'liveTrack'}->{chunkCounter} = 1;
 
 		my $meta = $song->pluginData('meta');
 		$meta->{title} = $meta->{realTitle};
 		$meta->{icon} = $meta->{realIcon};
-		$meta->{cover} = $meta->{realCover};	
+		$meta->{cover} = $meta->{realCover};
 		$song->pluginData( meta  => $meta );
 
 		my $cb = sub {
-			main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");			
+			main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
 			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+			$v->{'trackData'}->{awaitingCb} = 0;
 		};
 
 		#the title will be set when the current buffer is done
@@ -352,38 +355,69 @@ sub liveTrackData {
 
 	}else{
 		#we only need to set the title if we have gone forward 4 chunks
-		return if $v->{'liveTrack'}->{chunkCounter} < 5;
+		return if $v->{'trackData'}->{chunkCounter} < 5;
 
-		$v->{'liveTrack'}->{chunkCounter} = 1;
+		$v->{'trackData'}->{awaitingCb} = 1;
+		$v->{'trackData'}->{isShowingTitle} = 1;
+		$v->{'trackData'}->{chunkCounter} = 1;
+
 
 		my $props =  ${*$self}{'props'};
-		_getLiveTrack(
-			$station,
-			$self->_timeFromOffset( $v->{'offset'}, $props) - $self->_timeFromOffset($props->{virtualStartNumber},$props),
+
+		my $sub;
+
+		if ($self->isLive($masterUrl)) {
+			$sub = sub {
+				my $cbY = shift;
+				my $cbN = shift;
+				_getLiveTrack(_getStationID($masterUrl), $self->_timeFromOffset( $v->{'offset'}, $props) - $self->_timeFromOffset($props->{virtualStartNumber},$props),$cbY,$cbN);
+			};
+		} else {
+			$sub = sub {
+				my $cbY = shift;
+				my $cbN = shift;
+				_getAODTrack($self->getId($masterUrl), $self->_timeFromOffset( $v->{'offset'}, $props),$cbY,$cbN);
+			};
+		}
+
+
+		$sub->(
 			sub {
 				my $track = shift;
 				if ($track->{total} == 0) {
 
 					#nothing there
-					$v->{'liveTrack'}->{isShowingTitle} = 0;
+					$v->{'trackData'}->{isShowingTitle} = 0;
+					$v->{'trackData'}->{awaitingCb} = 0;
+					return;
+				} else {
 
-				}else {
-					$v->{'liveTrack'}->{isShowingTitle} = 1;					
+					if ($self->isLive($masterUrl) && (($self->_timeFromOffset($props->{virtualStartNumber},$props) + $track->{data}[0]->{start}) > $self->_timeFromOffset( $v->{'offset'}, $props))) {
+
+						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
+
+						#The track hasn't started yet. leave.
+						$v->{'trackData'}->{isShowingTitle} = 0;
+						$v->{'trackData'}->{awaitingCb} = 0;
+						return;
+					}
+				
 
 					my $meta = $song->pluginData('meta');
-					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};					
-					$meta->{title} = $newTitle;					
+					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
+					$meta->{title} = $newTitle;
 					if (my $image = $track->{data}[0]->{image_url}) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
-					}					
+					}
 					$song->pluginData( meta  => $meta );
 
 					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
 					my $cb = sub {
-						main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback $newTitle");						
+						main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback $newTitle");
 						Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+						$v->{'trackData'}->{awaitingCb} = 0;
 					};
 
 					#the title will be set when the current buffer is done
@@ -393,10 +427,38 @@ sub liveTrackData {
 			},
 			sub {
 				# an error occured
-				$v->{'liveTrack'}->{isShowingTitle} = 0;
+				$v->{'trackData'}->{isShowingTitle} = 0;
+				$v->{'trackData'}->{awaitingCb} = 0;
+				$log->warn('Failed to retrieve live track data');
 			}
 		);
 	}
+}
+
+
+sub aodMetaData {
+	my $self = shift;
+	my $client = ${*$self}{'client'};
+	my $v        = $self->vars;
+	my $song      = ${*$self}{'song'};
+	my $masterUrl = $song->track()->url;
+	my $pid =   $self->getPid($masterUrl);
+
+
+	_getAODMeta(
+		$pid,
+		sub {
+			my $retMeta = shift;
+			$song->pluginData( meta  => $retMeta );
+			$v->{'resetMeta'} = 0;
+			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+		},
+		sub {
+			$log->warn('Could not retrieve AOD meta data ' . $pid);
+		}
+
+	);
+	return;
 }
 
 
@@ -460,6 +522,7 @@ sub liveMetaData {
 					#failed
 					sub {
 						$log->warn('Could not retrieve live meta data ' . $masterUrl);
+						$v->{'resetMeta'} = 0;
 					}
 				);
 			}
@@ -569,7 +632,9 @@ sub sysread {
 					# check for live track if we are within striking distance of the live edge
 					my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 					$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
-
+				}else{
+					$self->aodMetaData() if ($v->{'resetMeta'} == 1);
+					$self->liveTrackData();
 				}
 
 
@@ -609,9 +674,9 @@ sub sysread {
 
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl))) {
-			if ( time() > $nextHeartbeat ) {
+			if ( time() > $v->{nextHeartbeat} ) {
 				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
-				$nextHeartbeat = time() + 30;
+				$v->{nextHeartbeat} = time() + 30;
 			}
 		}
 		$! = EINTR;
@@ -924,27 +989,32 @@ sub getMetadataFor {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url");
 
-	if ($class->isLive($url)) {
-		if ( $song && $song->currentTrack()->url eq $full_url ) {
 
-			if (my $meta = $song->pluginData('meta')) {
+	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
-				# if live, the only place it will be is on the song
-				main::DEBUGLOG && $log->is_debug && $log->debug("meta from song");
-				$song->track->secs( $meta->{duration} );
-				return $meta;
-			} else { # no props yet
-				return {
-					type  => 'BBCSounds',
-					title => $url,
-					icon  => 'https://sounds.files.bbci.co.uk/v2/networks/' . _getStationID($url) . '/blocks-colour_600x600.png',
-				};
-			}
+		if (my $meta = $song->pluginData('meta')) {
+
+			# if live, the only place it will be is on the song
+			main::DEBUGLOG && $log->is_debug && $log->debug("meta from song");
+			$song->track->secs( $meta->{duration} );
+			return $meta;
 		}
-	}else{
-		#aod
-		$pid = $class->getPid($url);
 	}
+
+
+	if ($class->isLive($url)) {
+
+		#leave before we try and attempt to get meta for the PID
+		return {
+			type  => 'BBCSounds',
+			title => $url,
+			icon  => 'https://sounds.files.bbci.co.uk/v2/networks/' . _getStationID($url) . '/blocks-colour_600x600.png',
+		};
+	}
+
+
+	#aod PID
+	$pid = $class->getPid($url);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Getting Meta for $id");
 
@@ -984,7 +1054,6 @@ sub getMetadataFor {
 			sub {
 				my $retMeta = shift;
 
-				$cache->set( "bs:meta-" . $id, $retMeta, 86400 );
 				$client->master->pluginData( fetchingBSMeta => 0 );
 			},
 
@@ -997,7 +1066,6 @@ sub getMetadataFor {
 					cover => $icon,
 				};
 
-				$cache->set( "bs:meta-" . $id, $meta, 300 );
 				$client->master->pluginData( fetchingBSMeta => 0 );
 			}
 		);
@@ -1118,39 +1186,54 @@ sub _getAODMeta {
 	my $cbY = shift;
 	my $cbN = shift;
 
-	Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
-		0,$pid,
-		sub {
-			my $json  = shift;
-			my $duration = $json->{'duration'}->{'value'};
-			my $title = $json->{'titles'}->{'primary'};
-			if ( defined $json->{'titles'}->{'secondary'} ) {
-				$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
-			}
-			if ( defined $json->{'titles'}->{'tertiary'} ) {
-				$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
-			}
-			my $image = $json->{'image_url'};
-			$image =~ s/{recipe}/320x320/;
-			my $syn = '';
-			if ( defined $json->{'synopses'}->{'medium'} ) {
-				$syn = $json->{'synopses'}->{'medium'};
-			}
-			my $meta = {
-				title    => $title,
-				artist   => $syn,
-				duration => $duration,
-				icon     => $image,
-				cover    => $image,
-				type     => 'BBCSounds',
-			};
-			$cbY->($meta);
+	if ( my $meta = $cache->get("bs:meta-$pid") ) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("AOD Meta from cache  $pid ");
+		$cbY->($meta);
+	} else {
+		Plugins::BBCSounds::BBCSoundsFeeder::getPidDataForMeta(
+			0,$pid,
+			sub {
+				my $json  = shift;
+				my $duration = $json->{'duration'}->{'value'};
+				my $title = $json->{'titles'}->{'primary'};
+				if ( defined $json->{'titles'}->{'secondary'} ) {
+					$title = $title . ' - ' . $json->{'titles'}->{'secondary'};
+				}
+				if ( defined $json->{'titles'}->{'tertiary'} ) {
+					$title = $title . ' ' . $json->{'titles'}->{'tertiary'};
+				}
+				my $image = $json->{'image_url'};
+				$image =~ s/{recipe}/320x320/;
+				my $syn = '';
+				if ( defined $json->{'synopses'}->{'medium'} ) {
+					$syn = $json->{'synopses'}->{'medium'};
+				}
+				my $meta = {
+					title    => $title,
+					realTitle => $title,
+					artist   => $syn,
+					duration => $duration,
+					icon     => $image,
+					realIcon => $image,
+					cover    => $image,
+					realCover => $image,
+					type     => 'BBCSounds',
+				};
+				$cache->set("bs:meta-$pid",$meta,86400);
+				$cbY->($meta);
 
-		},
-		sub {
-			$cbN->();
-		}
-	);
+			},
+			sub {
+				#cache for 3 minutes so that we don't flood their api
+				my $failedmeta ={
+					type  => 'BBCSounds',
+					title => $pid,
+				};
+				$cache->set("bs:meta-$pid",$failedmeta,180);
+				$cbN->();
+			}
+		);
+	}
 	return;
 }
 
@@ -1174,12 +1257,14 @@ sub _getLiveTrack {
 
 					#no live track on this network/programme at the moment,  let's cache for 3 minutes to give the polling a rest
 					$cache->set("bs:track-$network", $newTrack, 180);
-					main::INFOLOG && $log->is_info && $log->info("New current title obtained  cached for 3 minutes");
+					main::INFOLOG && $log->is_info && $log->info("No track available caching status for 3 minutes");
 					$cbY->($newTrack);
 				}else{
 					my $cachetime =  $newTrack->{data}[0]->{offset}->{end} - $currentOffsetTime;
+					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
 					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
 					$newTrack->{total} = 0  if ($cachetime <0);  #its old, and not playing any more;
+
 
 					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");
 					$cbY->($newTrack);
@@ -1191,6 +1276,64 @@ sub _getLiveTrack {
 			}
 		);
 
+	}
+	return;
+}
+
+
+sub _getAODTrack{
+
+	my $pid = shift;
+	my $currentOffsetTime = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+	_getAODTrackData(
+		$pid,
+		sub {
+			my $tracks = shift;
+			my $jsonData = $tracks->{data};
+			for my $track (@$jsonData) {
+				if ($currentOffsetTime >= $track->{offset}->{start}  && $currentOffsetTime < $track->{offset}->{end} ) {
+					main::INFOLOG && $log->is_info && $log->info("Identified track in schedule");
+					$cbY->({'total' => 1, 'data' => [$track]});
+					return;
+				}			
+			}
+			main::INFOLOG && $log->is_info && $log->info("No Track available in schedule");
+
+			#nothing found
+			$cbY->({'total' => 0});
+		},
+		$cbN
+	);
+	return;
+}
+
+
+sub _getAODTrackData {
+	my $pid = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+
+	if ( my $tracks = $cache->get("bs:track-$pid") ) {
+		main::INFOLOG && $log->is_info && $log->info("tracks from cache $pid");
+		$cbY->($tracks);
+	}else {
+		Plugins::BBCSounds::BBCSoundsFeeder::getSegmentsForPID(
+			$pid,
+			sub {
+				my $tracks=shift;
+				$cache->set("bs:track-$pid", $tracks, 86400);
+				main::INFOLOG && $log->is_info && $log->info("Track data obtained for $pid");
+				$cbY->($tracks);
+			},
+			sub {
+				$log->warn('Failed to get track data for '. $pid);
+				$cbN->();
+			}
+		);
 	}
 	return;
 }

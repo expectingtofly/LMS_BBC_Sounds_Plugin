@@ -481,6 +481,34 @@ sub getLatestSegmentForNetwork {
 }
 
 
+sub getSegmentsForPID {	
+	my $pid = shift;
+	my $cb  = shift;
+	my $cbError = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getSegmentsForPID");
+
+	my $url = "https://rms.api.bbc.co.uk/v2/versions/$pid/segments";
+
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };
+			$cb->($JSON);
+		},
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$cbError->();
+		}		
+	)->get($url);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getSegmentForPID");
+	return;
+}
+
+
 sub getSubMenu {
 	my ( $client, $callback, $args, $passDict ) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getSubMenu");
