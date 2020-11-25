@@ -423,7 +423,8 @@ sub getPidDataForMeta {
 	my $isLive = shift;
 	my $pid = shift;
 	my $cb  = shift;
-	my $cbError = shift;
+	my $cbError = shift;	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getPidDataForMeta");
 
 	my $url = '';
 
@@ -446,10 +447,65 @@ sub getPidDataForMeta {
 		sub {
 			$log->warn("error: $_[1]");
 			$cbError->();
+		}	
+	)->get($url);
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getPidDataForMeta");
+	return;
+}
+
+sub getLatestSegmentForNetwork {	
+	my $network = shift;
+	my $cb  = shift;
+	my $cbError = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getLatestSegmentForNetwork");
+
+	my $url = "https://rms.api.bbc.co.uk/v2/services/$network/segments/latest?limit=1";
+
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };
+			$cb->($JSON);
 		},
-		{ cache => 1, expires => '1h' }
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$cbError->();
+		}		
 	)->get($url);
 
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getLatestSegmentForNetwork");
+	return;
+}
+
+
+sub getSegmentsForPID {	
+	my $pid = shift;
+	my $cb  = shift;
+	my $cbError = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getSegmentsForPID");
+
+	my $url = "https://rms.api.bbc.co.uk/v2/versions/$pid/segments";
+
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };
+			$cb->($JSON);
+		},
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$cbError->();
+		}		
+	)->get($url);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getSegmentForPID");
+	return;
 }
 
 
