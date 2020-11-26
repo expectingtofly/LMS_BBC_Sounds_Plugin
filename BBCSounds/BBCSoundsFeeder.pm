@@ -219,10 +219,10 @@ sub getPage {
 	}elsif ( $menuType eq 'daily' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/collections/p07fz59r/members/playable?experience=domestic';
 	}elsif ( $menuType eq 'tleo' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'}. '&offset='. $passDict->{'offset'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category='. $passDict->{'category'}. '&sort=-release_date'. '&offset='. $passDict->{'offset'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};				  
 		$denominator = $passDict->{'category'};
 	}elsif ( $menuType eq 'search' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $args->{'search'} );
