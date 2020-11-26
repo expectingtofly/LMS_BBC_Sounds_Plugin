@@ -384,9 +384,13 @@ sub liveTrackData {
 		$sub->(
 			sub {
 				my $track = shift;
+				my $meta = $song->pluginData('meta');
 				if ($track->{total} == 0) {
 
 					#nothing there
+					$meta->{album} = '';
+					$song->pluginData( meta  => $meta );
+
 					$v->{'trackData'}->{isShowingTitle} = 0;
 					$v->{'trackData'}->{awaitingCb} = 0;
 					return;
@@ -401,16 +405,15 @@ sub liveTrackData {
 						$v->{'trackData'}->{awaitingCb} = 0;
 						return;
 					}
-				
-
-					my $meta = $song->pluginData('meta');
+									
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
 					$meta->{title} = $newTitle;
+					$meta->{album} = 'Now Playing : ' . $newTitle;
 					if (my $image = $track->{data}[0]->{image_url}) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
-					}
+					}					
 					$song->pluginData( meta  => $meta );
 
 					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
@@ -1263,8 +1266,7 @@ sub _getLiveTrack {
 					my $cachetime =  $newTrack->{data}[0]->{offset}->{end} - $currentOffsetTime;
 					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
 					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
-					$newTrack->{total} = 0  if ($cachetime <0);  #its old, and not playing any more;
-
+					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more;
 
 					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");
 					$cbY->($newTrack);
