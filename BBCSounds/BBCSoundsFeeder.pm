@@ -1380,7 +1380,7 @@ sub spottyInfoIntegration {
 	my $items = [];
 
 	#leave if we are not playing
-	return unless $url && $client && $client->isPlaying;
+	return \@$items unless $url && $client && $client->isPlaying;
 
 	#get the meta data
 	if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
@@ -1400,7 +1400,7 @@ sub spottyInfoIntegration {
 	}else{
 		main::INFOLOG && $log->is_info && $log->info("No Meta or spotty available");
 		main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
-		return;
+		return \@$items;
 	}
 }
 
