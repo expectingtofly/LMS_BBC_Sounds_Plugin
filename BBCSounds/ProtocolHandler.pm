@@ -327,7 +327,7 @@ sub liveTrackData {
 
 	# we must leave if we have a title waiting to be changed by buffer callback
 	return if $v->{'trackData'}->{awaitingCb};
-	
+
 	if ($v->{'trackData'}->{isShowingTitle}) {
 
 		#we only need to reset the title if we have gone forward 2
@@ -401,11 +401,14 @@ sub liveTrackData {
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
 						#The track hasn't started yet. leave.
+						$meta->{album} = '';
+						$song->pluginData( meta  => $meta );
+
 						$v->{'trackData'}->{isShowingTitle} = 0;
 						$v->{'trackData'}->{awaitingCb} = 0;
 						return;
 					}
-									
+
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
 					$meta->{title} = $newTitle;
 					$meta->{album} = 'Now Playing : ' . $newTitle;
@@ -413,7 +416,7 @@ sub liveTrackData {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
-					}					
+					}
 					$song->pluginData( meta  => $meta );
 
 					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
@@ -1300,7 +1303,7 @@ sub _getAODTrack{
 					main::INFOLOG && $log->is_info && $log->info("Identified track in schedule");
 					$cbY->({'total' => 1, 'data' => [$track]});
 					return;
-				}			
+				}
 			}
 			main::INFOLOG && $log->is_info && $log->info("No Track available in schedule");
 
