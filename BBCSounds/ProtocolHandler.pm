@@ -327,7 +327,7 @@ sub liveTrackData {
 
 	# we must leave if we have a title waiting to be changed by buffer callback
 	return if $v->{'trackData'}->{awaitingCb};
-	
+
 	if ($v->{'trackData'}->{isShowingTitle}) {
 
 		#we only need to reset the title if we have gone forward 2
@@ -389,6 +389,7 @@ sub liveTrackData {
 
 					#nothing there
 					$meta->{album} = '';
+					$meta->{spotify} = '';
 					$song->pluginData( meta  => $meta );
 
 					$v->{'trackData'}->{isShowingTitle} = 0;
@@ -401,11 +402,15 @@ sub liveTrackData {
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
 						#The track hasn't started yet. leave.
+						$meta->{album} = '';
+						$meta->{spotify} = '';
+						$song->pluginData( meta  => $meta );
+
 						$v->{'trackData'}->{isShowingTitle} = 0;
 						$v->{'trackData'}->{awaitingCb} = 0;
 						return;
 					}
-									
+
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
 					$meta->{title} = $newTitle;
 					$meta->{album} = 'Now Playing : ' . $newTitle;
@@ -413,7 +418,21 @@ sub liveTrackData {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
-					}					
+					}
+
+					#add a spotify id if there is one
+					my $spotifyId = '';
+					main::INFOLOG && $log->is_info && $log->info('Music service link count ' . scalar @{$track->{data}[0]->{uris}} );
+					
+					for my $uri (@{$track->{data}[0]->{uris}}) {
+						if ($uri->{label} eq 'Spotify') {
+							$spotifyId = $uri->{uri};
+							$spotifyId =~ s/https:\/\/open.spotify.com\/track\//spotify:\/\/track:/;
+							last;
+						}
+					}
+					$meta->{spotify} = $spotifyId;
+
 					$song->pluginData( meta  => $meta );
 
 					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
@@ -1220,6 +1239,7 @@ sub _getAODMeta {
 					realIcon => $image,
 					cover    => $image,
 					realCover => $image,
+					spotify => '',
 					type     => 'BBCSounds',
 				};
 				$cache->set("bs:meta-$pid",$meta,86400);
@@ -1300,7 +1320,7 @@ sub _getAODTrack{
 					main::INFOLOG && $log->is_info && $log->info("Identified track in schedule");
 					$cbY->({'total' => 1, 'data' => [$track]});
 					return;
-				}			
+				}
 			}
 			main::INFOLOG && $log->is_info && $log->info("No Track available in schedule");
 
@@ -1381,6 +1401,7 @@ sub _getLiveMeta {
 					realIcon => $image,
 					cover    => $image,
 					realCover    => $image,
+					spotify => '',
 					type     => 'BBCSounds',
 				};
 
