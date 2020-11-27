@@ -389,6 +389,7 @@ sub liveTrackData {
 
 					#nothing there
 					$meta->{album} = '';
+					$meta->{spotify} = '';
 					$song->pluginData( meta  => $meta );
 
 					$v->{'trackData'}->{isShowingTitle} = 0;
@@ -402,6 +403,7 @@ sub liveTrackData {
 
 						#The track hasn't started yet. leave.
 						$meta->{album} = '';
+						$meta->{spotify} = '';
 						$song->pluginData( meta  => $meta );
 
 						$v->{'trackData'}->{isShowingTitle} = 0;
@@ -417,6 +419,20 @@ sub liveTrackData {
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
 					}
+
+					#add a spotify id if there is one
+					my $spotifyId = '';
+					main::INFOLOG && $log->is_info && $log->info('Music service link count ' . scalar @{$track->{data}[0]->{uris}} );
+					
+					for my $uri (@{$track->{data}[0]->{uris}}) {
+						if ($uri->{label} eq 'Spotify') {
+							$spotifyId = $uri->{uri};
+							$spotifyId =~ s/https:\/\/open.spotify.com\/track\//spotify:\/\/track:/;
+							last;
+						}
+					}
+					$meta->{spotify} = $spotifyId;
+
 					$song->pluginData( meta  => $meta );
 
 					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
@@ -1223,6 +1239,7 @@ sub _getAODMeta {
 					realIcon => $image,
 					cover    => $image,
 					realCover => $image,
+					spotify => '',
 					type     => 'BBCSounds',
 				};
 				$cache->set("bs:meta-$pid",$meta,86400);
@@ -1384,6 +1401,7 @@ sub _getLiveMeta {
 					realIcon => $image,
 					cover    => $image,
 					realCover    => $image,
+					spotify => '',
 					type     => 'BBCSounds',
 				};
 

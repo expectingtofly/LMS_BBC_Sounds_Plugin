@@ -45,6 +45,15 @@ sub flushCache { $cache->cleanup(); }
 
 
 sub init {
+
+	Slim::Menu::TrackInfo->registerInfoProvider(
+		bbcsounds => (
+			after => 'top',
+			func  => \&spottyInfoIntegration,
+		)
+	);
+
+
 	Slim::Menu::GlobalSearch->registerInfoProvider(
 		bbcsounds => (
 			func => sub {
@@ -222,7 +231,7 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};				  
+		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
 	}elsif ( $menuType eq 'search' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $args->{'search'} );
@@ -423,15 +432,14 @@ sub getPidDataForMeta {
 	my $isLive = shift;
 	my $pid = shift;
 	my $cb  = shift;
-	my $cbError = shift;	
+	my $cbError = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getPidDataForMeta");
 
 	my $url = '';
 
 	if ($isLive) {
 		$url = "https://rms.api.bbc.co.uk/v2/broadcasts/$pid";
-	}
-	else{
+	}else{
 		$url = "https://rms.api.bbc.co.uk/v2/programmes/$pid/playable";
 	}
 
@@ -447,13 +455,14 @@ sub getPidDataForMeta {
 		sub {
 			$log->warn("error: $_[1]");
 			$cbError->();
-		}	
+		}
 	)->get($url);
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getPidDataForMeta");
 	return;
 }
 
-sub getLatestSegmentForNetwork {	
+
+sub getLatestSegmentForNetwork {
 	my $network = shift;
 	my $cb  = shift;
 	my $cbError = shift;
@@ -473,7 +482,7 @@ sub getLatestSegmentForNetwork {
 		sub {
 			$log->warn("error: $_[1]");
 			$cbError->();
-		}		
+		}
 	)->get($url);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getLatestSegmentForNetwork");
@@ -481,7 +490,7 @@ sub getLatestSegmentForNetwork {
 }
 
 
-sub getSegmentsForPID {	
+sub getSegmentsForPID {
 	my $pid = shift;
 	my $cb  = shift;
 	my $cbError = shift;
@@ -501,7 +510,7 @@ sub getSegmentsForPID {
 		sub {
 			$log->warn("error: $_[1]");
 			$cbError->();
-		}		
+		}
 	)->get($url);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getSegmentForPID");
@@ -1231,8 +1240,9 @@ sub _cacheMenu {
 	return;
 }
 
+
 sub _removeCacheMenu {
-	my $url  = shift;	
+	my $url  = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_removeCacheMenu");
 	my $cacheKey = 'BS:' . md5_hex($url);
 
@@ -1241,7 +1251,6 @@ sub _removeCacheMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_removeCacheMenu");
 	return;
 }
-
 
 
 sub _isFollowedActivity {
@@ -1361,5 +1370,38 @@ sub _globalSearchItems {
 	return \@items;
 }
 
+
+sub spottyInfoIntegration {
+	my ( $client, $url, $track, $remoteMeta ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++spottyInfoIntegration");
+
+
+	my $song = Slim::Player::Source::playingSong($client);
+	my $items = [];
+
+	#leave if we are not playing
+	return unless $url && $client && $client->isPlaying;
+
+	#get the meta data
+	if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
+
+		if (!($meta->{spotify} eq '')) {
+			$items = [
+				{					
+					name => 'BBC Sounds Now Playing On Spotify',
+					type => 'audio',
+					url  =>  $meta->{spotify},
+					on_select   => 'play'
+				}
+			];
+			main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
+			return \@$items;
+		}
+	}else{
+		main::INFOLOG && $log->is_info && $log->info("No Meta or spotty available");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
+		return;
+	}
+}
 
 1;
