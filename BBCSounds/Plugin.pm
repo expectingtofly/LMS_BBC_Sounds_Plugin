@@ -43,7 +43,8 @@ my $prefs = preferences('plugin.bbcsounds');
 $prefs->migrate(
 	2,
 	sub {
-		$prefs->set('is_radio', 0);
+		$prefs->set('is_radio', 0);    
+        $prefs->set('hideSampleRate', 0);    
 		1;
 	}
 );
@@ -52,7 +53,7 @@ $prefs->migrate(
 sub initPlugin {
 	my $class = shift;
 
-	$prefs->init({ is_radio => 0 });
+	$prefs->init({ is_radio => 0, hideSampleRate =>0 });
 
 
 	$class->SUPER::initPlugin(

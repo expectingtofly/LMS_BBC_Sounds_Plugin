@@ -54,6 +54,7 @@ use constant DATA_CHUNK => 128 * 1024;
 
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
+my $prefs = preferences('plugin.bbcsounds');
 
 
 Slim::Player::ProtocolHandlers->registerHandler( 'sounds', __PACKAGE__ );
@@ -423,7 +424,7 @@ sub liveTrackData {
 					#add a spotify id if there is one
 					my $spotifyId = '';
 					main::INFOLOG && $log->is_info && $log->info('Music service link count ' . scalar @{$track->{data}[0]->{uris}} );
-					
+
 					for my $uri (@{$track->{data}[0]->{uris}}) {
 						if ($uri->{label} eq 'Spotify') {
 							$spotifyId = $uri->{uri};
@@ -951,11 +952,15 @@ sub getMPD {
 						adaptId  => $selAdapt->{'id'},
 						represId => $selRepres->{'id'},
 					},
+					hideSampleRate => 0,
 				};
 
 				#fix urls
 				$props->{initializeURL} =~s/\$RepresentationID\$/$selRepres->{id}/;
 				$props->{segmentURL} =~s/\$RepresentationID\$/$selRepres->{id}/;
+
+				#hide sample rate if in prefs
+				$props->{hideSampleRate} = 1 if $prefs->get('hideSampleRate');
 
 				#force http
 				$props->{baseURL} =~s/https:/http:/;
