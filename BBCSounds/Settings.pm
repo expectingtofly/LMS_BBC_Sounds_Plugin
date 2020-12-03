@@ -123,7 +123,7 @@ sub prefs {
 
 
     $log->debug("--prefs");
-    return ( $prefs, qw(username password) );
+    return ( $prefs, qw(username password is_radio hideSampleRate) );
 }
 
 sub beforeRender {

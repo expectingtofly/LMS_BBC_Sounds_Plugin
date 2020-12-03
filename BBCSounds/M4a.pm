@@ -91,10 +91,10 @@ sub setProperties {
 				if ( my $atom = parseAtoms( 'moov', $dataref, $args ) ) {
 					$props->{mp4a} =$atom->{'trak'}->{'mdia'}->{'minf'}->{'stbl'}->{'stsd'}->{'entries'}->{'mp4a'};
 					$song->track->bitrate( $props->{bitrate}|| $props->{mp4a}->{'esds'}->{'avgbitrate'} );
-					$song->track->samplerate( $props->{'samplingRate'}|| $props->{mp4a}->{'samplerate'} );
+					if (!($props->{'hideSampleRate'})) {
+						$song->track->samplerate( $props->{'samplingRate'}|| $props->{mp4a}->{'samplerate'} );
+					}
 					$song->track->channels( $props->{'channels'}|| $props->{mp4a}->{'channelcount'} );
-
-					# $song->track->samplesize( $props->{'track'}->{'samplesize'} );
 
 					my $id = Plugins::BBCSounds::ProtocolHandler->getId($song->track()->url );
 					if ( my $meta = $cache->get("bs:meta-$id") ) {

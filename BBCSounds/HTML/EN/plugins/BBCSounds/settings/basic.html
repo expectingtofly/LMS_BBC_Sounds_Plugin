@@ -19,5 +19,24 @@
 
 	[% END %]
 
+	<hr/>
+	
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_RADIOMENU" desc="PLUGIN_BBCSOUNDS_RADIOMENU_DESC" %]
+
+		<div class="prefDesc">[% "ENABLE" | string %]
+			<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
+		</div>
+
+	[% END %]
+
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ADVANCED_SETTING" desc="" %]
+		[% "PLUGIN_BBCSOUNDS_ADVANCED_SETTING_DESC" | string %]
+	[% END %]
+	
+	[% WRAPPER setting title="" desc="" %]
+		<input name="pref_hideSampleRate" id="pref_hideSampleRate" type="checkbox" [% IF prefs.pref_hideSampleRate %] checked [% END %]>
+		<label for="pref_hideSampleRate">[% "PLUGIN_BBCSOUNDS_HIDESAMPLERATE_DESC" | string %]</label>
+	[% END %]
+
 
 [% PROCESS settings/footer.html %]
