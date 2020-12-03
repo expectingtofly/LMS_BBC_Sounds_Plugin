@@ -19,5 +19,15 @@
 
 	[% END %]
 
+	<hr/>
+	
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_RADIOMENU" desc="PLUGIN_BBCSOUNDS_RADIOMENU_DESC" %]
+
+		<div class="prefDesc">[% "ENABLE" | string %]
+			<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
+		</div>
+
+	[% END %]
+
 
 [% PROCESS settings/footer.html %]

@@ -16,4 +16,11 @@ PLUGIN_BBCSOUNDS_PASSWORD
 PLUGIN_BBCSOUNDS_PASSWORD_DESC
 	EN	Enter your BBC Account Password
 
+PLUGIN_BBCSOUNDS_RADIOMENU
+	EN	Show in "Radio" menu
+
+PLUGIN_BBCSOUNDS_RADIOMENU_DESC
+	EN	Select this if you would rather BBC Sounds is located within the "Radio" menu rather than the "My Apps" menue.  Requires LMS restart.
+
+
 
