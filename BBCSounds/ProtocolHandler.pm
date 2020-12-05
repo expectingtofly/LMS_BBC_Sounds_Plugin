@@ -1045,7 +1045,7 @@ sub getMetadataFor {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Getting Meta for $id");
 
-	if ( my $meta = $cache->get("bs:meta-$id") ) {
+	if ( my $meta = $cache->get("bs:meta-$pid") ) {
 		if ( $song && $song->currentTrack()->url eq $full_url ) {
 			my $props = $song->pluginData('props');
 
