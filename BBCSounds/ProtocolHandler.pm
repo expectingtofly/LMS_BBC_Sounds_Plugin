@@ -1267,7 +1267,7 @@ sub _getAODMeta {
 
 
 sub _getLiveTrack {
-	my $network = shift;
+	my $network = shift;	
 	my $currentOffsetTime = shift;
 	my $cbY = shift;
 	my $cbN = shift;
@@ -1291,8 +1291,9 @@ sub _getLiveTrack {
 					my $cachetime =  $newTrack->{data}[0]->{offset}->{end} - $currentOffsetTime;
 					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
 					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
-					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more;
-
+					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more.
+					$newTrack->{total} = 0  if !($newTrack->{data}[0]->{offset}->{now_playing});  #for some reason it is set to not playing
+					
 					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");
 					$cbY->($newTrack);
 				}

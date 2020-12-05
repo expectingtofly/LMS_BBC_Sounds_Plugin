@@ -839,7 +839,7 @@ sub _parseStationlist {
 			name        => $item->{network}->{short_title},
 			type        => 'link',
 			icon        => $image,
-			url         => '',
+			url         => '',				
 			passthrough => [
 				{
 					type      => 'stationschedule',
