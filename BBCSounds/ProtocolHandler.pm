@@ -51,6 +51,12 @@ use Plugins::BBCSounds::BBCSoundsFeeder;
 
 use constant MIN_OUT    => 8192;
 use constant DATA_CHUNK => 128 * 1024;
+use constant PAGE_URL_REGEXP => qr{
+    ^ https://www\.bbc\.co\.uk/ (?:
+        programmes/ (?<pid> [0-9a-z]+) |
+        sounds/play/ (?<pid> live:[_0-9a-z]+ | [0-9a-z]+ )
+    ) $
+}ix;
 
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
@@ -58,6 +64,8 @@ my $prefs = preferences('plugin.bbcsounds');
 
 
 Slim::Player::ProtocolHandlers->registerHandler( 'sounds', __PACKAGE__ );
+Slim::Player::ProtocolHandlers->registerURLHandler(PAGE_URL_REGEXP, __PACKAGE__)
+    if Slim::Player::ProtocolHandlers->can('registerURLHandler');
 
 sub flushCache { $cache->cleanup(); }
 
@@ -554,6 +562,46 @@ sub liveMetaData {
 			$log->warn('Could not retrieve station schedule');
 		}
 	);
+}
+
+
+sub explodePlaylist {
+	my ( $class, $client, $uri, $cb ) = @_;
+
+	if ( $uri =~ PAGE_URL_REGEXP ) {
+        my $pid = $+{'pid'};
+        if ( $pid =~ m/^live:(.+)$/ ) {
+            my $stationid = $1;
+            $cb->(["sounds://_LIVE_$stationid"]);
+        }
+        else {
+            my $playlist_url = URI->new('https://www.bbc.co.uk');
+            $playlist_url->path_segments('programmes', $pid, 'playlist.json');
+            $log->debug("Fetching $playlist_url to get vpid");
+            Slim::Networking::SimpleAsyncHTTP->new(
+                sub {
+                    my ( $http ) = @_;
+                    my $menu = [];
+                    Plugins::BBCSounds::PlayManager::parsePlaylist(
+                        $http->contentRef,
+                        $menu,
+                        $pid,
+                    );
+                    $cb->([$menu->[0]->{'url'}]);
+                },
+                sub {
+                    my ( $http, $error ) = @_;
+                    $log->error($error);
+                    $cb->([]);
+                },
+            )->get($playlist_url);
+        }
+	}
+	else {
+		$cb->([$uri]);
+	}
+
+    return;
 }
 
 
