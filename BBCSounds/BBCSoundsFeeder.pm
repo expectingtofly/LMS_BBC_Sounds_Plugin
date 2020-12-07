@@ -839,7 +839,7 @@ sub _parseStationlist {
 			name        => $item->{network}->{short_title},
 			type        => 'link',
 			icon        => $image,
-			url         => '',				
+			url         => '',
 			passthrough => [
 				{
 					type      => 'stationschedule',
@@ -1366,6 +1366,17 @@ sub _globalSearchItems {
 			passthrough => [ { type => 'searchall', codeRef => 'getPage', query => $query } ]
 		}
 	);
+
+	#async call to renew session, as this could be the top level
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			main::INFOLOG && $log->is_info && $log->info("Session available for global search");
+		},
+		sub {
+			$log->warn("Failed to renew session on global search");
+		}
+	);
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_globalSearchItems");
 	return \@items;
 }
@@ -1387,7 +1398,7 @@ sub spottyInfoIntegration {
 
 		if (!($meta->{spotify} eq '')) {
 			$items = [
-				{					
+				{
 					name => 'BBC Sounds Now Playing On Spotify',
 					type => 'audio',
 					url  =>  $meta->{spotify},
