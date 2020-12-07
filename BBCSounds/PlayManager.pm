@@ -27,74 +27,69 @@ use Slim::Utils::Log;
 
 my $log = logger('plugin.bbcsounds');
 
+
 sub createIcon {
-    my $pid = shift;
-    $log->debug("++createIcon");
+	my $pid = shift;
+	$log->debug("++createIcon");
 
-    my $icon = "http://ichef.bbci.co.uk/images/ic/320x320/$pid.jpg";
+	my $icon = "http://ichef.bbci.co.uk/images/ic/320x320/$pid.jpg";
 
-    $log->debug("--createIcon - $icon");
-    return $icon;
+	$log->debug("--createIcon - $icon");
+	return $icon;
 }
 
 
 sub _placeImageRecipe {
-    my $url = shift;
-    $log->debug("++_placeImageRecipe");
-    my $chars = "\\\$recipe";
+	my $url = shift;
+	$log->debug("++_placeImageRecipe");
+	my $chars = "\\\$recipe";
 
-    $url =~ s/$chars/320x320/ig;
+	$url =~ s/$chars/320x320/ig;
 
-    $log->debug("--_placeImageRecipe -  $url");
-    return $url;
+	$log->debug("--_placeImageRecipe -  $url");
+	return $url;
 }
 
-sub parsePlaylist {
-    my $htmlref = shift;
-    my $menu    = shift;
-    my $gpid    = shift;
 
-    $log->debug("++parsePlaylist");
-    my $playlistJSON = decode_json $$htmlref;
+sub getSoundsURLForPid {
+	my $gpid = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	$log->debug("++getSoundsURLForPid");
 
-    my $pid = $playlistJSON->{defaultAvailableVersion}->{pid};
+	my $playlist_url = URI->new('https://www.bbc.co.uk');
+	$playlist_url->path_segments('programmes', $gpid, 'playlist.json');
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };
+			my $pid = $JSON->{defaultAvailableVersion}->{pid};
+			my $soundsUrl = 'sounds://_' . $pid . '_' . $gpid;
+			$cbY->($soundsUrl);
+		},
+		sub {
+			my ( $http, $error ) = @_;
+			$log->error($error);
+			$cbN->();
+		},
+	)->get($playlist_url);
 
-    my $title = $playlistJSON->{defaultAvailableVersion}->{smpConfig}->{title};
-    my $desc = $playlistJSON->{defaultAvailableVersion}->{smpConfig}->{summary};
-    my $icon = createIcon(
-        _getPidfromImageURL(
-            $playlistJSON->{defaultAvailableVersion}->{smpConfig}
-              ->{holdingImageURL}
-        )
-    );
-
-    my $stream = 'sounds://_' . $pid . '_' . $gpid;
-
-    $log->info("aod stream $stream");
-    push @$menu,
-      {
-        'name'        => $title,
-        'url'         => $stream,
-        'icon'        => $icon,
-        'type'        => 'audio',
-        'description' => $desc,
-        'on_select'   => 'play',
-      };
-    $log->debug("--parsePlaylist");
-    return;
+	$log->debug("--getSoundsURLForPid");
+	return;
 }
+
 
 sub _getPidfromImageURL {
-    my $url = shift;
-    $log->debug("++_getPidfromImageURL");
+	my $url = shift;
+	$log->debug("++_getPidfromImageURL");
 
-    $log->debug("url to create pid : $url");
-    my @pid = split /\//x, $url;
-    my $pid = pop(@pid);
-    $pid = substr $pid, 0, -4;
+	$log->debug("url to create pid : $url");
+	my @pid = split /\//x, $url;
+	my $pid = pop(@pid);
+	$pid = substr $pid, 0, -4;
 
-    $log->debug("--_getPidfromImageURL - $pid");
-    return $pid;
+	$log->debug("--_getPidfromImageURL - $pid");
+	return $pid;
 }
 
 1;

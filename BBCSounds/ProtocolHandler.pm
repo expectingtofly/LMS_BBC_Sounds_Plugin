@@ -47,6 +47,7 @@ use Slim::Utils::Cache;
 
 use Plugins::BBCSounds::M4a;
 use Plugins::BBCSounds::BBCSoundsFeeder;
+use Plugins::BBCSounds::PlayManager;
 
 
 use constant MIN_OUT    => 8192;
@@ -65,7 +66,7 @@ my $prefs = preferences('plugin.bbcsounds');
 
 Slim::Player::ProtocolHandlers->registerHandler( 'sounds', __PACKAGE__ );
 Slim::Player::ProtocolHandlers->registerURLHandler(PAGE_URL_REGEXP, __PACKAGE__)
-    if Slim::Player::ProtocolHandlers->can('registerURLHandler');
+  if Slim::Player::ProtocolHandlers->can('registerURLHandler');
 
 sub flushCache { $cache->cleanup(); }
 
@@ -569,39 +570,29 @@ sub explodePlaylist {
 	my ( $class, $client, $uri, $cb ) = @_;
 
 	if ( $uri =~ PAGE_URL_REGEXP ) {
-        my $pid = $+{'pid'};
-        if ( $pid =~ m/^live:(.+)$/ ) {
-            my $stationid = $1;
-            $cb->(["sounds://_LIVE_$stationid"]);
-        }
-        else {
-            my $playlist_url = URI->new('https://www.bbc.co.uk');
-            $playlist_url->path_segments('programmes', $pid, 'playlist.json');
-            $log->debug("Fetching $playlist_url to get vpid");
-            Slim::Networking::SimpleAsyncHTTP->new(
-                sub {
-                    my ( $http ) = @_;
-                    my $menu = [];
-                    Plugins::BBCSounds::PlayManager::parsePlaylist(
-                        $http->contentRef,
-                        $menu,
-                        $pid,
-                    );
-                    $cb->([$menu->[0]->{'url'}]);
-                },
-                sub {
-                    my ( $http, $error ) = @_;
-                    $log->error($error);
-                    $cb->([]);
-                },
-            )->get($playlist_url);
-        }
-	}
-	else {
+		my $pid = $+{'pid'};
+		if ( $pid =~ m/^live:(.+)$/ ) {
+			my $stationid = $1;
+			$cb->(["sounds://_LIVE_$stationid"]);
+		}else {
+			$log->debug("Fetching soundsurl for $pid to get vpid");
+			Plugins::BBCSounds::PlayManager::getSoundsURLForPid(
+				$pid,
+				sub {
+					my $url = shift;
+					$cb->([$url]);
+				},
+				sub {
+					$log->error("Failed to get sounds url for $pid");
+					$cb->([]);
+				}
+			);
+		}
+	}else {
 		$cb->([$uri]);
 	}
 
-    return;
+	return;
 }
 
 
@@ -1316,7 +1307,7 @@ sub _getAODMeta {
 
 
 sub _getLiveTrack {
-	my $network = shift;	
+	my $network = shift;
 	my $currentOffsetTime = shift;
 	my $cbY = shift;
 	my $cbN = shift;
@@ -1342,7 +1333,7 @@ sub _getLiveTrack {
 					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
 					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more.
 					$newTrack->{total} = 0  if !($newTrack->{data}[0]->{offset}->{now_playing});  #for some reason it is set to not playing
-					
+
 					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");
 					$cbY->($newTrack);
 				}
