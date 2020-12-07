@@ -257,6 +257,8 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/categories/' . $passDict->{'category'};
 	}elsif ( $menuType eq 'stationsdayschedule' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
+	}elsif ( $menuType eq 'segments' ) {
+		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
 	}else {
 		$log->error("Invalid menu selection");
 	}
@@ -773,8 +775,11 @@ sub _parse {
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
+	}elsif( $optstr eq 'segments' )  {
+		my $JSON = decode_json ${ $http->contentRef };
+		_parseTracklist( $JSON->{data}, $passthrough, $menu );
 	}else {
-		$log->error("Invalid BBC HTML Parse option");
+		$log->error("Invalid BBC API Parse option");
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--parse");
@@ -822,6 +827,29 @@ sub _parseItems {
 }
 
 
+sub _parseTracklist {
+	my $jsonData = shift;
+	my $passthrough = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseTracklist");
+	my $size = scalar @$jsonData;
+
+	$log->info("Number of items : $size ");
+
+	for my $item (@$jsonData) {
+		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		push @$menu,
+		  {
+			name        => $title,
+			type        => 'audio',
+			url         => 'sounds://_' . $passthrough->{id} . '_' . $passthrough->{pid} . '_' . $item->{offset}->{start},
+		  };
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTracklist");
+	return;
+}
+
+
 sub _parseStationlist {
 	my $jsonData = shift;
 	my $menu     = shift;
@@ -839,7 +867,7 @@ sub _parseStationlist {
 			name        => $item->{network}->{short_title},
 			type        => 'link',
 			icon        => $image,
-			url         => '',				
+			url         => '',
 			passthrough => [
 				{
 					type      => 'stationschedule',
@@ -1128,6 +1156,8 @@ sub _getPlayableItemMenu {
 		$item = $JSON->{'playable_item'};
 	}
 
+	main::DEBUGLOG && $log->is_debug && $log->debug(' Dump of playable JSON ' . Dumper($item));
+
 	my $urn        = $item->{urn};
 	my $pid        = _getPidfromSoundsURN( $item->{urn} );
 	my $id         = $item->{id};
@@ -1144,7 +1174,7 @@ sub _getPlayableItemMenu {
 		name => 'Play' . $playLabel,
 		url  => 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset,
 		type => 'audio',
-		,
+		order => 1,
 		passthrough => [ {} ],
 		on_select   => 'play',
 	  };
@@ -1159,6 +1189,7 @@ sub _getPlayableItemMenu {
 	  {
 		name        => $booktype,
 		type        => 'link',
+		order 		=> 3,
 		url         => '',
 		passthrough => [
 			{
@@ -1180,6 +1211,7 @@ sub _getPlayableItemMenu {
 		  {
 			name        => $subtype,
 			type        => 'link',
+			order 		=> 4,
 			url         => '',
 			passthrough => [
 				{
@@ -1192,6 +1224,7 @@ sub _getPlayableItemMenu {
 		push @$menu, {
 			name        => 'All Episodes',
 			type        => 'link',
+			order 		=> 2,
 			url         => '',
 			passthrough => [
 				{
@@ -1204,6 +1237,25 @@ sub _getPlayableItemMenu {
 
 		};
 	}
+
+	push @$menu, {
+		name        => 'Tracklist',
+		type        => 'link',
+		order 		=> 5,
+		url         => '',
+		passthrough => [
+			{
+				type    => 'segments',
+				id => $id,
+				pid => $pid,
+				offset  => 0,
+				codeRef => 'getPage'
+			}
+		],
+
+	};
+
+	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
@@ -1366,6 +1418,17 @@ sub _globalSearchItems {
 			passthrough => [ { type => 'searchall', codeRef => 'getPage', query => $query } ]
 		}
 	);
+
+	#async call to renew session, as this could be the top level
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			main::INFOLOG && $log->is_info && $log->info("Session available for global search");
+		},
+		sub {
+			$log->warn("Failed to renew session on global search");
+		}
+	);
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_globalSearchItems");
 	return \@items;
 }
@@ -1387,7 +1450,7 @@ sub spottyInfoIntegration {
 
 		if (!($meta->{spotify} eq '')) {
 			$items = [
-				{					
+				{
 					name => 'BBC Sounds Now Playing On Spotify',
 					type => 'audio',
 					url  =>  $meta->{spotify},
