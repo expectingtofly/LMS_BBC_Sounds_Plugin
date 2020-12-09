@@ -15,3 +15,4 @@ Provides access to the BBC Sounds features as an LMS plugin, it includes :
 
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
+Full details can be found in the Wiki : https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki
