@@ -1120,8 +1120,9 @@ sub getMetadataFor {
 			#success
 			sub {
 				my $retMeta = shift;
-
 				$client->master->pluginData( fetchingBSMeta => 0 );
+				$client->currentPlaylistUpdateTime( Time::HiRes::time() );
+				Slim::Control::Request::notifyFromArray( $client, [ 'newmetadata' ] );
 			},
 
 			#failed
