@@ -861,7 +861,7 @@ sub getNextTrack {
 			}
 		);
 
-		_getLiveMPDUrl(
+		_getMPDUrl(
 			$stationid,
 			sub {
 				$url = shift;
@@ -877,8 +877,19 @@ sub getNextTrack {
 	}else{
 
 		my $id = $class->getId($masterUrl);
-		$url ='http://open.live.bbc.co.uk/mediaselector/6/redir/version/2.0/mediaset/audio-syndication-dash/proto/http/vpid/'. $id;
-		$processMPD->();
+
+		_getMPDUrl(
+			$id,
+			sub {
+				$url = shift;
+				$processMPD->();
+			},
+			sub {
+				$log->error('Failed to get AOD MPD');
+				errorCb->();
+			}
+		);
+
 	}
 }
 
@@ -1122,7 +1133,7 @@ sub getMetadataFor {
 				my $retMeta = shift;
 				$client->master->pluginData( fetchingBSMeta => 0 );
 				$client->currentPlaylistUpdateTime( Time::HiRes::time() );
-				Slim::Control::Request::notifyFromArray( $client, [ 'newmetadata' ] );
+				Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 			},
 
 			#failed
@@ -1486,8 +1497,8 @@ sub _getDashUTCTime {
 }
 
 
-sub _getLiveMPDUrl {
-	my $network  = shift;
+sub _getMPDUrl {
+	my $id  = shift;
 	my $cbY  = shift;
 	my $cbN  = shift;
 
@@ -1500,15 +1511,24 @@ sub _getLiveMPDUrl {
 			my $mediaitems = [];
 			$mediaitems = $json->{media};
 			@$mediaitems = reverse sort { int($a->{bitrate}) <=> int($b->{bitrate}) } @$mediaitems;
-			my $mpd = @$mediaitems[0]->{connection}[0]->{href};
-			main::INFOLOG && $log->is_info && $log->info("Live MPD $mpd");
-			$cbY->($mpd);
-			return;
+
+			# find the first that is dash
+			my $connections = @$mediaitems[0]->{connection};
+			for my $connection (@$connections) {
+				if ($connection->{transferFormat} eq 'dash'){
+					my $mpd = $connection->{href};
+					main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
+					$cbY->($mpd);
+					return;
+				}
+			}
+			$log->error("No Dash Found");
+			$cbN->();
 		},
 		sub {
 			$cbN->();
 		}
-	)->get("http://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$network/format/json/");
+	)->get("http://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
 	return;
 }
 

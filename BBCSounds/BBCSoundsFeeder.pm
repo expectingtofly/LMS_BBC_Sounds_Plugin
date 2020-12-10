@@ -417,8 +417,8 @@ sub getJSONMenu {
 
 	if ( $menuType eq 'playable' ) {
 		_getPlayableItemMenu( $jsonData, $menu );
-		_renderMenuCodeRefs($menu);
-		$callback->( { items => $menu } );
+		_renderMenuCodeRefs($menu);		
+		$callback->( { items => $menu } );		
 	}elsif ( $menuType eq 'subcategory' ) {
 		_parseCategories( { data => $jsonData->{child_categories} }, $menu );
 		_renderMenuCodeRefs($menu);
@@ -1161,18 +1161,20 @@ sub _getPlayableItemMenu {
 	my $urn        = $item->{urn};
 	my $pid        = _getPidfromSoundsURN( $item->{urn} );
 	my $id         = $item->{id};
-	my $progress   = $item->{'progress'};
+	my $progress   = $item->{progress};
 	my $timeOffset = 0;
 	my $playLabel  = '';
 	if ( defined $progress ) {
-		$timeOffset = $progress->{'value'};
-		$playLabel  = ' - ' . $progress->{'label'};
+		$timeOffset = $progress->{value};
+		$playLabel  = ' - ' . $progress->{label};
 	}
+	
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;	
 
 	push @$menu,
 	  {
 		name => 'Play' . $playLabel,
-		url  => 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset,
+		url  => $soundsUrl,
 		type => 'audio',
 		order => 1,
 		passthrough => [ {} ],
