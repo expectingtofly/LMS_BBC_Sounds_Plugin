@@ -1161,23 +1161,33 @@ sub _getPlayableItemMenu {
 	my $urn        = $item->{urn};
 	my $pid        = _getPidfromSoundsURN( $item->{urn} );
 	my $id         = $item->{id};
-	my $progress   = $item->{'progress'};
+	my $progress   = $item->{progress};
 	my $timeOffset = 0;
 	my $playLabel  = '';
 	if ( defined $progress ) {
-		$timeOffset = $progress->{'value'};
-		$playLabel  = ' - ' . $progress->{'label'};
+		$timeOffset = $progress->{value};
+		$playLabel  = ' - ' . $progress->{label};
 	}
 
-	push @$menu,
-	  {
-		name => 'Play' . $playLabel,
-		url  => 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset,
-		type => 'audio',
-		order => 1,
-		passthrough => [ {} ],
-		on_select   => 'play',
-	  };
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
+
+	if (defined $item->{availability}) {
+		push @$menu,
+		  {
+			name => 'Play' . $playLabel,
+			url  => $soundsUrl,
+			type => 'audio',
+			order => 1,
+			passthrough => [ {} ],
+			on_select   => 'play',
+		  };
+	} else {
+		push @$menu,
+		  {
+			name => 'Not Currently Available',
+			order 		=> 1,
+		  };
+	}
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivity';
