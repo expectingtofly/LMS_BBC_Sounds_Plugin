@@ -417,8 +417,8 @@ sub getJSONMenu {
 
 	if ( $menuType eq 'playable' ) {
 		_getPlayableItemMenu( $jsonData, $menu );
-		_renderMenuCodeRefs($menu);		
-		$callback->( { items => $menu } );		
+		_renderMenuCodeRefs($menu);
+		$callback->( { items => $menu } );
 	}elsif ( $menuType eq 'subcategory' ) {
 		_parseCategories( { data => $jsonData->{child_categories} }, $menu );
 		_renderMenuCodeRefs($menu);
@@ -1168,18 +1168,23 @@ sub _getPlayableItemMenu {
 		$timeOffset = $progress->{value};
 		$playLabel  = ' - ' . $progress->{label};
 	}
-	
-	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;	
 
-	push @$menu,
-	  {
-		name => 'Play' . $playLabel,
-		url  => $soundsUrl,
-		type => 'audio',
-		order => 1,
-		passthrough => [ {} ],
-		on_select   => 'play',
-	  };
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
+
+	if (defined $item->{availability}) {
+		push @$menu,
+		  {
+			name => 'Play' . $playLabel,
+			url  => $soundsUrl,
+			type => 'audio',
+			order => 1,
+			passthrough => [ {} ],
+			on_select   => 'play',
+		  };
+	} else {
+		push @$menu,
+		  {name => 'Not Currently Available',};
+	}
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivity';
