@@ -1183,7 +1183,10 @@ sub _getPlayableItemMenu {
 		  };
 	} else {
 		push @$menu,
-		  {name => 'Not Currently Available',};
+		  {
+			name => 'Not Currently Available',
+			order 		=> 1,
+		  };
 	}
 
 	my $booktype = 'Bookmark';
