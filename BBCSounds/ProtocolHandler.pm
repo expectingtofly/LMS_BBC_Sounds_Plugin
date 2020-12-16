@@ -58,6 +58,9 @@ use constant PAGE_URL_REGEXP => qr{
         sounds/play/ (?<pid> live:[_0-9a-z]+ | [0-9a-z]+ )
     ) $
 }ix;
+use constant CHUNK_TIMEOUT => 4;
+use constant CHUNK_RETRYCOUNT => 2;
+
 
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
@@ -195,6 +198,7 @@ sub new {
 			'offset'   => $offset, # offset for next HTTP request in webm/stream or segment index in dash
 			'endOffset' => $props->{endNumber}, #the end number of this track.
 			'resetMeta'=> 1,
+			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
@@ -680,6 +684,7 @@ sub sysread {
 			sub {
 				$v->{'inBuf'} .= $_[0]->content;
 				$v->{'fetching'} = 0;
+				$v->{'retryCount'} = 0;
 
 				$v->{'streaming'} = 0
 				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
@@ -699,7 +704,6 @@ sub sysread {
 					$self->liveTrackData();
 				}
 
-
 			},
 
 			sub {
@@ -714,12 +718,22 @@ sub sysread {
 					$nextWarning = time() + 10;
 				}
 
-				$v->{'inBuf'}    = '';
-				$v->{'fetching'} = 0;
-				$v->{'streaming'} = 0
-				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+				$v->{'retryCount'}++;
+
+				if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+					$v->{'inBuf'}    = '';
+					$v->{'fetching'} = 0;
+					$v->{'streaming'} = 0
+					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+				} else {
+					$v->{'offset'}--;  # try the same offset again
+					$v->{'fetching'} = 0;
+				}
 
 			},
+			{
+				timeout => CHUNK_TIMEOUT,
+			}
 
 		)->get( $url, @range );
 	}
