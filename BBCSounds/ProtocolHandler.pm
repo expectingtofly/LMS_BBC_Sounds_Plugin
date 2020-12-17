@@ -426,9 +426,9 @@ sub liveTrackData {
 					}
 
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
-					$meta->{title} = $newTitle;
+					$meta->{title} = $newTitle if $prefs->get('alternate_track') eq 'on';
 					$meta->{album} = 'Now Playing : ' . $newTitle;
-					if (my $image = $track->{data}[0]->{image_url}) {
+					if ((my $image = $track->{data}[0]->{image_url})  && ($prefs->get('alternate_track_image') eq 'on')) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
