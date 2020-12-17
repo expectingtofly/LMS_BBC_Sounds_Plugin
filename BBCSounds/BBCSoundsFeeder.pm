@@ -416,9 +416,7 @@ sub getJSONMenu {
 	my $jsonData = $passDict->{'json'};
 
 	if ( $menuType eq 'playable' ) {
-		_getPlayableItemMenu( $jsonData, $menu );
-		_renderMenuCodeRefs($menu);
-		$callback->( { items => $menu } );
+		_getPlayableItemMenu( $jsonData, $menu, $callback );
 	}elsif ( $menuType eq 'subcategory' ) {
 		_parseCategories( { data => $jsonData->{child_categories} }, $menu );
 		_renderMenuCodeRefs($menu);
@@ -809,7 +807,7 @@ sub _parseItems {
 	my $menu     = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
 	my $size = scalar @$jsonData;
-	
+
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
@@ -1148,6 +1146,7 @@ sub _parseEditorialTitle {
 sub _getPlayableItemMenu {
 	my $JSON = shift;
 	my $menu = shift;
+	my $cb   = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPlayableItemMenu");
 	my $item = $JSON;
 	if (defined $JSON->{'playable_item'}) {
@@ -1168,24 +1167,6 @@ sub _getPlayableItemMenu {
 	}
 
 	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
-
-	if (defined $item->{availability}) {
-		push @$menu,
-		  {
-			name => 'Play' . $playLabel,
-			url  => $soundsUrl,
-			type => 'audio',
-			order => 1,
-			passthrough => [ {} ],
-			on_select   => 'play',
-		  };
-	} else {
-		push @$menu,
-		  {
-			name => 'Not Currently Available',
-			order 		=> 1,
-		  };
-	}
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivity';
@@ -1263,7 +1244,66 @@ sub _getPlayableItemMenu {
 
 	};
 
-	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+
+	if (defined $item->{availability}) {
+		push @$menu,
+		  {
+			name => 'Play' . $playLabel,
+			url  => $soundsUrl,
+			type => 'audio',
+			order => 1,
+			passthrough => [ {} ],
+			on_select   => 'play',
+		  };
+		@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+		_renderMenuCodeRefs($menu);
+		$cb->({ items => $menu });
+
+	} else {
+
+		#We have one more go at seeing if it is available in case there is some caching going on.
+		Slim::Networking::SimpleAsyncHTTP->new(
+			sub {
+				my $http = shift;
+				my $retryJSON = decode_json ${ $http->contentRef };
+				if (defined $retryJSON->{programme}->{availability}) {
+
+					push @$menu,
+					  {
+						name => 'Play' . $playLabel,
+						url  => $soundsUrl,
+						type => 'audio',
+						order => 1,
+						passthrough => [ {} ],
+						on_select   => 'play',
+					  };
+				}else {
+					push @$menu,
+					  {
+						name => 'Not Currently Available',
+						order 		=> 1,
+					  };
+				}
+
+				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+				_renderMenuCodeRefs($menu);
+				$cb->({ items => $menu });
+
+			},
+			sub {
+				# Called when no response was received or an error occurred.
+				$log->warn("error: $_[1]");
+				push @$menu,
+				  {
+					name => 'Not Currently Available',
+					order 		=> 1,
+				  };
+				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
+				_renderMenuCodeRefs($menu);
+				$cb->({ items => $menu });
+			}
+		)->get("https://rms.api.bbc.co.uk/v2/broadcasts/$id");
+	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
