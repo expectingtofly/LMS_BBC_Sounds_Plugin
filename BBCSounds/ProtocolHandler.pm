@@ -58,6 +58,9 @@ use constant PAGE_URL_REGEXP => qr{
         sounds/play/ (?<pid> live:[_0-9a-z]+ | [0-9a-z]+ )
     ) $
 }ix;
+use constant CHUNK_TIMEOUT => 4;
+use constant CHUNK_RETRYCOUNT => 2;
+
 
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
@@ -195,6 +198,7 @@ sub new {
 			'offset'   => $offset, # offset for next HTTP request in webm/stream or segment index in dash
 			'endOffset' => $props->{endNumber}, #the end number of this track.
 			'resetMeta'=> 1,
+			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
@@ -422,9 +426,9 @@ sub liveTrackData {
 					}
 
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
-					$meta->{title} = $newTitle;
+					$meta->{title} = $newTitle if $prefs->get('alternate_track') eq 'on';
 					$meta->{album} = 'Now Playing : ' . $newTitle;
-					if (my $image = $track->{data}[0]->{image_url}) {
+					if ((my $image = $track->{data}[0]->{image_url})  && ($prefs->get('alternate_track_image') eq 'on')) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
@@ -649,8 +653,7 @@ sub sysread {
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ) {
-		my $url = $baseURL;
-		my @range;
+		my $url = $baseURL;		
 		if ($props->{isDynamic}) {
 			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
 
@@ -680,6 +683,7 @@ sub sysread {
 			sub {
 				$v->{'inBuf'} .= $_[0]->content;
 				$v->{'fetching'} = 0;
+				$v->{'retryCount'} = 0;
 
 				$v->{'streaming'} = 0
 				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
@@ -699,7 +703,6 @@ sub sysread {
 					$self->liveTrackData();
 				}
 
-
 			},
 
 			sub {
@@ -707,21 +710,26 @@ sub sysread {
 					$log->debug("error fetching $url");
 				}
 
+				$v->{'retryCount'}++;
 
-				# only log error every x seconds - it's too noisy for regular use
-				elsif ( time() > $nextWarning ) {
-					$log->warn("error fetching $url");
-					$nextWarning = time() + 10;
+				if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+					$log->error("Failed to get $url");
+					$v->{'inBuf'}    = '';
+					$v->{'fetching'} = 0;
+					$v->{'streaming'} = 0
+					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+				} else {
+					$log->warn("Retrying fetch of $url");
+					$v->{'offset'}--;  # try the same offset again
+					$v->{'fetching'} = 0;
 				}
 
-				$v->{'inBuf'}    = '';
-				$v->{'fetching'} = 0;
-				$v->{'streaming'} = 0
-				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-
 			},
+			{
+				timeout => CHUNK_TIMEOUT,
+			}
 
-		)->get( $url, @range );
+		)->get( $url);
 	}
 
 	# process all available data

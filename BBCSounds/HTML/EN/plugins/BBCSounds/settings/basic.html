@@ -29,6 +29,22 @@
 
 	[% END %]
 
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO_DESC" %]
+
+	<div class="prefDesc">[% "ENABLE" | string %]
+		<input name="pref_alternate_track" type="checkbox" [% IF prefs.pref_alternate_track %] checked [% END %]>
+	</div>
+
+	[% END %]
+	
+	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE_DESC" %]
+
+	<div class="prefDesc">[% "ENABLE" | string %]
+		<input name="pref_alternate_track_image" type="checkbox" [% IF prefs.pref_alternate_track_image %] checked [% END %]>
+	</div>
+
+    [% END %]
+
 	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ADVANCED_SETTING" desc="" %]
 		[% "PLUGIN_BBCSOUNDS_ADVANCED_SETTING_DESC" | string %]
 	[% END %]
