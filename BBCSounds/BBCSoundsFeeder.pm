@@ -809,7 +809,7 @@ sub _parseItems {
 	my $menu     = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
 	my $size = scalar @$jsonData;
-
+	
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
@@ -855,8 +855,6 @@ sub _parseStationlist {
 	my $menu     = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseStationlist");
 	my $size = scalar @$jsonData;
-
-	main::DEBUGLOG && $log->is_debug && $log->debug( 'dump' . Dumper($jsonData) );
 
 	$log->info("Number of items : $size ");
 

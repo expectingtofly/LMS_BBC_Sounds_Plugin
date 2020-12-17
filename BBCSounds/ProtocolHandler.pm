@@ -653,8 +653,7 @@ sub sysread {
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ) {
-		my $url = $baseURL;
-		my @range;
+		my $url = $baseURL;		
 		if ($props->{isDynamic}) {
 			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
 
@@ -711,21 +710,16 @@ sub sysread {
 					$log->debug("error fetching $url");
 				}
 
-
-				# only log error every x seconds - it's too noisy for regular use
-				elsif ( time() > $nextWarning ) {
-					$log->warn("error fetching $url");
-					$nextWarning = time() + 10;
-				}
-
 				$v->{'retryCount'}++;
 
 				if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+					$log->error("Failed to get $url");
 					$v->{'inBuf'}    = '';
 					$v->{'fetching'} = 0;
 					$v->{'streaming'} = 0
 					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
 				} else {
+					$log->warn("Retrying fetch of $url");
 					$v->{'offset'}--;  # try the same offset again
 					$v->{'fetching'} = 0;
 				}
@@ -735,7 +729,7 @@ sub sysread {
 				timeout => CHUNK_TIMEOUT,
 			}
 
-		)->get( $url, @range );
+		)->get( $url);
 	}
 
 	# process all available data
