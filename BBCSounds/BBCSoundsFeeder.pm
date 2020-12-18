@@ -92,7 +92,7 @@ sub toplevel {
 				order       => 1,
 			},
 			{
-				name => 'Featured Podcasts & More',
+				name => 'Unmissable Sounds',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
