@@ -53,6 +53,13 @@ sub init {
 		)
 	);
 
+	Slim::Menu::TrackInfo->registerInfoProvider(
+		bbcsounds => (
+			after => 'top',
+			func  => \&tracklistInfoIntegration,
+		)
+	);
+
 
 	Slim::Menu::GlobalSearch->registerInfoProvider(
 		bbcsounds => (
@@ -1261,7 +1268,7 @@ sub _getPlayableItemMenu {
 			items => [
 				{
 					name        => $syn,
-					type        => 'text'					
+					type        => 'text'
 				},
 			]
 		  };
@@ -1536,6 +1543,34 @@ sub spottyInfoIntegration {
 		main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
 		return \@$items;
 	}
+}
+
+
+sub tracklistInfoIntegration {
+	my ( $client, $url, $track, $remoteMeta ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
+
+	my $items = [];	
+
+	if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
+		$items = [
+			{
+				name => 'Tracklist',
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type    => 'segments',
+						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
+						offset  => 0,
+						codeRef => 'getPage'
+					}
+				],
+			}
+		];
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
+	return \@$items;
 }
 
 1;
