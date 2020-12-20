@@ -53,6 +53,13 @@ sub init {
 		)
 	);
 
+	Slim::Menu::TrackInfo->registerInfoProvider(
+		bbcsounds => (
+			after => 'top',
+			func  => \&tracklistInfoIntegration,
+		)
+	);
+
 
 	Slim::Menu::GlobalSearch->registerInfoProvider(
 		bbcsounds => (
@@ -92,7 +99,7 @@ sub toplevel {
 				order       => 1,
 			},
 			{
-				name => 'Featured Podcasts & More',
+				name => 'Unmissable Sounds',
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
@@ -1244,6 +1251,29 @@ sub _getPlayableItemMenu {
 
 	};
 
+	if (defined $item->{synopses}) {
+		my $syn = '';
+		if (defined $item->{synopses}->{long}) {
+			$syn = $item->{synopses}->{long};
+		} elsif (defined $item->{synopses}->{medium}) {
+			$syn = $item->{synopses}->{medium};
+		} elsif (defined $item->{synopses}->{short}) {
+			$syn = $item->{synopses}->{short};
+		}
+
+		push @$menu,
+		  {
+			name => 'Synopses',
+			order => 6,
+			items => [
+				{
+					name        => $syn,
+					type        => 'text'
+				},
+			]
+		  };
+	}
+
 
 	if (defined $item->{availability}) {
 		push @$menu,
@@ -1513,6 +1543,34 @@ sub spottyInfoIntegration {
 		main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
 		return \@$items;
 	}
+}
+
+
+sub tracklistInfoIntegration {
+	my ( $client, $url, $track, $remoteMeta ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
+
+	my $items = [];	
+
+	if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
+		$items = [
+			{
+				name => 'Tracklist',
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type    => 'segments',
+						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
+						offset  => 0,
+						codeRef => 'getPage'
+					}
+				],
+			}
+		];
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
+	return \@$items;
 }
 
 1;

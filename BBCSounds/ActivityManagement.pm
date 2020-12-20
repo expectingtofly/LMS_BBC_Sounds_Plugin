@@ -36,7 +36,7 @@ sub createActivity {
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
-	my $menu         = [ { name => 'Failed to create ' . $activitytype } ];
+	my $menu         = [ { name => 'Failed to create ' . $activitytype, type => 'text' } ];
 
 	my $body = '{"urn":"' . $urn . '"}';
 
@@ -57,7 +57,7 @@ sub createActivity {
 
 						if (   ( $res->code eq '202' )
 							|| ( $res->code eq '200' ) ){
-							$menu = [ { name => ucfirst($activitytype) . ' succeeded' } ];
+							$menu = [ { name => ucfirst($activitytype) . ' succeeded', type => 'text' } ];
 						}
 						$callback->( { items => $menu } );
 					},
@@ -128,13 +128,13 @@ sub deleteActivity {
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
-	my $menu         = [ { name => 'Failed to remove ' . $activitytype } ];
-	
+	my $menu         = [ { name => 'Failed to remove ' . $activitytype, type => 'text' } ];
+
 
 	Plugins::BBCSounds::SessionManagement::renewSession(
 		sub {
 			my $session = Slim::Networking::Async::HTTP->new;
-			my $request =HTTP::Request->new(DELETE => 'https://rms.api.bbc.co.uk/v2/my/activities/' . $urn );			
+			my $request =HTTP::Request->new(DELETE => 'https://rms.api.bbc.co.uk/v2/my/activities/' . $urn );
 
 			$session->send_request(
 				{
@@ -148,7 +148,8 @@ sub deleteActivity {
 							|| ( $res->code eq '200' ) ){
 							$menu = [
 								{
-									name => 'Removal of '. $activitytype. ' succeeded'
+									name => 'Removal of '. $activitytype. ' succeeded',
+									type => 'text'
 								}
 							];
 						}
