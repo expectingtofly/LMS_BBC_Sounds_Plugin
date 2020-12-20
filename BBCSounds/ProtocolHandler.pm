@@ -352,9 +352,9 @@ sub liveTrackData {
 
 
 		my $meta = $song->pluginData('meta');
-		$meta->{title} = $meta->{realTitle};
-		$meta->{icon} = $meta->{realIcon};
-		$meta->{cover} = $meta->{realCover};
+		$meta->{title} = $meta->{realTitle} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
+		$meta->{icon} = $meta->{realIcon} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
+		$meta->{cover} = $meta->{realCover} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
 		$song->pluginData( meta  => $meta );
 
 		my $cb = sub {
@@ -402,6 +402,9 @@ sub liveTrackData {
 				if ($track->{total} == 0) {
 
 					#nothing there
+					$meta->{title} = $meta->{realTitle};
+					$meta->{icon} = $meta->{realIcon};
+					$meta->{cover} = $meta->{realCover};
 					$meta->{album} = '';
 					$meta->{spotify} = '';
 					$song->pluginData( meta  => $meta );
@@ -416,6 +419,9 @@ sub liveTrackData {
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
 						#The track hasn't started yet. leave.
+						$meta->{title} = $meta->{realTitle};
+						$meta->{icon} = $meta->{realIcon};
+						$meta->{cover} = $meta->{realCover};
 						$meta->{album} = '';
 						$meta->{spotify} = '';
 						$song->pluginData( meta  => $meta );
@@ -1339,8 +1345,9 @@ sub _getLiveTrack {
 	}else {
 		Plugins::BBCSounds::BBCSoundsFeeder::getLatestSegmentForNetwork(
 			$network,
-			sub {
+			sub {				
 				my $newTrack=shift;
+
 				if ($newTrack->{total} == 0){
 
 					#no live track on this network/programme at the moment,  let's cache for 3 minutes to give the polling a rest
@@ -1352,7 +1359,7 @@ sub _getLiveTrack {
 					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
 					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
 					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more.
-					$newTrack->{total} = 0  if !($newTrack->{data}[0]->{offset}->{now_playing});  #for some reason it is set to not playing
+					$newTrack->{total} = 0  if ($newTrack->{data}[0]->{offset}->{now_playing} == 0);  #for some reason it is set to not playing
 
 					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");
 					$cbY->($newTrack);

@@ -43,5 +43,11 @@ PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE
 PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE_DESC
 	EN	Show the current track image alternating with the programme image
 
+PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING
+	EN	Persist Track Info If Available
+
+PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING_DESC
+	EN	If "Alternate Track" or "Alternate Image" is selected, this will fix the track info and image in place while the track is playing
+
 
 

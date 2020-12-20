@@ -41,6 +41,14 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 $prefs->migrate(
+	4,
+	sub {
+		$prefs->set('fix_track', 0);            
+		1;
+	}
+);
+
+$prefs->migrate(
 	3,
 	sub {
 		$prefs->set('alternate_track', 'on');    
@@ -62,7 +70,7 @@ $prefs->migrate(
 sub initPlugin {
 	my $class = shift;
 
-	$prefs->init({ is_radio => 0, hideSampleRate => 0, alternate_track => 'on', alternate_track_image => 'on' });
+	$prefs->init({ is_radio => 0, hideSampleRate => 0, alternate_track => 'on', alternate_track_image => 'on', fix_track => 0 });
 
 
 	$class->SUPER::initPlugin(
