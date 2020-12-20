@@ -1256,9 +1256,14 @@ sub _getPlayableItemMenu {
 
 		push @$menu,
 		  {
-			name        => $syn,
-			type        => 'text',
-			order 		=> 6
+			name => 'Synopses',
+			order => 6,
+			items => [
+				{
+					name        => $syn,
+					type        => 'text'					
+				},
+			]
 		  };
 	}
 
