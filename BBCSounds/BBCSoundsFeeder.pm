@@ -1244,6 +1244,24 @@ sub _getPlayableItemMenu {
 
 	};
 
+	if (defined $item->{synopses}) {
+		my $syn = '';
+		if (defined $item->{synopses}->{long}) {
+			$syn = $item->{synopses}->{long};
+		} elsif (defined $item->{synopses}->{medium}) {
+			$syn = $item->{synopses}->{medium};
+		} elsif (defined $item->{synopses}->{short}) {
+			$syn = $item->{synopses}->{short};
+		}
+
+		push @$menu,
+		  {
+			name        => $syn,
+			type        => 'text',
+			order 		=> 6
+		  };
+	}
+
 
 	if (defined $item->{availability}) {
 		push @$menu,
