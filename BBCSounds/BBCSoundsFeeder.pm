@@ -1263,7 +1263,7 @@ sub _getPlayableItemMenu {
 
 		push @$menu,
 		  {
-			name => 'Synopses',
+			name => 'Synopsis',
 			order => 6,
 			items => [
 				{
