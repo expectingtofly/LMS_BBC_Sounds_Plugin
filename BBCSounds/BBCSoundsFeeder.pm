@@ -1268,7 +1268,7 @@ sub _getPlayableItemMenu {
 			items => [
 				{
 					name        => $syn,
-					type        => 'text'
+					type        => 'textarea'
 				},
 			]
 		  };
