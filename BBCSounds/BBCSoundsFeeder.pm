@@ -413,27 +413,6 @@ sub getPersonalisedPage {
 	return;
 }
 
-
-sub getJSONMenu {
-	my ( $client, $callback, $args, $passDict ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getJSONMenu");
-
-	my $menu     = [];
-	my $menuType = $passDict->{'type'};
-	my $jsonData = $passDict->{'json'};
-
-	if ( $menuType eq 'playable' ) {
-		_getPlayableItemMenu( $jsonData, $menu, $callback );
-	} else {
-		$log->error('Unsupported JSON Menu ' . $menuType );
-		$callback->( { items => $menu } );
-	}
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--getJSONMenu");
-	return;
-}
-
-
 sub getPidDataForMeta {
 	my $isLive = shift;
 	my $pid = shift;
@@ -917,13 +896,15 @@ sub _parsePlayableItem {
 	my $iurl = $item->{image_url};
 	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
 
+	my $playMenu = [];
+	_getPlayableItemMenu($item, $playMenu);
+
 	push @$menu,
 	  {
 		name => $title,
 		type => 'link',
-		icon => $image,
-		url  => '',
-		passthrough =>[ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
+		icon => $image,		
+		items => $playMenu,		
 	  };
 }
 
@@ -945,13 +926,15 @@ sub _parseBroadcastItem {
 	my $iurl = $item->{image_url};
 	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
 
+	my $playMenu = [];
+	_getPlayableItemMenu($item, $playMenu);
+
 	push @$menu,
 	  {
 		name => $title,
 		type => 'link',
-		icon => $image,
-		url  => '',
-		passthrough =>[ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
+		icon => $image,		
+		items => $playMenu,		
 	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
@@ -1152,7 +1135,6 @@ sub _parseEditorialTitle {
 sub _getPlayableItemMenu {
 	my $JSON = shift;
 	my $menu = shift;
-	my $cb   = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPlayableItemMenu");
 	my $item = $JSON;
 	if (defined $JSON->{'playable_item'}) {
@@ -1284,55 +1266,17 @@ sub _getPlayableItemMenu {
 			passthrough => [ {} ],
 			on_select   => 'play',
 		  };
-		@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-		_renderMenuCodeRefs($menu);
-		$cb->({ items => $menu });
 
 	} else {
 
-		#We have one more go at seeing if it is available in case there is some caching going on.
-		Slim::Networking::SimpleAsyncHTTP->new(
-			sub {
-				my $http = shift;
-				my $retryJSON = decode_json ${ $http->contentRef };
-				if (defined $retryJSON->{programme}->{availability}) {
-
-					push @$menu,
-					  {
-						name => 'Play' . $playLabel,
-						url  => $soundsUrl,
-						type => 'audio',
-						order => 1,
-						passthrough => [ {} ],
-						on_select   => 'play',
-					  };
-				}else {
-					push @$menu,
-					  {
-						name => 'Not Currently Available',
-						order 		=> 1,
-					  };
-				}
-
-				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_renderMenuCodeRefs($menu);
-				$cb->({ items => $menu });
-
-			},
-			sub {
-				# Called when no response was received or an error occurred.
-				$log->warn("error: $_[1]");
-				push @$menu,
-				  {
-					name => 'Not Currently Available',
-					order 		=> 1,
-				  };
-				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_renderMenuCodeRefs($menu);
-				$cb->({ items => $menu });
-			}
-		)->get("https://rms.api.bbc.co.uk/v2/broadcasts/$id");
+		push @$menu,
+		  {
+			name => 'Not Currently Available',
+			order 		=> 1,
+		  };
 	}
+
+	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;	
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
@@ -1428,9 +1372,7 @@ sub _renderMenuCodeRefs {
 			}elsif ( $codeRef eq 'getSubMenu' ) {
 				$menuItem->{'url'} = \&getSubMenu;
 			}elsif ( $codeRef eq 'getStationMenu' ) {
-				$menuItem->{'url'} = \&getStationMenu;
-			}elsif ( $codeRef eq 'getJSONMenu' ) {
-				$menuItem->{'url'} = \&getJSONMenu;
+				$menuItem->{'url'} = \&getStationMenu;		
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
 				$menuItem->{'url'} =\&Plugins::BBCSounds::PlayManager::handlePlaylist;
 			}elsif ( $codeRef eq 'createActivity' ) {
@@ -1442,6 +1384,9 @@ sub _renderMenuCodeRefs {
 			}else {
 				$log->error("Unknown Code Reference : $codeRef");
 			}
+		}
+		if (defined $menuItem->{'items'}) {
+			_renderMenuCodeRefs($menuItem->{'items'});
 		}
 
 	}
