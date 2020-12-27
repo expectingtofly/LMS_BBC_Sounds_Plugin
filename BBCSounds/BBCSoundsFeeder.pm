@@ -424,9 +424,8 @@ sub getJSONMenu {
 
 	if ( $menuType eq 'playable' ) {
 		_getPlayableItemMenu( $jsonData, $menu, $callback );
-	}elsif ( $menuType eq 'subcategory' ) {
-		_parseCategories( { data => $jsonData->{child_categories} }, $menu );
-		_renderMenuCodeRefs($menu);
+	} else {
+		$log->error('Unsupported JSON Menu ' . $menuType );
 		$callback->( { items => $menu } );
 	}
 
@@ -1550,7 +1549,7 @@ sub tracklistInfoIntegration {
 	my ( $client, $url, $track, $remoteMeta ) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
 
-	my $items = [];	
+	my $items = [];
 
 	if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
 		$items = [
