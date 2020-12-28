@@ -144,7 +144,7 @@ sub new {
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
 	$song->pluginData( 'lastpos', 0 );
 
-	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime");
+	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  ");
 
 	if ($startTime) {
 
@@ -802,10 +802,14 @@ sub getPid {
 sub getLastPos {
 	my ( $class, $url ) = @_;
 	my $lastpos = 0;
-	my @pid = split /_/x, $url;
-	if ((scalar @pid) == 4) {
-		$lastpos = @pid[3];
+		
+	if (!($class->isLive($url) || $class->isRewind($url))) {
+		my @pid = split /_/x, $url;
+		if ((scalar @pid) == 4) {
+			$lastpos = @pid[3];		
+		}
 	}
+
 	return $lastpos;
 }
 
