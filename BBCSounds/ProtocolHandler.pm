@@ -149,6 +149,7 @@ sub new {
 	if ($startTime) {
 
 		if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
+
 			#it is possible that the isDynamic has been lost on the way
 			$props->{isDynamic} = 1;
 			$song->pluginData( props   => $props );
@@ -668,6 +669,7 @@ sub sysread {
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ) {
 		my $url = $baseURL;
+		my $bail = 0;
 		if ($props->{isDynamic}) {
 			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
 
@@ -678,72 +680,74 @@ sub sysread {
 
 				#bail
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
-				$! = EINTR;
-				return undef;
+				$bail = 1;
+
 			}
 		}
-		main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
+		if (!$bail) {
+			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
 
 
-		$url .= $props->{'segmentURL'};
-		my $replOffset = ( $v->{'offset'} );
+			$url .= $props->{'segmentURL'};
+			my $replOffset = ( $v->{'offset'} );
 
-		$url =~ s/\$Number\$/$replOffset/;
-		$v->{'offset'}++;
+			$url =~ s/\$Number\$/$replOffset/;
+			$v->{'offset'}++;
 
-		$v->{'fetching'} = 1;
+			$v->{'fetching'} = 1;
 
-		Slim::Networking::SimpleAsyncHTTP->new(
-			sub {
-				$v->{'inBuf'} .= $_[0]->content;
-				$v->{'fetching'} = 0;
-				$v->{'retryCount'} = 0;
-
-				$v->{'streaming'} = 0
-				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-
-				main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
-
-				if ($props->{'isDynamic'}) {
-
-					# get the meta data for this live track if we don't have it yet.
-					$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
-
-					# check for live track if we are within striking distance of the live edge
-					my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-					$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
-				}else{
-					$self->aodMetaData() if ($v->{'resetMeta'} == 1);
-					$self->liveTrackData();
-				}
-
-			},
-
-			sub {
-				if ( main::DEBUGLOG && $log->is_debug ) {
-					$log->debug("error fetching $url");
-				}
-
-				$v->{'retryCount'}++;
-
-				if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
-					$log->error("Failed to get $url");
-					$v->{'inBuf'}    = '';
+			Slim::Networking::SimpleAsyncHTTP->new(
+				sub {
+					$v->{'inBuf'} .= $_[0]->content;
 					$v->{'fetching'} = 0;
+					$v->{'retryCount'} = 0;
+
 					$v->{'streaming'} = 0
 					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-				} else {
-					$log->warn("Retrying fetch of $url");
-					$v->{'offset'}--;  # try the same offset again
-					$v->{'fetching'} = 0;
+
+					main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
+
+					if ($props->{'isDynamic'}) {
+
+						# get the meta data for this live track if we don't have it yet.
+						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
+
+						# check for live track if we are within striking distance of the live edge
+						my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+						$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
+					}else{
+						$self->aodMetaData() if ($v->{'resetMeta'} == 1);
+						$self->liveTrackData();
+					}
+
+				},
+
+				sub {
+					if ( main::DEBUGLOG && $log->is_debug ) {
+						$log->debug("error fetching $url");
+					}
+
+					$v->{'retryCount'}++;
+
+					if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+						$log->error("Failed to get $url");
+						$v->{'inBuf'}    = '';
+						$v->{'fetching'} = 0;
+						$v->{'streaming'} = 0
+						  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+					} else {
+						$log->warn("Retrying fetch of $url");
+						$v->{'offset'}--;  # try the same offset again
+						$v->{'fetching'} = 0;
+					}
+
+				},
+				{
+					timeout => CHUNK_TIMEOUT,
 				}
 
-			},
-			{
-				timeout => CHUNK_TIMEOUT,
-			}
-
-		)->get($url);
+			)->get($url);
+		}
 	}
 
 	# process all available data
@@ -802,11 +806,11 @@ sub getPid {
 sub getLastPos {
 	my ( $class, $url ) = @_;
 	my $lastpos = 0;
-		
+
 	if (!($class->isLive($url) || $class->isRewind($url))) {
 		my @pid = split /_/x, $url;
 		if ((scalar @pid) == 4) {
-			$lastpos = @pid[3];		
+			$lastpos = @pid[3];
 		}
 	}
 
