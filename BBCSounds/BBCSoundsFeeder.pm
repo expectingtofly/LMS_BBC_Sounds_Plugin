@@ -821,7 +821,7 @@ sub _parseTracklist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		my $title = strftime( '%H:%M:%S ', localtime($item->{offset}->{start}) ) . $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
 		push @$menu,
 		  {
 			name        => $title,
