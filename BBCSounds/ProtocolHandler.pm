@@ -83,7 +83,7 @@ sub canDoAction {
 
 	main::INFOLOG && $log->is_info && $log->info("action=$action");
 	if ( $action eq 'pause' ) {
-		if (!($class->isLive($url))) {
+		if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
 			Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($url),Plugins::BBCSounds::ProtocolHandler->getPid($url),'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
 		}
 	}
@@ -144,9 +144,15 @@ sub new {
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
 	$song->pluginData( 'lastpos', 0 );
 
+	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  ");
+
 	if ($startTime) {
 
-		if ($props->{isDynamic}) {
+		if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
+
+			#it is possible that the isDynamic has been lost on the way
+			$props->{isDynamic} = 1;
+			$song->pluginData( props   => $props );
 
 			#we can't go into the future
 			my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
@@ -156,6 +162,8 @@ sub new {
 			$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
 
 			$startTime = $maxStartTime if ($startTime > $maxStartTime);
+
+			main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge  maximum start time $maxStartTime");
 
 			#This "song" has a maximum age
 			my $maximumAge = 18000;  # 5 hours
@@ -261,7 +269,7 @@ sub onStop {
 	my $id = Plugins::BBCSounds::ProtocolHandler->getId( $song->track->url );
 
 
-	if (!($class->isLive($song->track->url))) {
+	if	(!( ($class->isLive( $song->track->url ) || $class->isRewind( $song->track->url )) )) {
 		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,Plugins::BBCSounds::ProtocolHandler->getPid( $song->track->url ),'paused', floor($elapsed) );
 	}
 
@@ -281,7 +289,7 @@ sub onStream {
 	my $meta = $cache->get("bs:meta-$id") || {};
 
 	#perform starting heartbeat
-	if (!($class->isLive($url))) {
+	if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
 		Plugins::BBCSounds::ActivityManagement::heartBeat($id,       Plugins::BBCSounds::ProtocolHandler->getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
 	}
 
@@ -380,7 +388,7 @@ sub liveTrackData {
 
 		my $sub;
 
-		if ($self->isLive($masterUrl)) {
+		if ($self->isLive($masterUrl) || $self->isRewind($masterUrl)) {
 			$sub = sub {
 				my $cbY = shift;
 				my $cbN = shift;
@@ -414,7 +422,7 @@ sub liveTrackData {
 					return;
 				} else {
 
-					if ($self->isLive($masterUrl) && (($self->_timeFromOffset($props->{virtualStartNumber},$props) + $track->{data}[0]->{start}) > $self->_timeFromOffset( $v->{'offset'}, $props))) {
+					if (($self->isLive($masterUrl) || $self->isRewind($masterUrl)) && (($self->_timeFromOffset($props->{virtualStartNumber},$props) + $track->{data}[0]->{start}) > $self->_timeFromOffset( $v->{'offset'}, $props))) {
 
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
@@ -491,6 +499,11 @@ sub aodMetaData {
 		$pid,
 		sub {
 			my $retMeta = shift;
+
+			# the AOD meta is more accurate
+			my $props = ${*$self}{'props'};
+			$retMeta->{'duration'} = $props->{'duration'};
+
 			$song->pluginData( meta  => $retMeta );
 			$v->{'resetMeta'} = 0;
 			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
@@ -571,7 +584,8 @@ sub liveMetaData {
 		},
 		sub {
 			$log->warn('Could not retrieve station schedule');
-		}
+		},
+		$self->isRewind($masterUrl)==1
 	);
 }
 
@@ -659,7 +673,8 @@ sub sysread {
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ) {
-		my $url = $baseURL;		
+		my $url = $baseURL;
+		my $bail = 0;
 		if ($props->{isDynamic}) {
 			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
 
@@ -670,72 +685,74 @@ sub sysread {
 
 				#bail
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
-				$! = EINTR;
-				return undef;
+				$bail = 1;
+
 			}
 		}
-		main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
+		if (!$bail) {
+			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
 
 
-		$url .= $props->{'segmentURL'};
-		my $replOffset = ( $v->{'offset'} );
+			$url .= $props->{'segmentURL'};
+			my $replOffset = ( $v->{'offset'} );
 
-		$url =~ s/\$Number\$/$replOffset/;
-		$v->{'offset'}++;
+			$url =~ s/\$Number\$/$replOffset/;
+			$v->{'offset'}++;
 
-		$v->{'fetching'} = 1;
+			$v->{'fetching'} = 1;
 
-		Slim::Networking::SimpleAsyncHTTP->new(
-			sub {
-				$v->{'inBuf'} .= $_[0]->content;
-				$v->{'fetching'} = 0;
-				$v->{'retryCount'} = 0;
-
-				$v->{'streaming'} = 0
-				  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-
-				main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
-
-				if ($self->isLive($masterUrl)) {
-
-					# get the meta data for this live track if we don't have it yet.
-					$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
-
-					# check for live track if we are within striking distance of the live edge
-					my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-					$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
-				}else{
-					$self->aodMetaData() if ($v->{'resetMeta'} == 1);
-					$self->liveTrackData();
-				}
-
-			},
-
-			sub {
-				if ( main::DEBUGLOG && $log->is_debug ) {
-					$log->debug("error fetching $url");
-				}
-
-				$v->{'retryCount'}++;
-
-				if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
-					$log->error("Failed to get $url");
-					$v->{'inBuf'}    = '';
+			Slim::Networking::SimpleAsyncHTTP->new(
+				sub {
+					$v->{'inBuf'} .= $_[0]->content;
 					$v->{'fetching'} = 0;
+					$v->{'retryCount'} = 0;
+
 					$v->{'streaming'} = 0
 					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-				} else {
-					$log->warn("Retrying fetch of $url");
-					$v->{'offset'}--;  # try the same offset again
-					$v->{'fetching'} = 0;
+
+					main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
+
+					if ($props->{'isDynamic'}) {
+
+						# get the meta data for this live track if we don't have it yet.
+						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
+
+						# check for live track if we are within striking distance of the live edge
+						my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+						$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
+					}else{
+						$self->aodMetaData() if ($v->{'resetMeta'} == 1);
+						$self->liveTrackData();
+					}
+
+				},
+
+				sub {
+					if ( main::DEBUGLOG && $log->is_debug ) {
+						$log->debug("error fetching $url");
+					}
+
+					$v->{'retryCount'}++;
+
+					if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+						$log->error("Failed to get $url");
+						$v->{'inBuf'}    = '';
+						$v->{'fetching'} = 0;
+						$v->{'streaming'} = 0
+						  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+					} else {
+						$log->warn("Retrying fetch of $url");
+						$v->{'offset'}--;  # try the same offset again
+						$v->{'fetching'} = 0;
+					}
+
+				},
+				{
+					timeout => CHUNK_TIMEOUT,
 				}
 
-			},
-			{
-				timeout => CHUNK_TIMEOUT,
-			}
-
-		)->get( $url);
+			)->get($url);
+		}
 	}
 
 	# process all available data
@@ -749,7 +766,7 @@ sub sysread {
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
 
 		#bbc heartbeat at a quiet time.
-		if (!($self->isLive($masterUrl))) {
+		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
 				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
 				$v->{nextHeartbeat} = time() + 30;
@@ -794,10 +811,14 @@ sub getPid {
 sub getLastPos {
 	my ( $class, $url ) = @_;
 	my $lastpos = 0;
-	my @pid = split /_/x, $url;
-	if ((scalar @pid) == 4) {
-		$lastpos = @pid[3];
+
+	if (!($class->isLive($url) || $class->isRewind($url))) {
+		my @pid = split /_/x, $url;
+		if ((scalar @pid) == 4) {
+			$lastpos = @pid[3];
+		}
 	}
+
 	return $lastpos;
 }
 
@@ -830,6 +851,10 @@ sub getNextTrack {
 		@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
 
 		my $dashmpd = $url;
+		my $overrideEpoch;
+
+		$overrideEpoch = getRewindEpoch($masterUrl) if $class->isRewind($masterUrl);
+
 		getMPD(
 			$dashmpd,
 			\@allowDASH,
@@ -839,12 +864,13 @@ sub getNextTrack {
 				$song->pluginData( props   => $props );
 				$song->pluginData( baseURL => $props->{'baseURL'} );
 				$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
-			}
+			},
+			$overrideEpoch
 		);
 	};
 
 
-	if ($class->isLive($masterUrl)) {
+	if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
 
 		my $stationid = _getStationID($masterUrl);
 
@@ -909,7 +935,7 @@ sub getNextTrack {
 
 
 sub getMPD {
-	my ( $dashmpd, $allow, $cb ) = @_;
+	my ( $dashmpd, $allow, $cb, $overrideEpoch ) = @_;
 
 	my $session = Slim::Networking::Async::HTTP->new;
 	my $mpdrequest = HTTP::Request->new( GET => $dashmpd );
@@ -1039,12 +1065,21 @@ sub getMPD {
 						sub {
 							my $epochTime = shift;
 							$props->{comparisonTime} = Time::HiRes::time();
+
+							# If we are on a previous (live) rewind programme we need to adjust
+							if (defined $overrideEpoch) {
+								$props->{comparisonTime} = $props->{comparisonTime} - ($epochTime - $overrideEpoch);
+								$epochTime = $overrideEpoch;
+							}
+
+							$props->{metaEpoch} = $epochTime;
+
 							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime});
 
 							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index;
 							$props->{virtualStartNumber} = $index;
-							$props->{metaEpoch} = $epochTime;
+
 							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
 							$cb->($props);
 						},
@@ -1094,7 +1129,7 @@ sub getMetadataFor {
 	}
 
 
-	if ($class->isLive($url)) {
+	if ($class->isLive($url) || $class->isRewind($url)) {
 
 		#leave before we try and attempt to get meta for the PID
 		return {
@@ -1137,7 +1172,7 @@ sub getMetadataFor {
 	# Fetch metadata for Sounds Item
 
 
-	if (!($class->isLive($url))) {
+	if (!($class->isLive($url) || $class->isRewind($url))) {
 		$client->master->pluginData( fetchingBSMeta => 1 );
 		_getAODMeta(
 			$pid,
@@ -1193,6 +1228,28 @@ sub isLive {
 }
 
 
+sub isRewind {
+	my ( $class, $url ) = @_;
+
+	my @pid  = split /_/x, $url;
+	if ( @pid[1] eq 'REWIND') {
+		return 1;
+	}else {
+
+		return;
+	}
+}
+
+
+sub getRewindEpoch {
+	my $url  = shift;
+
+	my @ep  = split /_/x, $url;
+	return @ep[2];
+
+}
+
+
 sub isRepeatingStream {
 	my ( undef, $song ) = @_;
 
@@ -1205,13 +1262,14 @@ sub _getLiveSchedule {
 	my $props = shift;
 	my $cbY = shift;
 	my $cbN = shift;
+	my $isRewind = shift;
 
 
 	main::INFOLOG && $log->is_info && $log->info("Checking Schedule for : $network");
 
 
-	if (my $schedule = $cache->get("bs:schedule-$network")) {
-		main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $network");
+	if (my $schedule = $cache->get("bs:schedule-$isRewind-$network")) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $isRewind-$network");
 		$cbY->($schedule);
 	} else {
 
@@ -1219,10 +1277,10 @@ sub _getLiveSchedule {
 			$network,
 			sub {
 				my $scheduleJSON = shift;
-				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $network");
+				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $isRewind-$network");
 
 				#place in cache for half an hour
-				$cache->set("bs:schedule-$network",$scheduleJSON, 1800);
+				$cache->set("bs:schedule-$isRewind-network",$scheduleJSON, 1800);
 				$cbY->($scheduleJSON);
 			},
 			sub {
@@ -1231,9 +1289,10 @@ sub _getLiveSchedule {
 				$log->error('Failed to get schedule for ' . $network);
 
 				#try again in 2 mins to prevent flooding
-				$cache->set("bs:schedule-$network",{}, 120);
+				$cache->set("bs:schedule-$isRewind-$network",{}, 120);
 				$cbN->();
-			}
+			},
+			$isRewind
 		);
 	}
 }
@@ -1253,6 +1312,7 @@ sub _getIDForBroadcast {
 	for my $item (@$items){
 		if (($offsetEpoch >= str2time($item->{start})) && ($offsetEpoch < str2time($item->{end}))) {
 			my $id = $item->{id};
+			$id = $item->{pid} if !(defined $id); #someties it is the pid not the id.  It think this is an inconsistency in the API for previous broadcasts
 			main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
 			my $startOffset = floor((str2time($item->{start})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
 			my $endOffset = floor((str2time($item->{end})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
@@ -1345,7 +1405,7 @@ sub _getLiveTrack {
 	}else {
 		Plugins::BBCSounds::BBCSoundsFeeder::getLatestSegmentForNetwork(
 			$network,
-			sub {				
+			sub {
 				my $newTrack=shift;
 
 				if ($newTrack->{total} == 0){

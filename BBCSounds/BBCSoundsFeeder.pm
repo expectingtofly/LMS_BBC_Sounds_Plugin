@@ -414,27 +414,6 @@ sub getPersonalisedPage {
 }
 
 
-sub getJSONMenu {
-	my ( $client, $callback, $args, $passDict ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getJSONMenu");
-
-	my $menu     = [];
-	my $menuType = $passDict->{'type'};
-	my $jsonData = $passDict->{'json'};
-
-	if ( $menuType eq 'playable' ) {
-		_getPlayableItemMenu( $jsonData, $menu, $callback );
-	}elsif ( $menuType eq 'subcategory' ) {
-		_parseCategories( { data => $jsonData->{child_categories} }, $menu );
-		_renderMenuCodeRefs($menu);
-		$callback->( { items => $menu } );
-	}
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--getJSONMenu");
-	return;
-}
-
-
 sub getPidDataForMeta {
 	my $isLive = shift;
 	my $pid = shift;
@@ -842,7 +821,7 @@ sub _parseTracklist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		my $title = strftime( '%H:%M:%S ', localtime($item->{offset}->{start}) ) . $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
 		push @$menu,
 		  {
 			name        => $title,
@@ -918,13 +897,15 @@ sub _parsePlayableItem {
 	my $iurl = $item->{image_url};
 	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
 
+	my $playMenu = [];
+	_getPlayableItemMenu($item, $playMenu);
+
 	push @$menu,
 	  {
 		name => $title,
 		type => 'link',
 		icon => $image,
-		url  => '',
-		passthrough =>[ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
+		items => $playMenu,
 	  };
 }
 
@@ -946,13 +927,15 @@ sub _parseBroadcastItem {
 	my $iurl = $item->{image_url};
 	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
 
+	my $playMenu = [];
+	_getPlayableItemMenu($item, $playMenu);
+
 	push @$menu,
 	  {
 		name => $title,
 		type => 'link',
 		icon => $image,
-		url  => '',
-		passthrough =>[ { type => 'playable', json => $item, codeRef => 'getJSONMenu' } ],
+		items => $playMenu,
 	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
@@ -1153,14 +1136,11 @@ sub _parseEditorialTitle {
 sub _getPlayableItemMenu {
 	my $JSON = shift;
 	my $menu = shift;
-	my $cb   = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPlayableItemMenu");
 	my $item = $JSON;
 	if (defined $JSON->{'playable_item'}) {
 		$item = $JSON->{'playable_item'};
 	}
-
-	main::DEBUGLOG && $log->is_debug && $log->debug(' Dump of playable JSON ' . Dumper($item));
 
 	my $urn        = $item->{urn};
 	my $pid        = _getPidfromSoundsURN( $item->{urn} );
@@ -1285,55 +1265,41 @@ sub _getPlayableItemMenu {
 			passthrough => [ {} ],
 			on_select   => 'play',
 		  };
-		@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-		_renderMenuCodeRefs($menu);
-		$cb->({ items => $menu });
 
 	} else {
 
-		#We have one more go at seeing if it is available in case there is some caching going on.
-		Slim::Networking::SimpleAsyncHTTP->new(
-			sub {
-				my $http = shift;
-				my $retryJSON = decode_json ${ $http->contentRef };
-				if (defined $retryJSON->{programme}->{availability}) {
+		#if not available try and construct a live rewind url
+		if (my $startTime = $item->{start}) {
+			if ((str2time($startTime) > (time() - 14400)) && (str2time($startTime) < time())) {
 
-					push @$menu,
-					  {
-						name => 'Play' . $playLabel,
-						url  => $soundsUrl,
-						type => 'audio',
-						order => 1,
-						passthrough => [ {} ],
-						on_select   => 'play',
-					  };
-				}else {
-					push @$menu,
-					  {
-						name => 'Not Currently Available',
-						order 		=> 1,
-					  };
-				}
-
-				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_renderMenuCodeRefs($menu);
-				$cb->({ items => $menu });
-
-			},
-			sub {
-				# Called when no response was received or an error occurred.
-				$log->warn("error: $_[1]");
+				# less then 4 hours ago, constuct a live rewind url
+				$soundsUrl = 'sounds://_REWIND_' .  str2time($startTime) . '_LIVE_' . $item->{service_id};
+				push @$menu,
+				  {
+					name => 'Play (live rewind)',
+					url  => $soundsUrl,
+					type => 'audio',
+					order => 1,
+					passthrough => [ {} ],
+					on_select   => 'play',
+				  };
+			} else {
 				push @$menu,
 				  {
 					name => 'Not Currently Available',
 					order 		=> 1,
 				  };
-				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_renderMenuCodeRefs($menu);
-				$cb->({ items => $menu });
 			}
-		)->get("https://rms.api.bbc.co.uk/v2/broadcasts/$id");
+		} else {
+			push @$menu,
+			  {
+				name => 'Not Currently Available',
+				order 		=> 1,
+			  };
+		}
 	}
+
+	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
@@ -1430,8 +1396,6 @@ sub _renderMenuCodeRefs {
 				$menuItem->{'url'} = \&getSubMenu;
 			}elsif ( $codeRef eq 'getStationMenu' ) {
 				$menuItem->{'url'} = \&getStationMenu;
-			}elsif ( $codeRef eq 'getJSONMenu' ) {
-				$menuItem->{'url'} = \&getJSONMenu;
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
 				$menuItem->{'url'} =\&Plugins::BBCSounds::PlayManager::handlePlaylist;
 			}elsif ( $codeRef eq 'createActivity' ) {
@@ -1444,6 +1408,9 @@ sub _renderMenuCodeRefs {
 				$log->error("Unknown Code Reference : $codeRef");
 			}
 		}
+		if (defined $menuItem->{'items'}) {
+			_renderMenuCodeRefs($menuItem->{'items'});
+		}
 
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
@@ -1455,8 +1422,16 @@ sub getNetworkSchedule {
 	my $network = shift;
 	my $cbY = shift;
 	my $cbN = shift;
+	my $isPrevious = shift;
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkSchedule");
 	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
+
+	if ($isPrevious) {
+		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=240';
+	}
+
+
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;
@@ -1550,7 +1525,7 @@ sub tracklistInfoIntegration {
 	my ( $client, $url, $track, $remoteMeta ) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
 
-	my $items = [];	
+	my $items = [];
 
 	if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
 		$items = [
