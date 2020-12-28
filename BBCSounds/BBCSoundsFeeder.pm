@@ -413,6 +413,7 @@ sub getPersonalisedPage {
 	return;
 }
 
+
 sub getPidDataForMeta {
 	my $isLive = shift;
 	my $pid = shift;
@@ -903,8 +904,8 @@ sub _parsePlayableItem {
 	  {
 		name => $title,
 		type => 'link',
-		icon => $image,		
-		items => $playMenu,		
+		icon => $image,
+		items => $playMenu,
 	  };
 }
 
@@ -933,8 +934,8 @@ sub _parseBroadcastItem {
 	  {
 		name => $title,
 		type => 'link',
-		icon => $image,		
-		items => $playMenu,		
+		icon => $image,
+		items => $playMenu,
 	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
@@ -1141,8 +1142,6 @@ sub _getPlayableItemMenu {
 		$item = $JSON->{'playable_item'};
 	}
 
-	main::DEBUGLOG && $log->is_debug && $log->debug(' Dump of playable JSON ' . Dumper($item));
-
 	my $urn        = $item->{urn};
 	my $pid        = _getPidfromSoundsURN( $item->{urn} );
 	my $id         = $item->{id};
@@ -1269,14 +1268,38 @@ sub _getPlayableItemMenu {
 
 	} else {
 
-		push @$menu,
-		  {
-			name => 'Not Currently Available',
-			order 		=> 1,
-		  };
+		#if not available try and construct a live rewind url
+		if (my $startTime = $item->{start}) {
+			if ((str2time($startTime) > (time() - 14400)) && (str2time($startTime) < time())) {
+
+				# less then 4 hours ago, constuct a live rewind url
+				$soundsUrl = 'sounds://_REWIND_' .  str2time($startTime) . '_LIVE_' . $item->{service_id};
+				push @$menu,
+				  {
+					name => 'Play (live rewind)',
+					url  => $soundsUrl,
+					type => 'audio',
+					order => 1,
+					passthrough => [ {} ],
+					on_select   => 'play',
+				  };
+			} else {
+				push @$menu,
+				  {
+					name => 'Not Currently Available',
+					order 		=> 1,
+				  };
+			}
+		} else {
+			push @$menu,
+			  {
+				name => 'Not Currently Available',
+				order 		=> 1,
+			  };
+		}
 	}
 
-	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;	
+	@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPlayableItemMenu");
 	return;
@@ -1372,7 +1395,7 @@ sub _renderMenuCodeRefs {
 			}elsif ( $codeRef eq 'getSubMenu' ) {
 				$menuItem->{'url'} = \&getSubMenu;
 			}elsif ( $codeRef eq 'getStationMenu' ) {
-				$menuItem->{'url'} = \&getStationMenu;		
+				$menuItem->{'url'} = \&getStationMenu;
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
 				$menuItem->{'url'} =\&Plugins::BBCSounds::PlayManager::handlePlaylist;
 			}elsif ( $codeRef eq 'createActivity' ) {
@@ -1399,8 +1422,16 @@ sub getNetworkSchedule {
 	my $network = shift;
 	my $cbY = shift;
 	my $cbN = shift;
+	my $isPrevious = shift;
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkSchedule");
 	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
+
+	if ($isPrevious) {
+		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=240';
+	}
+
+
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;
