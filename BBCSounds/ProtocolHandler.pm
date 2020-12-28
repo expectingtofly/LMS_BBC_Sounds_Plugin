@@ -499,6 +499,11 @@ sub aodMetaData {
 		$pid,
 		sub {
 			my $retMeta = shift;
+
+			# the AOD meta is more accurate
+			my $props = ${*$self}{'props'};
+			$retMeta->{'duration'} = $props->{'duration'};
+
 			$song->pluginData( meta  => $retMeta );
 			$v->{'resetMeta'} = 0;
 			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
