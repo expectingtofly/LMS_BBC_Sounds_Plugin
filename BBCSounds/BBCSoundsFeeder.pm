@@ -103,7 +103,7 @@ sub toplevel {
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
-				order => 5,
+				order => 4,
 			},
 			{
 				name        => 'Music Mixes',
@@ -155,7 +155,7 @@ sub toplevel {
 					type => 'link',
 					url  => '',
 					passthrough =>[ { type => 'daily', codeRef => 'getPage' } ],
-					order => 4,
+					order => 5,
 				  };
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
 				_cacheMenu( 'toplevel', $menu, 2400 );
