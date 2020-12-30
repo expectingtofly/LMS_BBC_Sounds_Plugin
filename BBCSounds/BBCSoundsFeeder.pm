@@ -103,7 +103,7 @@ sub toplevel {
 				type => 'link',
 				url  => '',
 				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
-				order => 5,
+				order => 4,
 			},
 			{
 				name        => 'Music Mixes',
@@ -155,7 +155,7 @@ sub toplevel {
 					type => 'link',
 					url  => '',
 					passthrough =>[ { type => 'daily', codeRef => 'getPage' } ],
-					order => 4,
+					order => 5,
 				  };
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
 				_cacheMenu( 'toplevel', $menu, 2400 );
@@ -821,7 +821,7 @@ sub _parseTracklist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $title = strftime( '%H:%M:%S ', localtime($item->{offset}->{start}) ) . $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		my $title = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) ) . $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
 		push @$menu,
 		  {
 			name        => $title,
