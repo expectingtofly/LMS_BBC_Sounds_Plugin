@@ -266,6 +266,7 @@ sub getPage {
 		}		
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. URI::Escape::uri_escape_utf8( $searchstr );
 		$cacheIt = 0;
+		if (Plugins::BBCSounds::Utilities::hasRecentSearches != 1 ) { 	_removeCacheMenu('toplevel'); }    #make sure the new search menu appears at the top level to save confusion.
 		Plugins::BBCSounds::Utilities::addRecentSearch($searchstr);
 	}elsif ( $menuType eq 'searchshows' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
