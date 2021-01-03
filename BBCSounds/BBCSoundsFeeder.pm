@@ -23,6 +23,7 @@ use strict;
 use URI::Escape;
 
 use Slim::Utils::Log;
+use Slim::Utils::Prefs;
 use Slim::Networking::Async::HTTP;
 use Slim::Utils::Cache;
 use JSON::XS::VersionOneAndTwo;
@@ -39,6 +40,7 @@ use Plugins::BBCSounds::ActivityManagement;
 use Plugins::BBCSounds::Utilities;
 
 my $log = logger('plugin.bbcsounds');
+my $prefs = preferences('plugin.bbcsounds');
 
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
@@ -92,13 +94,6 @@ sub toplevel {
 		my $editorialTitle = "Our Daily Picks";
 		$menu = [
 			{
-				name        => 'Search',
-				type        => 'search',
-				url         => '',
-				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
-				order       => 1,
-			},
-			{
 				name => 'Unmissable Sounds',
 				type => 'link',
 				url  => '',
@@ -142,6 +137,28 @@ sub toplevel {
 			}
 
 		];
+
+		if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
+			push @$menu,{
+
+				name        => 'Search',
+				type        => 'link',
+				url         => '',
+				passthrough => [ { codeRef => 'recentSearches' } ],
+				order       => 1,
+			};
+
+		} else {
+			push @$menu,{
+
+				name        => 'Search',
+				type        => 'search',
+				url         => '',
+				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
+				order       => 1,
+
+			};
+		}
 
 		main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
@@ -241,9 +258,15 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
 	}elsif ( $menuType eq 'search' ) {
-		my $searchstr = URI::Escape::uri_escape_utf8( $args->{'search'} );
-		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
+		my $searchstr = '';
+		if ($args->{'recent'} ) {
+			$searchstr = $passDict->{'query'};
+		} else {
+			$searchstr = $args->{'search'};
+		}		
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. URI::Escape::uri_escape_utf8( $searchstr );
 		$cacheIt = 0;
+		Plugins::BBCSounds::Utilities::addRecentSearch($searchstr);
 	}elsif ( $menuType eq 'searchshows' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/search/container?q='. $searchstr;
@@ -1520,6 +1543,42 @@ sub spottyInfoIntegration {
 	}
 }
 
+sub recentSearches {
+	my ($client, $cb, $params) = @_;
+
+	my $items = [];
+
+	my $i = 0;
+	for my $recent ( @{ $prefs->get('sounds_recent_search') || [] } ) {
+		unshift @$items, {
+			name  => $recent,
+			type  => 'link',
+			url   => \&getPage,
+			itemActions => {
+				info => {
+					command     => ['sounds', 'recentsearches'],
+					fixedParams => { deleteMenu => $i++ },
+				},
+			},	
+			passthrough => [{
+				type => 'search',
+				query => $recent,
+				recent => 1,
+				codeRef => 'getPage'
+			}],
+		};
+	}
+
+	unshift @$items, {
+		name  => 'New Search',
+		type  => 'search',
+		url   => \&getPage,
+		passthrough => [ { type => 'search' }],
+	};
+
+	$cb->({ items => $items });
+}
+
 
 sub tracklistInfoIntegration {
 	my ( $client, $url, $track, $remoteMeta ) = @_;
@@ -1547,5 +1606,6 @@ sub tracklistInfoIntegration {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
 	return \@$items;
 }
+
 
 1;
