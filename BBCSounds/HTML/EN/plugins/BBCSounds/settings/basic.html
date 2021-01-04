@@ -60,18 +60,15 @@
 	<label for="pref_fix_track">Persist the track information when track is playing (Enabling this stops the alternating cycle between track and programme info during track play)</label>
 	[% END %]
 
-	
-
 	<hr/>
 	
-
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ADVANCED_SETTING" desc="" %]
-		[% "PLUGIN_BBCSOUNDS_ADVANCED_SETTING_DESC" | string %]
+	[% WRAPPER setting title="Advanced Settings" desc="" %]
+	The settings below should only be changed if you have a specific reason to do so.
 	[% END %]
 	
 	[% WRAPPER setting title="" desc="" %]
 		<input name="pref_hideSampleRate" id="pref_hideSampleRate" type="checkbox" [% IF prefs.pref_hideSampleRate %] checked [% END %]>
-		<label for="pref_hideSampleRate">[% "PLUGIN_BBCSOUNDS_HIDESAMPLERATE_DESC" | string %]</label>
+		<label for="pref_hideSampleRate">Hide the audio sample rate from LMS. This can help with a specific transcoding issue on devices that can't natively support 48000</label>
 	[% END %]
 
 
