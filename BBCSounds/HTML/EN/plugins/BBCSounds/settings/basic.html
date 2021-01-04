@@ -1,22 +1,32 @@
 [% PROCESS settings/header.html %]
 	
     <br>
-    [% IF isSignedIn %]<strong>You are already successfully signed in, you can sign in to a different account by entering different credentials below</strong><br/>[% END %]
-    [% IF !isSignedin %]To sign in, enter your BBC Account credentials below :<br/>[% END %]
+	[% IF isSignedIn %]
+	<strong>You are already successfully signed in, you can sign out by pressing the button below</strong>
+	<br/>
+	<input name="signout" type="submit" value="Sign Out" class="stdclick" />
+	
+	[% END %]
+	[% IF isSignedOut %]
+		To sign in, enter your BBC Account credentials below and click the "Sign In" button :<br/>
     
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
-	<div class="prefDesc">
-		<input type="text" class="stdedit" name="pref_username" value="[% prefs.username %]" size="40" />	
-	</div>
+		[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
+		<div class="prefDesc">
+			<input type="text" class="stdedit" name="pref_username" value="[% prefs.username %]" size="40" />	
+		</div>
 
-	[% END %]
+		[% END %]
+		
+		[% WRAPPER setting title="PLUGIN_BBCSOUNDS_PASSWORD" desc="PLUGIN_BBCSOUNDS_PASSWORD_DESC" %]
+		<div class="prefDesc">
+			<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
+		</div>
+
+		[% END %]
+		<br/>
+		<input name="signin" type="submit" value="Sign In" class="stdclick" />
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_PASSWORD" desc="PLUGIN_BBCSOUNDS_PASSWORD_DESC" %]
-	<div class="prefDesc">
-		<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
-	</div>
-
 	[% END %]
 
 	<hr/>
