@@ -40,6 +40,7 @@
 	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu</label>
 	
 	[% END %]
+	<br/>
 
 	[% WRAPPER setting title="Track Information Display" desc="" %]
 		Amend the settings below to adjusts how track information is displayed.
@@ -58,6 +59,12 @@
 	[% WRAPPER setting title="" desc="" %]	
 	<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
 	<label for="pref_fix_track">Persist the track information when track is playing (Enabling this stops the alternating cycle between track and programme info during track play)</label>
+	[% END %]
+	<br/>
+
+	[% WRAPPER setting title="Search History" desc="" %]	
+	<input name="clearSearchHistory" type="checkbox" >
+	<label for="clearSearchHistory">Clear search history</label>	
 	[% END %]
 
 	<hr/>

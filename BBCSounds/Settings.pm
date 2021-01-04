@@ -51,9 +51,9 @@ sub handler {
 			sub {
 				$log->info("Sign out successful");
 
-                my $msg ='<strong>There was a problem with sign out, please try again</strong>';
+				my $msg ='<strong>There was a problem with sign out, please try again</strong>';
 				my $isValid = 0;
-				if ( ! (Plugins::BBCSounds::SessionManagement::isSignedIn())){
+				if ( !(Plugins::BBCSounds::SessionManagement::isSignedIn())){
 					$isValid = 0;
 					$msg ='<strong>Successfully signed out</strong>';
 				}
@@ -67,7 +67,7 @@ sub handler {
 				}else {
 					$params->{warning} .= $msg . '<br/>';
 				}
-				
+
 				$callback->( $client, $params, $body, @args );
 			},
 			sub {
@@ -86,7 +86,7 @@ sub handler {
 
 			}
 		);
-        $log->debug("--handler save sign out");
+		$log->debug("--handler save sign out");
 		return;
 	}
 
@@ -134,6 +134,12 @@ sub handler {
 		);
 		$log->debug("--handler save sign in");
 		return;
+	}
+
+	if ($params->{saveSettings}) {
+		if ($params->{clearSearchHistory}) {
+			$prefs->set('sounds_recent_search', []);
+		}
 	}
 
 	$log->debug("--handler");
