@@ -2,9 +2,10 @@
 	
     <br>
 	[% IF isSignedIn %]
-	<strong>You are already successfully signed in, you can sign out by pressing the button below</strong>
+	<strong>You are already successfully signed in, you can sign out by pressing the button below :</strong>
 	<br/>
 	<input name="signout" type="submit" value="Sign Out" class="stdclick" />
+	<br/>
 	
 	[% END %]
 	[% IF isSignedOut %]
@@ -26,42 +27,43 @@
 		[% END %]
 		<br/>
 		<input name="signin" type="submit" value="Sign In" class="stdclick" />
+		<br/>
 	
 	[% END %]
 
 	<hr/>
+
+
+	[% WRAPPER setting title="Menu Location" desc="" %]
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_RADIOMENU" desc="PLUGIN_BBCSOUNDS_RADIOMENU_DESC" %]
-
-		<div class="prefDesc">[% "ENABLE" | string %]
-			<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
-		</div>
-
+	<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
+	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu</label>
+	
 	[% END %]
 
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO_DESC" %]
+	[% WRAPPER setting title="Track Information Display" desc="" %]
+		Amend the settings below to adjusts how track information is displayed.
+	[% END %]
 
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_alternate_track" type="checkbox" [% IF prefs.pref_alternate_track %] checked [% END %]>
-	</div>
-
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_alternate_track" type="checkbox" [% IF prefs.pref_alternate_track %] checked [% END %]>
+	<label for="pref_alternate_track_image">Show track information in line one when playing</label>
 	[% END %]
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE_DESC" %]
-
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_alternate_track_image" type="checkbox" [% IF prefs.pref_alternate_track_image %] checked [% END %]>
-	</div>
-
-	[% END %]	
-
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING" desc="PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING_DESC" %]
-
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
-	</div>
-
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_alternate_track_image" type="checkbox" [% IF prefs.pref_alternate_track_image %] checked [% END %]>
+	<label for="pref_alternate_track_image">Show the track image when playing</label>
 	[% END %]
+
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
+	<label for="pref_fix_track">Persist the track information when track is playing (Enabling this stops the alternating cycle between track and programme info during track play)</label>
+	[% END %]
+
+	
+
+	<hr/>
+	
 
 	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ADVANCED_SETTING" desc="" %]
 		[% "PLUGIN_BBCSOUNDS_ADVANCED_SETTING_DESC" | string %]
