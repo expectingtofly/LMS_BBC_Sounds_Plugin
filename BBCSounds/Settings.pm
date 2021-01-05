@@ -152,7 +152,7 @@ sub prefs {
 
 
 	$log->debug("--prefs");
-	return ( $prefs, qw(username password is_radio hideSampleRate alternate_track alternate_track_image fix_track) );
+	return ( $prefs, qw(username password is_radio hideSampleRate alternate_track alternate_track_image fix_track track_line_three) );
 }
 
 

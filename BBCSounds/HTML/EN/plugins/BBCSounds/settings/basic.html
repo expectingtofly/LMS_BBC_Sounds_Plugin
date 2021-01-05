@@ -59,6 +59,11 @@
 	[% WRAPPER setting title="" desc="" %]	
 	<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
 	<label for="pref_fix_track">Persist the track information when track is playing (Enabling this stops the alternating cycle between track and programme info during track play)</label>
+	[% END %]	
+
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_track_line_three" type="checkbox" [% IF prefs.pref_track_line_three %] checked [% END %]>
+	<label for="pref_track_line_three">Always show track information in line three</label>
 	[% END %]
 	<br/>
 
