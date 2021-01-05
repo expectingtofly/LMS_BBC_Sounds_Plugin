@@ -23,8 +23,12 @@ use warnings;
 use strict;
 
 use Slim::Utils::Log;
+use Slim::Utils::Prefs;
 
 my $log = logger('plugin.bbcsounds');
+my $prefs = preferences('plugin.bbcsounds');
+
+use constant MAX_RECENT => 30;
 
 sub createNetworkLogoUrl {
 	my $logoTemplate = shift;
@@ -38,5 +42,28 @@ sub createNetworkLogoUrl {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--createNetworkLogoUrl");
 	return $logoUrl;
 }
+
+sub hasRecentSearches {	
+	return scalar @{ $prefs->get('sounds_recent_search') || [] };
+}
+
+sub addRecentSearch {
+	my $search = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++addRecentSearch");
+
+	my $list = $prefs->get('sounds_recent_search') || [];
+
+	$list = [ grep { $_ ne $search } @$list ];
+
+	push @$list, $search;
+
+	$list = [ @$list[(-1 * MAX_RECENT)..-1] ] if scalar @$list > MAX_RECENT;
+
+	$prefs->set( 'sounds_recent_search', $list );
+	main::DEBUGLOG && $log->is_debug && $log->debug("--addRecentSearch");
+	return;
+}
+
+1;
 
 

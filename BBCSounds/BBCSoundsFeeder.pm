@@ -23,6 +23,7 @@ use strict;
 use URI::Escape;
 
 use Slim::Utils::Log;
+use Slim::Utils::Prefs;
 use Slim::Networking::Async::HTTP;
 use Slim::Utils::Cache;
 use JSON::XS::VersionOneAndTwo;
@@ -39,6 +40,7 @@ use Plugins::BBCSounds::ActivityManagement;
 use Plugins::BBCSounds::Utilities;
 
 my $log = logger('plugin.bbcsounds');
+my $prefs = preferences('plugin.bbcsounds');
 
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
@@ -73,6 +75,14 @@ sub init {
 			},
 		)
 	);
+
+	#                                                               |requires Client
+	#                                                               |  |is a Query
+	#                                                               |  |  |has Tags
+	#                                                               |  |  |  |Function to call
+	#                                                               C  Q  T  F
+	Slim::Control::Request::addDispatch(['sounds','recentsearches'],[0, 0, 1, \&_recentSearchesCLI]);
+
 	_removeCacheMenu('toplevel'); #force remove
 }
 
@@ -91,13 +101,6 @@ sub toplevel {
 	$fetch = sub {
 		my $editorialTitle = "Our Daily Picks";
 		$menu = [
-			{
-				name        => 'Search',
-				type        => 'search',
-				url         => '',
-				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
-				order       => 1,
-			},
 			{
 				name => 'Unmissable Sounds',
 				type => 'link',
@@ -142,6 +145,28 @@ sub toplevel {
 			}
 
 		];
+
+		if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
+			push @$menu,{
+
+				name        => 'Search',
+				type        => 'link',
+				url         => '',
+				passthrough => [ { codeRef => 'recentSearches' } ],
+				order       => 1,
+			};
+
+		} else {
+			push @$menu,{
+
+				name        => 'Search',
+				type        => 'search',
+				url         => '',
+				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
+				order       => 1,
+
+			};
+		}
 
 		main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
@@ -241,9 +266,16 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
 	}elsif ( $menuType eq 'search' ) {
-		my $searchstr = URI::Escape::uri_escape_utf8( $args->{'search'} );
-		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
+		my $searchstr = '';
+		if ($passDict->{'recent'} ) {
+			$searchstr = $passDict->{'query'};
+		} else {
+			$searchstr = $args->{'search'};
+			Plugins::BBCSounds::Utilities::addRecentSearch($searchstr);
+		}
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. URI::Escape::uri_escape_utf8($searchstr);
 		$cacheIt = 0;
+		if (Plugins::BBCSounds::Utilities::hasRecentSearches != 1 ) { 	_removeCacheMenu('toplevel'); }    #make sure the new search menu appears at the top level to save confusion.
 	}elsif ( $menuType eq 'searchshows' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/search/container?q='. $searchstr;
@@ -1404,6 +1436,8 @@ sub _renderMenuCodeRefs {
 				$menuItem->{'url'} =\&Plugins::BBCSounds::ActivityManagement::deleteActivity;
 			}elsif ( $codeRef eq 'getPersonalisedPage' ) {
 				$menuItem->{'url'} = \&getPersonalisedPage;
+			}elsif ( $codeRef eq 'recentSearches' ) {
+				$menuItem->{'url'} = \&recentSearches;
 			}else {
 				$log->error("Unknown Code Reference : $codeRef");
 			}
@@ -1521,6 +1555,47 @@ sub spottyInfoIntegration {
 }
 
 
+sub recentSearches {
+	my ($client, $cb, $params) = @_;
+
+	my $items = [];
+
+	my $i = 0;
+	for my $recent ( @{ $prefs->get('sounds_recent_search') || [] } ) {
+		unshift @$items,
+		  {
+			name  => $recent,
+			type  => 'link',
+			url   => \&getPage,
+			itemActions => {
+				info => {
+					command     => ['sounds', 'recentsearches'],
+					fixedParams => { deleteMenu => $i++ },
+				},
+			},
+			passthrough => [
+				{
+					type => 'search',
+					query => $recent,
+					recent => 1,
+					codeRef => 'getPage'
+				}
+			],
+		  };
+	}
+
+	unshift @$items,
+	  {
+		name  => 'New Search',
+		type  => 'search',
+		url   => \&getPage,
+		passthrough => [ { type => 'search' }],
+	  };
+
+	$cb->({ items => $items });
+}
+
+
 sub tracklistInfoIntegration {
 	my ( $client, $url, $track, $remoteMeta ) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
@@ -1546,6 +1621,70 @@ sub tracklistInfoIntegration {
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
 	return \@$items;
+}
+
+#This came from Mherger for managing the search history
+sub _recentSearchesCLI {
+	my $request = shift;
+	my $client = $request->client;
+
+	# check this is the correct command.
+	if ($request->isNotCommand([['sounds'], ['recentsearches']])) {
+		$request->setStatusBadDispatch();
+		return;
+	}
+
+	my $list = $prefs->get('sounds_recent_search') || [];
+	my $del = $request->getParam('deleteMenu') || $request->getParam('delete') || 0;
+
+	if (!scalar @$list || $del >= scalar @$list) {
+		$log->error('Search item to delete is outside the history list!');
+		$request->setStatusBadParams();
+		return;
+	}
+
+	my $items = [];
+
+	if (defined $request->getParam('deleteMenu')) {
+		push @$items,
+		  {
+			text => cstring($client, 'DELETE') . cstring($client, 'COLON') . ' "' . ($list->[$del] || '') . '"',
+			actions => {
+				go => {
+					player => 0,
+					cmd    => ['sounds', 'recentsearches' ],
+					params => {
+						delete => $del
+					},
+				},
+			},
+			nextWindow => 'parent',
+		  },
+		  {
+			text => 'Clear search history',
+			actions => {
+				go => {
+					player => 0,
+					cmd    => ['sounds', 'recentsearches' ],
+					params => {
+						deleteAll => 1
+					},
+				}
+			},
+			nextWindow => 'grandParent',
+		  };
+
+		$request->addResult('offset', 0);
+		$request->addResult('count', scalar @$items);
+		$request->addResult('item_loop', $items);
+	}elsif ($request->getParam('deleteAll')) {
+		$prefs->set( 'sounds_recent_search', [] );
+	}elsif (defined $request->getParam('delete')) {
+		splice(@$list, $del, 1);
+		$prefs->set( 'sounds_recent_search', $list );
+	}
+
+	$request->setStatusDone;
 }
 
 1;

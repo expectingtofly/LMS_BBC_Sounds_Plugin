@@ -1,65 +1,86 @@
 [% PROCESS settings/header.html %]
 	
     <br>
-    [% IF isSignedIn %]<strong>You are already successfully signed in, you can sign in to a different account by entering different credentials below</strong><br/>[% END %]
-    [% IF !isSignedin %]To sign in, enter your BBC Account credentials below :<br/>[% END %]
+	[% IF isSignedIn %]
+	<strong>You are already successfully signed in, you can sign out by pressing the button below :</strong>
+	<br/>
+	<input name="signout" type="submit" value="Sign Out" class="stdclick" />
+	<br/>
+	
+	[% END %]
+	[% IF isSignedOut %]
+		To sign in, enter your BBC Account credentials below and click the "Sign In" button :<br/>
     
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
-	<div class="prefDesc">
-		<input type="text" class="stdedit" name="pref_username" value="[% prefs.username %]" size="40" />	
-	</div>
+		[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
+		<div class="prefDesc">
+			<input type="text" class="stdedit" name="pref_username" value="[% prefs.username %]" size="40" />	
+		</div>
 
+		[% END %]
+		
+		[% WRAPPER setting title="PLUGIN_BBCSOUNDS_PASSWORD" desc="PLUGIN_BBCSOUNDS_PASSWORD_DESC" %]
+		<div class="prefDesc">
+			<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
+		</div>
+
+		[% END %]
+		<br/>
+		<input name="signin" type="submit" value="Sign In" class="stdclick" />
+		<br/>
+	
+	[% END %]
+
+	<hr/>
+
+
+	[% WRAPPER setting title="Menu Location" desc="" %]
+	
+	<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
+	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu.  Requires an LMS restart.</label>
+	
+	[% END %]
+	<br/>
+
+	[% WRAPPER setting title="Track Information Display" desc="" %]
+		Amend the settings below to adjusts how track information is displayed.
+	[% END %]
+
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_alternate_track" type="checkbox" [% IF prefs.pref_alternate_track %] checked [% END %]>
+	<label for="pref_alternate_track_image">Show track information in line one when playing</label>
 	[% END %]
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_PASSWORD" desc="PLUGIN_BBCSOUNDS_PASSWORD_DESC" %]
-	<div class="prefDesc">
-		<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
-	</div>
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_alternate_track_image" type="checkbox" [% IF prefs.pref_alternate_track_image %] checked [% END %]>
+	<label for="pref_alternate_track_image">Show the track image when playing</label>
+	[% END %]
 
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
+	<label for="pref_fix_track">Persist the track information when track is playing (Enabling this stops the alternating cycle between track and programme info during track play)</label>
+	[% END %]	
+
+	[% WRAPPER setting title="" desc="" %]	
+	<input name="pref_track_line_three" type="checkbox" [% IF prefs.pref_track_line_three %] checked [% END %]>
+	<label for="pref_track_line_three">Always show track information in line three</label>
+	[% END %]
+	<br/>
+
+	[% WRAPPER setting title="Search History" desc="" %]	
+	<input name="clearSearchHistory" type="checkbox" >
+	<label for="clearSearchHistory">Clear search history</label>	
 	[% END %]
 
 	<hr/>
 	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_RADIOMENU" desc="PLUGIN_BBCSOUNDS_RADIOMENU_DESC" %]
-
-		<div class="prefDesc">[% "ENABLE" | string %]
-			<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
-		</div>
-
-	[% END %]
-
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_INFO_DESC" %]
-
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_alternate_track" type="checkbox" [% IF prefs.pref_alternate_track %] checked [% END %]>
-	</div>
-
-	[% END %]
-	
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE" desc="PLUGIN_BBCSOUNDS_ALTERNATE_TRACK_IMAGE_DESC" %]
-
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_alternate_track_image" type="checkbox" [% IF prefs.pref_alternate_track_image %] checked [% END %]>
-	</div>
-
-	[% END %]	
-
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING" desc="PLUGIN_BBCSOUNDS_FIX_TRACK_INFO_WHILE_PLAYING_DESC" %]
-
-	<div class="prefDesc">[% "ENABLE" | string %]
-		<input name="pref_fix_track" type="checkbox" [% IF prefs.pref_fix_track %] checked [% END %]>
-	</div>
-
-	[% END %]
-
-	[% WRAPPER setting title="PLUGIN_BBCSOUNDS_ADVANCED_SETTING" desc="" %]
-		[% "PLUGIN_BBCSOUNDS_ADVANCED_SETTING_DESC" | string %]
+	[% WRAPPER setting title="Advanced Settings" desc="" %]
+	The settings below should only be changed if you have a specific reason to do so.
 	[% END %]
 	
 	[% WRAPPER setting title="" desc="" %]
 		<input name="pref_hideSampleRate" id="pref_hideSampleRate" type="checkbox" [% IF prefs.pref_hideSampleRate %] checked [% END %]>
-		<label for="pref_hideSampleRate">[% "PLUGIN_BBCSOUNDS_HIDESAMPLERATE_DESC" | string %]</label>
+		<label for="pref_hideSampleRate">Hide the audio sample rate from LMS. This can help with a specific transcoding issue on devices that can't natively support 48000</label>
 	[% END %]
 
 

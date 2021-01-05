@@ -211,7 +211,8 @@ sub new {
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
 				'isShowingTitle' => 0,   # indicates what cycle we are on
-				'awaitingCb' => 0      #flag for callback on track data
+				'awaitingCb' => 0,      #flag for callback on track data
+				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
 			},
 			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC
 		};
@@ -360,9 +361,9 @@ sub liveTrackData {
 
 
 		my $meta = $song->pluginData('meta');
-		$meta->{title} = $meta->{realTitle} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
-		$meta->{icon} = $meta->{realIcon} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
-		$meta->{cover} = $meta->{realCover} unless ($prefs->get('fix_track') eq 'on') && ($meta->{album} ne '');
+		$meta->{title} = $meta->{realTitle} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
+		$meta->{icon} = $meta->{realIcon} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
+		$meta->{cover} = $meta->{realCover} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
 		$song->pluginData( meta  => $meta );
 
 		my $cb = sub {
@@ -418,7 +419,8 @@ sub liveTrackData {
 					$song->pluginData( meta  => $meta );
 
 					$v->{'trackData'}->{isShowingTitle} = 0;
-					$v->{'trackData'}->{awaitingCb} = 0;
+					$v->{'trackData'}->{trackPlaying} = 0;
+					$v->{'trackData'}->{awaitingCb} = 0;					
 					return;
 				} else {
 
@@ -434,6 +436,7 @@ sub liveTrackData {
 						$meta->{spotify} = '';
 						$song->pluginData( meta  => $meta );
 
+						$v->{'trackData'}->{trackPlaying} = 0;
 						$v->{'trackData'}->{isShowingTitle} = 0;
 						$v->{'trackData'}->{awaitingCb} = 0;
 						return;
@@ -441,12 +444,13 @@ sub liveTrackData {
 
 					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
 					$meta->{title} = $newTitle if $prefs->get('alternate_track') eq 'on';
-					$meta->{album} = 'Now Playing : ' . $newTitle;
+					$meta->{album} = 'Now Playing : ' . $newTitle if $prefs->get('track_line_three') eq 'on';
 					if ((my $image = $track->{data}[0]->{image_url})  && ($prefs->get('alternate_track_image') eq 'on')) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{icon} = $image;
 						$meta->{cover} = $image;
 					}
+					$v->{'trackData'}->{trackPlaying} = 1;
 
 					#add a spotify id if there is one
 					my $spotifyId = '';
@@ -479,6 +483,7 @@ sub liveTrackData {
 				# an error occured
 				$v->{'trackData'}->{isShowingTitle} = 0;
 				$v->{'trackData'}->{awaitingCb} = 0;
+				$v->{'trackData'}->{trackPlaying} = 0;
 				$log->warn('Failed to retrieve live track data');
 			}
 		);
