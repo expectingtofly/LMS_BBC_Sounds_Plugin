@@ -60,6 +60,7 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
+use constant RESETMETA_THRESHHOLD => 2;
 
 
 my $log   = logger('plugin.bbcsounds');
@@ -573,8 +574,8 @@ sub liveMetaData {
 
 						#ensure plug in data up to date
 						$song->pluginData( props   => $props );
-
-						Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+						
+					    Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );					
 
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
 					},
@@ -720,15 +721,18 @@ sub sysread {
 					if ($props->{'isDynamic'}) {
 
 						# get the meta data for this live track if we don't have it yet.
-						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
+						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 
 						# check for live track if we are within striking distance of the live edge
 						my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 						$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
 					}else{
-						$self->aodMetaData() if ($v->{'resetMeta'} == 1);
+						$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 						$self->liveTrackData();
 					}
+					
+					#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
+					$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;  
 
 				},
 
@@ -764,12 +768,13 @@ sub sysread {
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
 
 	if ( my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );		
 		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );
-		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . Time::HiRes::time());
+	
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
-
+		main::DEBUGLOG && $log->is_debug && $log->debug('No bytes available' . Time::HiRes::time());
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
