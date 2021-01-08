@@ -60,6 +60,7 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
+use constant RESETMETA_THRESHHOLD => 2;
 
 
 my $log   = logger('plugin.bbcsounds');
@@ -103,7 +104,7 @@ sub canDoAction {
 				}
 
 				#force it to reload and therefore return to live
-				$props->{isDynamic} = 0;
+				$props->{isContinue} = 0;
 				$song->pluginData( props   => $props );
 				return 1;
 			}
@@ -150,10 +151,6 @@ sub new {
 
 		if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
 
-			#it is possible that the isDynamic has been lost on the way
-			$props->{isDynamic} = 1;
-			$song->pluginData( props   => $props );
-
 			#we can't go into the future
 			my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
 			my $maxStartTime = $edge - ($props->{virtualStartNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
@@ -171,7 +168,7 @@ sub new {
 
 				#we need to end this track and let it rise again
 				$log->error('Live stream to old after pause, stopping the continuation.');
-				$props->{isDynamic} = 0;
+				$props->{isContinue} = 0;
 				$song->pluginData( props   => $props );
 				return;
 			}
@@ -253,7 +250,7 @@ sub close {
 
 		#make sure we don't try and continue if we were streaming when it is started again.
 		if ($v->{streaming}) {
-			$props->{isDynamic} = 0;
+			$props->{isContinue} = 0;
 			$song->pluginData( props   => $props );
 			main::INFOLOG && $log->info("Ensuring live stream closed");
 		}
@@ -573,8 +570,8 @@ sub liveMetaData {
 
 						#ensure plug in data up to date
 						$song->pluginData( props   => $props );
-
-						Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+						
+					    Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );					
 
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
 					},
@@ -711,24 +708,33 @@ sub sysread {
 					$v->{'inBuf'} .= $_[0]->content;
 					$v->{'fetching'} = 0;
 					$v->{'retryCount'} = 0;
-
-					$v->{'streaming'} = 0
-					  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+					
+					if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
+						$v->{'streaming'} = 0;
+						if ($props->{'isDynamic'}) {
+							$props->{'isContinue'} = 1;
+							$song->pluginData( props   => $props );
+							main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+						}						
+					}
 
 					main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
 
 					if ($props->{'isDynamic'}) {
 
 						# get the meta data for this live track if we don't have it yet.
-						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} == 1);
+						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 
 						# check for live track if we are within striking distance of the live edge
 						my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 						$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
 					}else{
-						$self->aodMetaData() if ($v->{'resetMeta'} == 1);
+						$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 						$self->liveTrackData();
 					}
+					
+					#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
+					$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;  
 
 				},
 
@@ -764,12 +770,13 @@ sub sysread {
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
 
 	if ( my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );		
 		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );
-		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . Time::HiRes::time());
+	
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
-
+		main::DEBUGLOG && $log->is_debug && $log->debug('No bytes available' . Time::HiRes::time());
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
@@ -882,7 +889,7 @@ sub getNextTrack {
 
 		#if we already have props then this is a continuation
 		if (my $existingProps = $song->pluginData('props')) {
-			if ( $existingProps->{isDynamic}) {
+			if ( $existingProps->{isContinue} && $existingProps->{isDynamic} ) {
 				return errorCb->() unless ($existingProps->{endNumber} > 0);
 				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
@@ -1025,6 +1032,7 @@ sub getMPD {
 				my $props = {
 					format       => $$allow[$selIndex][1],
 					isDynamic  =>  ($mpd->{'type'} eq 'dynamic'),
+					isContinue =>   1,
 					updatePeriod => 0,
 					baseURL      => $startBase . ($period->{'BaseURL'}->{'content'} // $mpd->{'BaseURL'}->{'content'}),
 					segmentTimescale =>$selRepres->{'SegmentTemplate'}->{'timescale'}// $selAdapt->{'SegmentTemplate'}->{'timescale'}// $period->{'SegmentTemplate'}->{'timescale'},
