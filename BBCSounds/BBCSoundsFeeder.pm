@@ -1601,23 +1601,24 @@ sub tracklistInfoIntegration {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
 
 	my $items = [];
-
-	if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
-		$items = [
-			{
-				name => 'Tracklist',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'segments',
-						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
-						offset  => 0,
-						codeRef => 'getPage'
-					}
-				],
-			}
-		];
+	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
+		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
+			$items = [
+				{
+					name => 'Tracklist',
+					type        => 'link',
+					url         => \&getPage,
+					passthrough => [
+						{
+							type    => 'segments',
+							id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
+							offset  => 0,
+							codeRef => 'getPage'
+						}
+					],
+				}
+			];
+		}
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
 	return \@$items;
