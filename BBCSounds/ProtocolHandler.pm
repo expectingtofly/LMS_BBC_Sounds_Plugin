@@ -60,7 +60,18 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
-use constant RESETMETA_THRESHHOLD => 2;
+use constant RESETMETA_THRESHHOLD => 1;
+
+use constant DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME => 1;
+use constant DISPLAYLINE_TRACKTITLEWHENPLAYING => 2;
+use constant DISPLAYLINE_PROGRAMMEONLY => 3;
+use constant DISPLAYLINE_TRACKTITLEONLY => 4;
+use constant DISPLAYLINE_PROGRAMMEDESCRIPTION => 5;
+use constant DISPLAYLINE_BLANK => 6;
+
+use constant DISPLAYIMAGE_PROGRAMMEIMAGEONLY => 1;
+use constant DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME => 2;
+use constant DISPLAYIMAGE_TRACKIMAGEWHENPLAYING => 3;
 
 
 my $log   = logger('plugin.bbcsounds');
@@ -207,7 +218,7 @@ sub new {
 			'liveId'   => '',  # The ID of the live programme playing
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
-				'isShowingTitle' => 0,   # indicates what cycle we are on
+				'isShowingTitle' => 1,   # indicates what cycle we are on
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
 			},
@@ -331,6 +342,69 @@ sub vars {
 my $nextWarning = 0;
 
 
+sub _getPlayingImage {
+	my $self = shift;
+	my $programmeImage = shift;
+	my $trackImage = shift;
+	my $v = $self->vars;
+
+	my $imagePref = $prefs->get('displayimage');
+
+	return $programmeImage if $imagePref == DISPLAYIMAGE_PROGRAMMEIMAGEONLY;
+
+	if ($imagePref == DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME) {
+		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
+		return $programmeImage;
+	}
+
+	if ($imagePref == DISPLAYIMAGE_TRACKIMAGEWHENPLAYING ) {
+		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1;
+		return $programmeImage;
+	}
+
+	#how did we get here?
+	$log->error('Could not return display image');
+	return;
+}
+
+
+sub _getPlayingDisplayLine {
+	my $self = shift;
+	my $line = shift;
+	my $programme = shift;
+	my $track = shift;
+	my $description = shift;
+	my $v = $self->vars;
+
+	my $displaytype = 0;
+	$displaytype = $prefs->get('displayline1') if $line == 1;
+	$displaytype = $prefs->get('displayline2') if $line == 2;
+	$displaytype = $prefs->get('displayline3') if $line == 3;
+
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("Prefs for line $line is $displaytype input $track | $programme | $description");
+
+	return '' 			if $displaytype == DISPLAYLINE_BLANK;
+	return $track		if $displaytype == DISPLAYLINE_TRACKTITLEONLY;
+	return $programme   if $displaytype == DISPLAYLINE_PROGRAMMEONLY;
+	return $description if $displaytype == DISPLAYLINE_PROGRAMMEDESCRIPTION;
+
+	if ($displaytype == DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME) {
+		return $track 	if $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
+		return $programme;
+	}
+
+	if ($displaytype == DISPLAYLINE_TRACKTITLEWHENPLAYING) {
+		return $track	if $v->{'trackData'}->{trackPlaying} == 1;
+		return $programme;
+	}
+
+	#how did we get here?
+	$log->error('Could not return display line ' . $line);
+	return;
+}
+
+
 sub liveTrackData {
 	my $self = shift;
 	my $client = ${*$self}{'client'};
@@ -358,9 +432,11 @@ sub liveTrackData {
 
 
 		my $meta = $song->pluginData('meta');
-		$meta->{title} = $meta->{realTitle} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
-		$meta->{icon} = $meta->{realIcon} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
-		$meta->{cover} = $meta->{realCover} unless ($prefs->get('fix_track') eq 'on') && ($v->{'trackData'}->{trackPlaying});
+		$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
+		$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
+		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
+		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 		$song->pluginData( meta  => $meta );
 
 		my $cb = sub {
@@ -408,16 +484,20 @@ sub liveTrackData {
 				if ($track->{total} == 0) {
 
 					#nothing there
-					$meta->{title} = $meta->{realTitle};
-					$meta->{icon} = $meta->{realIcon};
-					$meta->{cover} = $meta->{realCover};
-					$meta->{album} = '';
+					$v->{'trackData'}->{trackPlaying} = 0;
+					$v->{'trackData'}->{awaitingCb} = 0;
+					$meta->{track} = '';
+
+
+					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
+					$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					$meta->{spotify} = '';
+
 					$song->pluginData( meta  => $meta );
 
-					$v->{'trackData'}->{isShowingTitle} = 0;
-					$v->{'trackData'}->{trackPlaying} = 0;
-					$v->{'trackData'}->{awaitingCb} = 0;					
 					return;
 				} else {
 
@@ -426,28 +506,36 @@ sub liveTrackData {
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
 						#The track hasn't started yet. leave.
-						$meta->{title} = $meta->{realTitle};
-						$meta->{icon} = $meta->{realIcon};
-						$meta->{cover} = $meta->{realCover};
-						$meta->{album} = '';
+
+						$v->{'trackData'}->{trackPlaying} = 0;
+						$v->{'trackData'}->{awaitingCb} = 0;
+						$meta->{track} = '';
+
+
+						$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
+						$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
+						$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+						$meta->{icon} =	 $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
+						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
 						$song->pluginData( meta  => $meta );
 
-						$v->{'trackData'}->{trackPlaying} = 0;
-						$v->{'trackData'}->{isShowingTitle} = 0;
-						$v->{'trackData'}->{awaitingCb} = 0;
 						return;
 					}
 
-					my $newTitle = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
-					$meta->{title} = $newTitle if $prefs->get('alternate_track') eq 'on';
-					$meta->{album} = 'Now Playing : ' . $newTitle if $prefs->get('track_line_three') eq 'on';
-					if ((my $image = $track->{data}[0]->{image_url})  && ($prefs->get('alternate_track_image') eq 'on')) {
-						$image =~ s/{recipe}/320x320/;
-						$meta->{icon} = $image;
-						$meta->{cover} = $image;
-					}
+					$meta->{track} = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
 					$v->{'trackData'}->{trackPlaying} = 1;
+
+					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+
+					if ( my $image = $track->{data}[0]->{image_url} ) {
+						$image =~ s/{recipe}/320x320/;
+						$meta->{trackImage} = $image;
+						$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
+						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});						
+					}
 
 					#add a spotify id if there is one
 					my $spotifyId = '';
@@ -464,9 +552,9 @@ sub liveTrackData {
 
 					$song->pluginData( meta  => $meta );
 
-					main::INFOLOG && $log->is_info && $log->info("Setting new live title $newTitle");
+					main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
 					my $cb = sub {
-						main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback $newTitle");
+						main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
 						Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 						$v->{'trackData'}->{awaitingCb} = 0;
 					};
@@ -478,9 +566,10 @@ sub liveTrackData {
 			},
 			sub {
 				# an error occured
-				$v->{'trackData'}->{isShowingTitle} = 0;
+				$v->{'trackData'}->{isShowingTitle} = 1;
 				$v->{'trackData'}->{awaitingCb} = 0;
 				$v->{'trackData'}->{trackPlaying} = 0;
+
 				$log->warn('Failed to retrieve live track data');
 			}
 		);
@@ -570,8 +659,8 @@ sub liveMetaData {
 
 						#ensure plug in data up to date
 						$song->pluginData( props   => $props );
-						
-					    Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );					
+
+						Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );
 
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
 					},
@@ -708,14 +797,14 @@ sub sysread {
 					$v->{'inBuf'} .= $_[0]->content;
 					$v->{'fetching'} = 0;
 					$v->{'retryCount'} = 0;
-					
+
 					if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
 						$v->{'streaming'} = 0;
 						if ($props->{'isDynamic'}) {
 							$props->{'isContinue'} = 1;
 							$song->pluginData( props   => $props );
 							main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
-						}						
+						}
 					}
 
 					main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
@@ -732,9 +821,9 @@ sub sysread {
 						$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 						$self->liveTrackData();
 					}
-					
+
 					#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-					$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;  
+					$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
 
 				},
 
@@ -771,12 +860,13 @@ sub sysread {
 
 	if ( my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );		
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
 		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );
-	
+
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('No bytes available' . Time::HiRes::time());
+
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
@@ -1378,11 +1468,14 @@ sub _getAODMeta {
 					title    => $title,
 					realTitle => $title,
 					artist   => $syn,
+					description => $syn,
 					duration => $duration,
 					icon     => $image,
 					realIcon => $image,
 					cover    => $image,
 					realCover => $image,
+					trackImage => '',
+					track => '',
 					spotify => '',
 					type     => 'BBCSounds',
 				};
@@ -1542,11 +1635,14 @@ sub _getLiveMeta {
 					title    => $title,
 					realTitle => $title,
 					artist   => $syn,
+					description => $syn,
 					duration => $duration,
 					icon     => $image,
 					realIcon => $image,
 					cover    => $image,
 					realCover    => $image,
+					trackImage => '',
+					track =>   '',
 					spotify => '',
 					type     => 'BBCSounds',
 				};
