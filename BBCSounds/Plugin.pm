@@ -41,9 +41,22 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 $prefs->migrate(
+	6,
+	sub {
+		#reset new display preferences
+		$prefs->set('displayline1', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACKTITLEWHENPLAYING);
+		$prefs->set('displayline2', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION);
+		$prefs->set('displayline3', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY);
+		$prefs->set('displayimage', Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING);
+		1;
+	}
+);
+
+
+$prefs->migrate(
 	5,
 	sub {
-		$prefs->set('track_line_three', 'on');            
+		$prefs->set('track_line_three', 'on');
 		1;
 	}
 );
@@ -52,7 +65,7 @@ $prefs->migrate(
 $prefs->migrate(
 	4,
 	sub {
-		$prefs->set('fix_track', 0);            
+		$prefs->set('fix_track', 0);
 		1;
 	}
 );
@@ -60,8 +73,8 @@ $prefs->migrate(
 $prefs->migrate(
 	3,
 	sub {
-		$prefs->set('alternate_track', 'on');    
-        $prefs->set('alternate_track_image', 'on');    
+		$prefs->set('alternate_track', 'on');
+		$prefs->set('alternate_track_image', 'on');
 		1;
 	}
 );
@@ -69,8 +82,8 @@ $prefs->migrate(
 $prefs->migrate(
 	2,
 	sub {
-		$prefs->set('is_radio', 0);    
-        $prefs->set('hideSampleRate', 0);    
+		$prefs->set('is_radio', 0);
+		$prefs->set('hideSampleRate', 0);
 		1;
 	}
 );
@@ -79,7 +92,20 @@ $prefs->migrate(
 sub initPlugin {
 	my $class = shift;
 
-	$prefs->init({ is_radio => 0, hideSampleRate => 0, alternate_track => 'on', alternate_track_image => 'on', fix_track => 0, track_line_three =>'on' });
+	$prefs->init(
+		{
+			is_radio => 0,
+			hideSampleRate => 0,
+			alternate_track => 'on',
+			alternate_track_image => 'on',
+			fix_track => 0,
+			track_line_three =>'on',
+			displayline1 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACKTITLEWHENPLAYING,
+			displayline2 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION,
+			displayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY,
+			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING
+		}
+	);
 
 
 	$class->SUPER::initPlugin(
@@ -113,7 +139,7 @@ sub getDisplayName { return 'PLUGIN_BBCSOUNDS'; }
 sub playerMenu {
 	my $class =shift;
 
-    $log->info('Preference : ' . $prefs->get('is_radio'));
+	$log->info('Preference : ' . $prefs->get('is_radio'));
 
 	if ($prefs->get('is_radio')  || (!($class->can('nonSNApps')))) {
 		$log->info('Placing in Radio Menu');
