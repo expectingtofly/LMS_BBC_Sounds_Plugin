@@ -109,5 +109,11 @@
 		<label for="pref_hideSampleRate">Hide the audio sample rate from LMS. This can help with a specific transcoding issue on devices that can't natively support 48000</label>
 	[% END %]
 
+	[% WRAPPER setting title="" desc="" %]
+	<input name="pref_forceHTTP" id="pref_forceHTTP" type="checkbox" [% IF prefs.pref_forceHTTP %] checked [% END %]>
+	<label for="pref_forceHTTP">Force HTTP streaming</label>
+	[% END %]
+
+
 
 [% PROCESS settings/footer.html %]

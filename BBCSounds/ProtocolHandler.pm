@@ -213,6 +213,8 @@ sub new {
 			'fetching' => 0,        # waiting for HTTP data
 			'offset'   => $offset, # offset for next HTTP request in webm/stream or segment index in dash
 			'endOffset' => $props->{endNumber}, #the end number of this track.
+			'session' 	  => Slim::Networking::Async::HTTP->new,
+			'baseURL'	  => $args->{'url'},
 			'resetMeta'=> 1,
 			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
@@ -353,12 +355,12 @@ sub _getPlayingImage {
 	return $programmeImage if $imagePref == DISPLAYIMAGE_PROGRAMMEIMAGEONLY;
 
 	if ($imagePref == DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME) {
-		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
+		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
 		return $programmeImage;
 	}
 
 	if ($imagePref == DISPLAYIMAGE_TRACKIMAGEWHENPLAYING ) {
-		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1;
+		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1;
 		return $programmeImage;
 	}
 
@@ -534,7 +536,7 @@ sub liveTrackData {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{trackImage} = $image;
 						$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
-						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});						
+						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					}
 
 					#add a spotify id if there is one
@@ -748,7 +750,6 @@ sub sysread {
 	# return in $_[1]
 	my $maxBytes = $_[2];
 	my $v        = $self->vars;
-	my $baseURL  = ${*$self}{'url'};
 	my $props    = ${*$self}{'props'};
 	my $song      = ${*$self}{'song'};
 	my $masterUrl = $song->track()->url;
@@ -764,7 +765,7 @@ sub sysread {
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
 		&& $v->{'streaming'} ) {
-		my $url = $baseURL;
+		my $url =  $v->{'baseURL'};
 		my $bail = 0;
 		if ($props->{isDynamic}) {
 			main::INFOLOG && $log->is_info && $log->info('Need More data, we have ' . length $v->{'outBuf'} . ' in the buffer');
@@ -781,77 +782,87 @@ sub sysread {
 			}
 		}
 		if (!$bail) {
-			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} );
+			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} . 'base url :' . $url);
+			my $headers = [ 'Connection', 'keep-alive' ];
+			my $suffix;
 
-
-			$url .= $props->{'segmentURL'};
+			$suffix = $props->{'segmentURL'};
 			my $replOffset = ( $v->{'offset'} );
+			$suffix =~ s/\$Number\$/$replOffset/;
+			$url .= $suffix;
 
-			$url =~ s/\$Number\$/$replOffset/;
 			$v->{'offset'}++;
+
+
+			my $request = HTTP::Request->new( GET => $url, $headers);
+			$request->protocol('HTTP/1.1');
 
 			$v->{'fetching'} = 1;
 
-			Slim::Networking::SimpleAsyncHTTP->new(
-				sub {
-					$v->{'inBuf'} .= $_[0]->content;
-					$v->{'fetching'} = 0;
-					$v->{'retryCount'} = 0;
-
-					if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
-						$v->{'streaming'} = 0;
-						if ($props->{'isDynamic'}) {
-							$props->{'isContinue'} = 1;
-							$song->pluginData( props   => $props );
-							main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
-						}
-					}
-
-					main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $_[0]->content," for $url");
-
-					if ($props->{'isDynamic'}) {
-
-						# get the meta data for this live track if we don't have it yet.
-						$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
-
-						# check for live track if we are within striking distance of the live edge
-						my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-						$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
-					}else{
-						$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
-						$self->liveTrackData();
-					}
-
-					#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-					$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
-
-				},
-
-				sub {
-					if ( main::DEBUGLOG && $log->is_debug ) {
-						$log->debug("error fetching $url");
-					}
-
-					$v->{'retryCount'}++;
-
-					if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
-						$log->error("Failed to get $url");
-						$v->{'inBuf'}    = '';
-						$v->{'fetching'} = 0;
-						$v->{'streaming'} = 0
-						  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
-					} else {
-						$log->warn("Retrying fetch of $url");
-						$v->{'offset'}--;  # try the same offset again
-						$v->{'fetching'} = 0;
-					}
-
-				},
+			$v->{'session'}->send_request(
 				{
-					timeout => CHUNK_TIMEOUT,
-				}
+					request => $request,
+					onBody => sub {
+						my $response = shift->response;
 
-			)->get($url);
+						$v->{'inBuf'} .= $response->content;
+						$v->{'fetching'} = 0;
+						$v->{'retryCount'} = 0;
+
+						if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
+							$v->{'streaming'} = 0;
+							if ($props->{'isDynamic'}) {
+								$props->{'isContinue'} = 1;
+								$song->pluginData( props   => $props );
+								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+							}
+						}
+
+						main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
+
+						if ($props->{'isDynamic'}) {
+
+							# get the meta data for this live track if we don't have it yet.
+							$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+
+							# check for live track if we are within striking distance of the live edge
+							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+							$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
+						} else {
+							$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+							$self->liveTrackData();
+						}
+
+						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
+						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
+
+					},
+
+					onError => sub {
+						my ( $http, $error ) = @_;
+						my $res = $http->response;
+						my $statusLine = $res->status_line;
+
+						$v->{'retryCount'}++;
+
+						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+							
+							$log->error("Failed because $statusLine to get $url");
+							$v->{'inBuf'}    = '';
+							$v->{'fetching'} = 0;
+							$v->{'streaming'} = 0
+							  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+						} else {
+							$log->warn("Retrying because $statusLine of $url");
+							$v->{'offset'}--;  # try the same offset again
+							$v->{'fetching'} = 0;
+							$v->{'baseURL'} = ${*$self}{'url'};
+						}
+
+					},
+					Timeout => CHUNK_TIMEOUT,
+				}
+			);
 		}
 	}
 
@@ -1052,10 +1063,13 @@ sub getMPD {
 
 				my $endURI = URI->new( $res->base );
 
-				main::INFOLOG
+		 		main::INFOLOG
 				  && $log->is_info
 				  && $log->info("Parsing MPD");
-
+				
+				main::INFOLOG
+				  && $log->is_info
+				  && $log->info('source base : ' . $res->base);
 
 				my $selIndex;
 				my ( $selRepres, $selAdapt );
@@ -1068,8 +1082,8 @@ sub getMPD {
 
 				#if not dynamic then we start from a relative position.
 				my $startBase = '';
-				if ($mpd->{'type'} eq 'static') {
-					$startBase ='http://' . $endURI->host . dirname( $endURI->path ) . '/';
+				if ($mpd->{'type'} eq 'static') {										
+					$startBase = $endURI->scheme . '://' . $endURI->host . dirname( $endURI->path ) . '/';
 				}
 
 				my $period        = $mpd->{'Period'}[0];
@@ -1156,11 +1170,8 @@ sub getMPD {
 				#hide sample rate if in prefs
 				$props->{hideSampleRate} = 1 if $prefs->get('hideSampleRate');
 
-				#force http
-				$props->{baseURL} =~s/https:/http:/;
-
 				if ($mpd->{'type'} eq 'dynamic') {
-					main::DEBUGLOG && $log->is_debug && $log->debug('dynamic');
+					main::DEBUGLOG && $log->is_debug && $log->debug('dynamic -  base url ' .  $props->{baseURL});
 
 					#dynamic
 					_getDashUTCTime(
@@ -1698,21 +1709,38 @@ sub _getMPDUrl {
 
 			# find the first that is dash
 			my $connections = @$mediaitems[0]->{connection};
+			my $protocol = 'https';
+			$protocol = 'http' if $prefs->get('forceHTTP');
 			for my $connection (@$connections) {
-				if ($connection->{transferFormat} eq 'dash'){
+				if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
 					my $mpd = $connection->{href};
 					main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
 					$cbY->($mpd);
 					return;
 				}
 			}
+
+			#fallback to http if appropriate
+			if ($prefs->get('forceHTTP') ne 'on') {
+				$log->warn("Falling back to http as no https found");
+				$protocol = 'http';
+				for my $connection (@$connections) {
+					if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
+						my $mpd = $connection->{href};
+						main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
+						$cbY->($mpd);
+						return;
+					}
+				}
+			}
+			
 			$log->error("No Dash Found");
 			$cbN->();
 		},
 		sub {
 			$cbN->();
 		}
-	)->get("http://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
+	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
 	return;
 }
 
