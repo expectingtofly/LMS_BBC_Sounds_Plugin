@@ -54,7 +54,7 @@ sub getStartOffset {
 
 	$index = floor($startTime  / ( $props->{segmentDuration} / $props->{segmentTimescale} ));
 
-	#add on start number    
+	#add on start number
 	$index += $props->{virtualStartNumber};
 
 	main::INFOLOG
@@ -81,14 +81,16 @@ sub setProperties {
 		$song->track->secs( $props->{'duration'} );
 	}
 	my $request = HTTP::Request->new( GET => $url );
-	$request->protocol('HTTP/1.1');
 	$http->send_request(
 		{
 			request  => $request,
-			onStream => sub {
-				my ( $http, $dataref ) = @_;
+			onBody   => sub {
+				my $response = shift->response;
+				main::INFOLOG
+				  && $log->is_info
+				  && $log->info("On stream called");
 
-				if ( my $atom = parseAtoms( 'moov', $dataref, $args ) ) {
+				if ( my $atom = parseAtoms( 'moov', $response->content, $args ) ) {
 					$props->{mp4a} =$atom->{'trak'}->{'mdia'}->{'minf'}->{'stbl'}->{'stsd'}->{'entries'}->{'mp4a'};
 					$song->track->bitrate( $props->{bitrate}|| $props->{mp4a}->{'esds'}->{'avgbitrate'} );
 					if (!($props->{'hideSampleRate'})) {
@@ -107,27 +109,25 @@ sub setProperties {
 					main::INFOLOG && $log->is_info && $log->info("found moov (in $args->{offset} bytes) and set properties abr: ",$song->track->bitrate," sr:",$song->track->samplerate," ch:",$song->track->channels);
 
 					$cb->();
-					return 0;
-				}elsif ( $args->{offset} < 128 * 1024 ) {
-					return 1;
+					return;
 				}else {
 					$log->warn("could not find get properties within $args->{offset} bytes");
 					$cb->();
-					return 0;
+					return;
 				}
 			},
 			onError => sub {
 				my ( $self, $error ) = @_;
 				$log->warn("could not find get properties $error");
 				$cb->();
-			},
+			}			
 		}
 	);
 }
 
 
 sub parseAtoms {
-	my ( $atom, $dataref, $context ) = @_;
+	my ( $atom, $data, $context ) = @_;
 
 	if ( !defined $context->{offset} ) {
 		$context->{offset}  = 0;
@@ -140,7 +140,7 @@ sub parseAtoms {
 	}
 
 	my $v = $context->{_parser};
-	$v->{'inBuf'} .= $$dataref;
+	$v->{'inBuf'} .= $data;
 
 	while ( $v->{need} <= length $v->{inBuf} ) {
 

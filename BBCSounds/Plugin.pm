@@ -33,12 +33,21 @@ use Plugins::BBCSounds::ProtocolHandler;
 my $log = Slim::Utils::Log->addLogCategory(
 	{
 		'category'     => 'plugin.bbcsounds',
-		'defaultLevel' => 'ERROR',
+		'defaultLevel' => 'WARN',
 		'description'  => getDisplayName(),
 	}
 );
 
 my $prefs = preferences('plugin.bbcsounds');
+
+
+$prefs->migrate(
+	7,
+	sub {
+		$prefs->set('forceHTTP', 0);
+		1;
+	}
+);
 
 $prefs->migrate(
 	6,
@@ -48,33 +57,6 @@ $prefs->migrate(
 		$prefs->set('displayline2', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION);
 		$prefs->set('displayline3', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY);
 		$prefs->set('displayimage', Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING);
-		1;
-	}
-);
-
-
-$prefs->migrate(
-	5,
-	sub {
-		$prefs->set('track_line_three', 'on');
-		1;
-	}
-);
-
-
-$prefs->migrate(
-	4,
-	sub {
-		$prefs->set('fix_track', 0);
-		1;
-	}
-);
-
-$prefs->migrate(
-	3,
-	sub {
-		$prefs->set('alternate_track', 'on');
-		$prefs->set('alternate_track_image', 'on');
 		1;
 	}
 );
@@ -95,15 +77,12 @@ sub initPlugin {
 	$prefs->init(
 		{
 			is_radio => 0,
-			hideSampleRate => 0,
-			alternate_track => 'on',
-			alternate_track_image => 'on',
-			fix_track => 0,
-			track_line_three =>'on',
+			hideSampleRate => 0,		
 			displayline1 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACKTITLEWHENPLAYING,
 			displayline2 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION,
 			displayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY,
-			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING
+			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING,
+			forceHTTP => 0,
 		}
 	);
 
