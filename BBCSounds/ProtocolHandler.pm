@@ -355,12 +355,12 @@ sub _getPlayingImage {
 	return $programmeImage if $imagePref == DISPLAYIMAGE_PROGRAMMEIMAGEONLY;
 
 	if ($imagePref == DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME) {
-		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
+		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
 		return $programmeImage;
 	}
 
 	if ($imagePref == DISPLAYIMAGE_TRACKIMAGEWHENPLAYING ) {
-		return $trackImage if $v->{'trackData'}->{trackPlaying} == 1;
+		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1;
 		return $programmeImage;
 	}
 

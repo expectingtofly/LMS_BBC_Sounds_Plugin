@@ -1514,40 +1514,6 @@ sub _globalSearchItems {
 	return \@items;
 }
 
-
-sub spottyInfoIntegration {
-	my ( $client, $url, $track, $remoteMeta ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++spottyInfoIntegration");
-
-
-	my $song = Slim::Player::Source::playingSong($client);
-	my $items = [];
-
-	#leave if we are not playing
-	return \@$items unless $url && $client && $client->isPlaying;
-
-	#get the meta data
-	if (Plugins::BBCSounds::Utilities::isSoundsURL($url) && (my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
-		if (!($meta->{spotify} eq '')) {
-			$items = [
-				{
-					name => 'BBC Sounds Now Playing On Spotify',
-					type => 'audio',
-					url  =>  $meta->{spotify},
-					on_select   => 'play'
-				}
-			];
-			main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
-			return \@$items;
-		}
-	}else{
-		main::INFOLOG && $log->is_info && $log->info("No Meta or spotty available");
-		main::DEBUGLOG && $log->is_debug && $log->debug("--spottyInfoIntegration");
-		return \@$items;
-	}
-}
-
-
 sub recentSearches {
 	my ($client, $cb, $params) = @_;
 
@@ -1611,7 +1577,7 @@ sub soundsInfoIntegration {
 				],
 			  };
 		}
-
+		my $song = Slim::Player::Source::playingSong($client);
 		#get the meta data
 		if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
 			if (!($meta->{spotify} eq '')) {
