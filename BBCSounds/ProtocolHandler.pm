@@ -1082,9 +1082,8 @@ sub getMPD {
 
 				#if not dynamic then we start from a relative position.
 				my $startBase = '';
-				if ($mpd->{'type'} eq 'static') {					
-					$startBase = 
-					$startBase ='http://' . $endURI->host . dirname( $endURI->path ) . '/';
+				if ($mpd->{'type'} eq 'static') {										
+					$startBase = $endURI->scheme . '://' . $endURI->host . dirname( $endURI->path ) . '/';
 				}
 
 				my $period        = $mpd->{'Period'}[0];
@@ -1741,7 +1740,7 @@ sub _getMPDUrl {
 		sub {
 			$cbN->();
 		}
-	)->get("http://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
+	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
 	return;
 }
 
