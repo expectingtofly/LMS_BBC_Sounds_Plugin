@@ -48,17 +48,11 @@ sub flushCache { $cache->cleanup(); }
 
 sub init {
 
-	Slim::Menu::TrackInfo->registerInfoProvider(
-		bbcsounds => (
-			after => 'top',
-			func  => \&spottyInfoIntegration,
-		)
-	);
 
 	Slim::Menu::TrackInfo->registerInfoProvider(
 		bbcsounds => (
 			after => 'top',
-			func  => \&tracklistInfoIntegration,
+			func  => \&soundsInfoIntegration,
 		)
 	);
 
@@ -1533,8 +1527,7 @@ sub spottyInfoIntegration {
 	return \@$items unless $url && $client && $client->isPlaying;
 
 	#get the meta data
-	if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
-
+	if (Plugins::BBCSounds::Utilities::isSoundsURL($url) && (my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
 		if (!($meta->{spotify} eq '')) {
 			$items = [
 				{
@@ -1596,31 +1589,44 @@ sub recentSearches {
 }
 
 
-sub tracklistInfoIntegration {
+sub soundsInfoIntegration {
 	my ( $client, $url, $track, $remoteMeta ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++tracklistInfoIntegration");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++soundsInfoIntegration");
 
 	my $items = [];
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
-			$items = [
-				{
-					name => 'Tracklist',
-					type        => 'link',
-					url         => \&getPage,
-					passthrough => [
-						{
-							type    => 'segments',
-							id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
-							offset  => 0,
-							codeRef => 'getPage'
-						}
-					],
-				}
-			];
+			push @$items,
+			  {
+				name => 'Tracklist',
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type    => 'segments',
+						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
+						offset  => 0,
+						codeRef => 'getPage'
+					}
+				],
+			  };
+		}
+
+		#get the meta data
+		if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
+			if (!($meta->{spotify} eq '')) {
+				push @$items,
+				  {
+					name => 'BBC Sounds Now Playing On Spotify',
+					type => 'audio',
+					url  =>  $meta->{spotify},
+					on_select   => 'play'
+				  };
+
+			}
 		}
 	}
-	main::DEBUGLOG && $log->is_debug && $log->debug("--tracklistInfoIntegration");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--soundsInfoIntegration");
 	return \@$items;
 }
 
