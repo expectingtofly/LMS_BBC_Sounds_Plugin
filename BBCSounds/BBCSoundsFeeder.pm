@@ -359,7 +359,7 @@ sub getStationMenu {
 		}elsif ( $i == 1 ) {
 			$d = 'Yesterday (' . strftime( '%A', localtime($epoch) ) . ')';
 		}else {
-			$d = strftime( '%A %d/%m/%Y', localtime($epoch) );
+			$d = strftime( '%A %d/%m', localtime($epoch) );
 		}
 
 		my $scheduledate = strftime( '%Y-%m-%d', localtime($epoch) );
