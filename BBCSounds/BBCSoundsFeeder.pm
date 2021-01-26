@@ -90,22 +90,14 @@ sub toplevel {
 	#Obtain the variable editorial content title
 
 	my $fetch;
-	my $callurl = 'https://rms.api.bbc.co.uk/v2/collections/p07fz59r/container';
 
 	$fetch = sub {
-		my $editorialTitle = "Our Daily Picks";
 		$menu = [
-			{
-				name => 'Unmissable Sounds',
-				type => 'link',
-				url  => '',
-				passthrough =>[ { type => 'editorial', codeRef => 'getPage' } ],
-				order => 4,
-			},
 			{
 				name        => 'Music Mixes',
 				type        => 'link',
 				url         => '',
+				icon => 'plugins/BBCSounds/html/images/soundsmusic.png',
 				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
 				order       => 6,
 			},
@@ -113,26 +105,22 @@ sub toplevel {
 				name => 'My Sounds',
 				type => 'link',
 				url  => '',
+				icon => 'plugins/BBCSounds/html/images/MySounds.png',					    
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
-			},
-			{
-				name        => 'Recommended For You',
-				type        => 'link',
-				url         => '',
-				passthrough => [{ type => 'recommended', codeRef => 'getPersonalisedPage' }],
-				order => 7,
 			},
 			{
 				name => 'Stations & Schedules',
 				type => 'link',
 				url  => '',
+				icon => 'plugins/BBCSounds/html/images/soundsradio.png',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
 				order => 3,
 			},
 			{
 				name => 'Browse Categories',
 				type => 'link',
+				icon => 'plugins/BBCSounds/html/images/soundscollection.png',
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
 				order => 8,
@@ -145,6 +133,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'link',
+				icon => 'plugins/BBCSounds/html/images/soundssearch.png',
 				url         => '',
 				passthrough => [ { codeRef => 'recentSearches' } ],
 				order       => 1,
@@ -155,6 +144,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'search',
+				icon => 'plugins/BBCSounds/html/images/soundssearch.png',
 				url         => '',
 				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
 				order       => 1,
@@ -162,22 +152,95 @@ sub toplevel {
 			};
 		}
 
+
+		my $callurl = 'https://rms.api.bbc.co.uk/v2/my/experience/inline/listen';
 		main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
 		Slim::Networking::SimpleAsyncHTTP->new(
 			sub {
 				my $http = shift;
-				$editorialTitle = _parseEditorialTitle( $http->contentRef );
-				push @$menu,
-				  {
-					name => $editorialTitle,
-					type => 'link',
-					url  => '',
-					passthrough =>[ { type => 'daily', codeRef => 'getPage' } ],
-					order => 5,
-				  };
+				my $JSON = decode_json ${ $http->contentRef };
+
+				#Priority Brand menu (unmissable Sounds)
+				my $module = _parseTopInlineMenu($JSON, 'priority_brands');
+				my $moduleTitle = $module->{title};
+				my $submenu = [];
+				_parseItems( $module->{data}, $submenu );
+
+				if ($module->{total}) {
+					my $icon = @$submenu[0]->{icon};
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						icon  => $icon,
+						items => $submenu,
+						order => 4,
+					  };
+				}
+
+
+				#Editorial menu
+				$module = _parseTopInlineMenu($JSON, 'editorial_collection');
+				$moduleTitle = $module->{title};
+				$submenu = [];
+				_parseItems( $module->{data}, $submenu );
+
+				if ($module->{total}) {
+					my $icon = @$submenu[0]->{icon};
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						icon  => $icon,
+						items => $submenu,
+						order => 5,
+					  };
+				}
+
+				#Recommended
+				$module = _parseTopInlineMenu($JSON, 'recommendations');
+				$moduleTitle = $module->{title};
+				$submenu = [];
+				_parseItems( $module->{data}, $submenu );
+				if ($module->{total}) {
+					my $icon = @$submenu[0]->{icon};
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						icon => $icon,
+						items => $submenu,
+						order => 7,
+					  };
+				}
+
+				#single item promo
+				$module = _parseTopInlineMenu($JSON, 'recommendations');					
+				if ($module->{total}) {
+					#There will only be one
+					my $promo = $module->{data};
+					my $singlePromo = @$promo[0];
+					$moduleTitle = '';
+					$moduleTitle .= $singlePromo->{titles}->{tertiary} . ' ' if  defined $singlePromo->{titles}->{tertiary};
+					$moduleTitle .= $singlePromo->{titles}->{primary} . ' - ' . $singlePromo->{titles}->{secondary};
+					$submenu = [];
+					my $dataArr = [];
+					push @$dataArr, $singlePromo->{item};
+					 _parseItems($dataArr, $submenu);				
+					 if (scalar @$submenu ) {
+						#fix up
+						@$submenu[0]->{order} = 10;
+						@$submenu[0]->{name} = $moduleTitle;					
+
+						my $icon = @$submenu[0]->{icon};
+						push @$menu, @$submenu[0];
+					 }
+				}
+
+
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_cacheMenu( 'toplevel', $menu, 2400 );
+				_cacheMenu( 'toplevel', $menu, 600 );
 				_renderMenuCodeRefs($menu);
 				$callback->($menu);
 			},
@@ -185,18 +248,10 @@ sub toplevel {
 			# Called when no response was received or an error occurred.
 			sub {
 				$log->warn("error: $_[1]");
-				push @$menu,
-				  {
-					name => $editorialTitle,
-					type => 'link',
-					url  => '',
-					passthrough =>[ { type => 'daily', codeRef => 'getPage' } ],
-					order => 4,
-				  };
 
 				#sort the list by order
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_cacheMenu( 'toplevel', $menu, 600 );
+				_cacheMenu( 'toplevel', $menu, 60 );
 				_renderMenuCodeRefs($menu);
 				$callback->($menu);
 			}
@@ -249,10 +304,6 @@ sub getPage {
 
 	if ( $menuType eq 'stationlist' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/experience/inline/stations';
-	}elsif ( $menuType eq 'editorial' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/listen/sign-in';
-	}elsif ( $menuType eq 'daily' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/collections/p07fz59r/members/playable?experience=domestic';
 	}elsif ( $menuType eq 'tleo' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=-release_date&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
@@ -748,9 +799,6 @@ sub _parse {
 
 	if ( $optstr eq 'live' ) {
 		_parseLiveStations( $http->contentRef, $menu );
-	}elsif ( $optstr eq 'editorial' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( _getDataNode( $JSON->{data}, 'priority_brands' ), $menu );
 	}elsif (( $optstr eq 'search' )
 		|| ( $optstr eq 'searchall' )) {
 		my $JSON = decode_json ${ $http->contentRef };
@@ -763,9 +811,7 @@ sub _parse {
 		|| ( $optstr eq 'container' )
 		|| ( $optstr eq 'latest' )
 		|| ( $optstr eq 'bookmarks' )
-		|| ( $optstr eq 'daily' )
 		|| ( $optstr eq 'subscribed' )
-		|| ( $optstr eq 'recommended' )
 		|| ( $optstr eq 'continue' )
 		|| ( $optstr eq 'searchepisodes')
 		|| ( $optstr eq 'searchshows' )) {
@@ -932,6 +978,7 @@ sub _parsePlayableItem {
 		type => 'link',
 		icon => $image,
 		items => $playMenu,
+		order => 0,
 	  };
 }
 
@@ -962,6 +1009,7 @@ sub _parseBroadcastItem {
 		type => 'link',
 		icon => $image,
 		items => $playMenu,
+		order => 0,
 	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
@@ -1022,6 +1070,7 @@ sub _parseContainerItem {
 		type        => 'link',
 		icon        => $image,
 		url         => '',
+		order 		=> 0,
 		passthrough => [
 			{
 				type    => 'tleo',
@@ -1156,6 +1205,25 @@ sub _parseEditorialTitle {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseEditorialTitle - $title");
 	return $title;
+}
+
+
+sub _parseTopInlineMenu {
+	my $topJSON = shift;
+	my $moduleName = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseTopInlineMenu");
+
+	my $jsonData = $topJSON->{data};
+
+	for my $module (@$jsonData) {
+		if ($module->{id} eq $moduleName) {
+			main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTopInlineMenu");
+			return $module;
+		}
+	}
+	$log->warn('Failed to find Top menu module ' . $moduleName);
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTopInlineMenu");
+	return;
 }
 
 
@@ -1514,6 +1582,7 @@ sub _globalSearchItems {
 	return \@items;
 }
 
+
 sub recentSearches {
 	my ($client, $cb, $params) = @_;
 
@@ -1578,6 +1647,7 @@ sub soundsInfoIntegration {
 			  };
 		}
 		my $song = Slim::Player::Source::playingSong($client);
+
 		#get the meta data
 		if ((my $meta = $song->pluginData('meta')) && (Slim::Utils::PluginManager->isEnabled('Plugins::Spotty::Plugin'))) {
 			if (!($meta->{spotify} eq '')) {
