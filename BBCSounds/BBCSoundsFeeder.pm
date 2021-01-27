@@ -97,7 +97,7 @@ sub toplevel {
 				name        => 'Music Mixes',
 				type        => 'link',
 				url         => '',
-				icon => 'plugins/BBCSounds/html/images/soundsmusic.png',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png',
 				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
 				order       => 6,
 			},
@@ -105,7 +105,7 @@ sub toplevel {
 				name => 'My Sounds',
 				type => 'link',
 				url  => '',
-				icon => 'plugins/BBCSounds/html/images/MySounds.png',					    
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsMySounds.png',					    
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
 			},
@@ -113,14 +113,14 @@ sub toplevel {
 				name => 'Stations & Schedules',
 				type => 'link',
 				url  => '',
-				icon => 'plugins/BBCSounds/html/images/soundsradio.png',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsStations.png',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
 				order => 3,
 			},
 			{
 				name => 'Browse Categories',
 				type => 'link',
-				icon => 'plugins/BBCSounds/html/images/soundscollection.png',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsBrowse.png',
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
 				order => 8,
@@ -133,7 +133,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'link',
-				icon => 'plugins/BBCSounds/html/images/soundssearch.png',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png',
 				url         => '',
 				passthrough => [ { codeRef => 'recentSearches' } ],
 				order       => 1,
@@ -144,7 +144,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'search',
-				icon => 'plugins/BBCSounds/html/images/soundssearch.png',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png',
 				url         => '',
 				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
 				order       => 1,
@@ -594,6 +594,7 @@ sub getSubMenu {
 			{
 				name        => 'Browse all Music',
 				type        => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png',
 				url         => \&getPage,
 				passthrough => [
 					{
@@ -606,6 +607,7 @@ sub getSubMenu {
 			{
 				name        => 'Browse all Speech',
 				type        => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsSpeech.png',
 				url         => \&getPage,
 				passthrough => [
 					{
@@ -621,24 +623,28 @@ sub getSubMenu {
 			{
 				name => 'Latest',
 				type => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsLatest.png',
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'latest', codeRef => 'getPersonalisedPage' } ],
 			},
 			{
 				name => 'Bookmarks',
 				type => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsBookmark.png',
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'bookmarks', codeRef => 'getPersonalisedPage' } ],
 			},
 			{
 				name        => 'Subscribed',
 				type        => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsSubscribe.png',
 				url         => \&getPersonalisedPage,
 				passthrough => [{ type => 'subscribed', codeRef => 'getPersonalisedPage' }],
 			},
 			{
 				name => 'Continue Listening',
 				type => 'link',
+				icon => 'plugins/BBCSounds/html/images/BBCSoundsContinue.png',
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'continue', codeRef => 'getPersonalisedPage' } ],
 			}
