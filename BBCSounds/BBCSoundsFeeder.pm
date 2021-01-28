@@ -104,7 +104,7 @@ sub toplevel {
 			{
 				name => 'My Sounds',
 				type => 'link',
-				url  => '',				
+				url  => '',
 				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
@@ -113,7 +113,7 @@ sub toplevel {
 				name => 'Stations & Schedules',
 				type => 'link',
 				image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
-				url  => '',				
+				url  => '',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
 				order => 3,
 			},
@@ -133,7 +133,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'link',
-				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,				
+				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
 				url         => '',
 				passthrough => [ { codeRef => 'recentSearches' } ],
 				order       => 1,
@@ -216,8 +216,9 @@ sub toplevel {
 				}
 
 				#single item promo
-				$module = _parseTopInlineMenu($JSON, 'single_item_promo');					
+				$module = _parseTopInlineMenu($JSON, 'single_item_promo');
 				if ($module->{total}) {
+
 					#There will only be one
 					my $promo = $module->{data};
 					my $singlePromo = @$promo[0];
@@ -226,15 +227,16 @@ sub toplevel {
 					$moduleTitle .= $singlePromo->{titles}->{primary} . ' - ' . $singlePromo->{titles}->{secondary};
 					$submenu = [];
 					my $dataArr = [];
-					push @$dataArr, $singlePromo->{item};				
+					push @$dataArr, $singlePromo->{item};
 
-					 _parseItems($dataArr, $submenu);				
-					 if (scalar @$submenu ) {
+					_parseItems($dataArr, $submenu);
+					if (scalar @$submenu ) {
+
 						#fix up
 						@$submenu[0]->{order} = 10;
-						@$submenu[0]->{name} = $moduleTitle;					
+						@$submenu[0]->{name} = $moduleTitle;
 						push @$menu, @$submenu[0];
-					 }
+					}
 				}
 
 
@@ -593,7 +595,7 @@ sub getSubMenu {
 			{
 				name        => 'Browse all Music',
 				type        => 'link',
-				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,				
+				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 				url         => \&getPage,
 				passthrough => [
 					{
@@ -924,7 +926,7 @@ sub _parseStationlist {
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
-			type        => 'link',			
+			type        => 'link',
 			image       => $image,
 			url         => '',
 			passthrough => [
@@ -980,7 +982,7 @@ sub _parsePlayableItem {
 	push @$menu,
 	  {
 		name => $title,
-		type => 'link',		
+		type => 'link',
 		image => $image,
 		items => $playMenu,
 		order => 0,
@@ -1635,7 +1637,7 @@ sub soundsInfoIntegration {
 
 	my $items = [];
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
-		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))) {
+		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
 			push @$items,
 			  {
 				name => 'Tracklist',
@@ -1647,6 +1649,21 @@ sub soundsInfoIntegration {
 						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
 						offset  => 0,
 						codeRef => 'getPage'
+					}
+				],
+			  };
+
+			push @$items,
+			  {
+				name        => 'Bookmark Episode',
+				type        => 'link',
+				order 		=> 3,
+				url         => \&Plugins::BBCSounds::ActivityManagement::createActivity,
+				passthrough => [
+					{
+						activitytype => 'bookmark',
+						urn          => 'urn:bbc:radio:episode:' . Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
+						codeRef      => 'createActivity'
 					}
 				],
 			  };
