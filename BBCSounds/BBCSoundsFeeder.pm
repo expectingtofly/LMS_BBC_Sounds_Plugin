@@ -165,9 +165,9 @@ sub toplevel {
 				my $module = _parseTopInlineMenu($JSON, 'priority_brands');
 				my $moduleTitle = $module->{title};
 				my $submenu = [];
-				_parseItems( $module->{data}, $submenu );
 
 				if ($module->{total}) {
+					_parseItems( $module->{data}, $submenu );
 					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
@@ -179,14 +179,13 @@ sub toplevel {
 					  };
 				}
 
-
 				#Editorial menu
 				$module = _parseTopInlineMenu($JSON, 'editorial_collection');
 				$moduleTitle = $module->{title};
 				$submenu = [];
-				_parseItems( $module->{data}, $submenu );
 
 				if ($module->{total}) {
+					_parseItems( $module->{data}, $submenu );
 					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
@@ -202,8 +201,9 @@ sub toplevel {
 				$module = _parseTopInlineMenu($JSON, 'recommendations');
 				$moduleTitle = $module->{title};
 				$submenu = [];
-				_parseItems( $module->{data}, $submenu );
+
 				if ($module->{total}) {
+					_parseItems( $module->{data}, $submenu );
 					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
@@ -214,6 +214,7 @@ sub toplevel {
 						order => 7,
 					  };
 				}
+
 
 				#single item promo
 				$module = _parseTopInlineMenu($JSON, 'single_item_promo');
