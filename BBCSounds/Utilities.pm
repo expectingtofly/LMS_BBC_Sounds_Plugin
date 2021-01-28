@@ -29,6 +29,21 @@ my $prefs = preferences('plugin.bbcsounds');
 
 use constant MAX_RECENT => 30;
 
+#IMAGE CONSTANTS
+use constant IMG_SPEECH => 'plugins/BBCSounds/html/images/BBCSoundsSpeech.png';
+use constant IMG_SUBSCRIBE => 'plugins/BBCSounds/html/images/BBCSoundsSubscribe.png';
+use constant IMG_CONTINUE => 'plugins/BBCSounds/html/images/BBCSoundsContinue.png';
+use constant IMG_LATEST => 'plugins/BBCSounds/html/images/BBCSoundsLatest.png';
+use constant IMG_BOOKMARK => 'plugins/BBCSounds/html/images/BBCSoundsBookmark.png';
+use constant IMG_MY_SOUNDS => 'plugins/BBCSounds/html/images/BBCSoundsMySounds.png';
+use constant IMG_MUSIC => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png';
+use constant IMG_STATIONS => 'plugins/BBCSounds/html/images/BBCSoundsStations.png';
+use constant IMG_BROWSE_CATEGORIES => 'plugins/BBCSounds/html/images/BBCSoundsBrowse.png';
+use constant IMG_SEARCH => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png';
+
+
+
+
 
 sub createNetworkLogoUrl {
 	my $logoTemplate = shift;

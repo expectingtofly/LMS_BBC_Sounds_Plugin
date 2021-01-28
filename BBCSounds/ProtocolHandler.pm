@@ -215,7 +215,7 @@ sub new {
 			'endOffset' => $props->{endNumber}, #the end number of this track.
 			'session' 	  => Slim::Networking::Async::HTTP->new,
 			'baseURL'	  => $args->{'url'},
-			'resetMeta'=> 1,
+			'resetMeta'=> 1,			
 			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
 			'trackData' => {   # For managing showing live track data
@@ -224,7 +224,7 @@ sub new {
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
 			},
-			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC
+			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC			
 		};
 	}
 
@@ -760,7 +760,6 @@ sub sysread {
 		return undef;
 	}
 
-
 	# need more data
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
@@ -774,11 +773,9 @@ sub sysread {
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
 			if ($edge > Time::HiRes::time()){
-
 				#bail
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
-				$bail = 1;
-
+				$bail = 1;				
 			}
 		}
 		if (!$bail) {
@@ -834,8 +831,7 @@ sub sysread {
 						}
 
 						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
-
+						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;						
 					},
 
 					onError => sub {
@@ -868,8 +864,8 @@ sub sysread {
 
 	# process all available data
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
-
-	if ( my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
+	
+	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
 		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
 		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );

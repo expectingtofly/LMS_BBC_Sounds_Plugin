@@ -97,30 +97,30 @@ sub toplevel {
 				name        => 'Music Mixes',
 				type        => 'link',
 				url         => '',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png',
+				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
 				order       => 6,
 			},
 			{
 				name => 'My Sounds',
 				type => 'link',
-				url  => '',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsMySounds.png',					    
+				url  => '',				
+				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
 			},
 			{
 				name => 'Stations & Schedules',
 				type => 'link',
-				url  => '',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsStations.png',
+				image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
+				url  => '',				
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
 				order => 3,
 			},
 			{
 				name => 'Browse Categories',
 				type => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsBrowse.png',
+				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
 				order => 8,
@@ -133,7 +133,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png',
+				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,				
 				url         => '',
 				passthrough => [ { codeRef => 'recentSearches' } ],
 				order       => 1,
@@ -144,7 +144,7 @@ sub toplevel {
 
 				name        => 'Search',
 				type        => 'search',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png',
+				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
 				url         => '',
 				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
 				order       => 1,
@@ -168,12 +168,12 @@ sub toplevel {
 				_parseItems( $module->{data}, $submenu );
 
 				if ($module->{total}) {
-					my $icon = @$submenu[0]->{icon};
+					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						icon  => $icon,
+						image  => $icon,
 						items => $submenu,
 						order => 4,
 					  };
@@ -187,12 +187,12 @@ sub toplevel {
 				_parseItems( $module->{data}, $submenu );
 
 				if ($module->{total}) {
-					my $icon = @$submenu[0]->{icon};
+					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						icon  => $icon,
+						image  => $icon,
 						items => $submenu,
 						order => 5,
 					  };
@@ -204,19 +204,19 @@ sub toplevel {
 				$submenu = [];
 				_parseItems( $module->{data}, $submenu );
 				if ($module->{total}) {
-					my $icon = @$submenu[0]->{icon};
+					my $icon = @$submenu[0]->{image};
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						icon => $icon,
+						image => $icon,
 						items => $submenu,
 						order => 7,
 					  };
 				}
 
 				#single item promo
-				$module = _parseTopInlineMenu($JSON, 'recommendations');					
+				$module = _parseTopInlineMenu($JSON, 'single_item_promo');					
 				if ($module->{total}) {
 					#There will only be one
 					my $promo = $module->{data};
@@ -226,21 +226,20 @@ sub toplevel {
 					$moduleTitle .= $singlePromo->{titles}->{primary} . ' - ' . $singlePromo->{titles}->{secondary};
 					$submenu = [];
 					my $dataArr = [];
-					push @$dataArr, $singlePromo->{item};
+					push @$dataArr, $singlePromo->{item};				
+
 					 _parseItems($dataArr, $submenu);				
 					 if (scalar @$submenu ) {
 						#fix up
 						@$submenu[0]->{order} = 10;
 						@$submenu[0]->{name} = $moduleTitle;					
-
-						my $icon = @$submenu[0]->{icon};
 						push @$menu, @$submenu[0];
 					 }
 				}
 
 
 				@$menu = sort { $a->{order} <=> $b->{order} } @$menu;
-				_cacheMenu( 'toplevel', $menu, 600 );
+				_cacheMenu( 'toplevel', $menu, 500 );
 				_renderMenuCodeRefs($menu);
 				$callback->($menu);
 			},
@@ -396,7 +395,7 @@ sub getStationMenu {
 		{
 			name        => $NetworkDetails->{short_title} . ' LIVE',
 			type        => 'audio',
-			icon        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+			image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
 			url         => 'sounds://_LIVE_'. $stationid,
 			on_select   => 'play'
 		}
@@ -594,7 +593,7 @@ sub getSubMenu {
 			{
 				name        => 'Browse all Music',
 				type        => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png',
+				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,				
 				url         => \&getPage,
 				passthrough => [
 					{
@@ -607,7 +606,7 @@ sub getSubMenu {
 			{
 				name        => 'Browse all Speech',
 				type        => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsSpeech.png',
+				image => Plugins::BBCSounds::Utilities::IMG_SPEECH,
 				url         => \&getPage,
 				passthrough => [
 					{
@@ -623,28 +622,28 @@ sub getSubMenu {
 			{
 				name => 'Latest',
 				type => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsLatest.png',
+				image => Plugins::BBCSounds::Utilities::IMG_LATEST,
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'latest', codeRef => 'getPersonalisedPage' } ],
 			},
 			{
 				name => 'Bookmarks',
 				type => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsBookmark.png',
+				image => Plugins::BBCSounds::Utilities::IMG_BOOKMARK,
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'bookmarks', codeRef => 'getPersonalisedPage' } ],
 			},
 			{
 				name        => 'Subscribed',
 				type        => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsSubscribe.png',
+				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 				url         => \&getPersonalisedPage,
 				passthrough => [{ type => 'subscribed', codeRef => 'getPersonalisedPage' }],
 			},
 			{
 				name => 'Continue Listening',
 				type => 'link',
-				icon => 'plugins/BBCSounds/html/images/BBCSoundsContinue.png',
+				image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
 				url  => \&getPersonalisedPage,
 				passthrough =>[ { type => 'continue', codeRef => 'getPersonalisedPage' } ],
 			}
@@ -925,8 +924,8 @@ sub _parseStationlist {
 		push @$menu,
 		  {
 			name        => $item->{network}->{short_title},
-			type        => 'link',
-			icon        => $image,
+			type        => 'link',			
+			image       => $image,
 			url         => '',
 			passthrough => [
 				{
@@ -981,8 +980,8 @@ sub _parsePlayableItem {
 	push @$menu,
 	  {
 		name => $title,
-		type => 'link',
-		icon => $image,
+		type => 'link',		
+		image => $image,
 		items => $playMenu,
 		order => 0,
 	  };
@@ -1013,7 +1012,7 @@ sub _parseBroadcastItem {
 	  {
 		name => $title,
 		type => 'link',
-		icon => $image,
+		image => $image,
 		items => $playMenu,
 		order => 0,
 	  };
@@ -1074,7 +1073,7 @@ sub _parseContainerItem {
 	  {
 		name        => $title . ' - ' . $desc,
 		type        => 'link',
-		icon        => $image,
+		image        => $image,
 		url         => '',
 		order 		=> 0,
 		passthrough => [
@@ -1108,7 +1107,7 @@ sub _parseCategories {
 		  {
 			name        => $title,
 			type        => 'link',
-			icon        => $image,
+			image        => $image,
 			url         => '',
 			passthrough => [
 				{
