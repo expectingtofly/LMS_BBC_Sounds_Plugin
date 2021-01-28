@@ -40,6 +40,10 @@ use constant IMG_MUSIC => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png';
 use constant IMG_STATIONS => 'plugins/BBCSounds/html/images/BBCSoundsStations.png';
 use constant IMG_BROWSE_CATEGORIES => 'plugins/BBCSounds/html/images/BBCSoundsBrowse.png';
 use constant IMG_SEARCH => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png';
+use constant IMG_PLAY => 'plugins/BBCSounds/html/images/BBCSoundsPlay.png';
+use constant IMG_SYNOPSIS => 'plugins/BBCSounds/html/images/BBCSoundsSynopsis.png';
+use constant IMG_TRACKS => 'plugins/BBCSounds/html/images/BBCSoundsTracks.png';
+use constant IMG_EPISODES => 'plugins/BBCSounds/html/images/BBCSoundsAllEpisodes.png';
 
 
 

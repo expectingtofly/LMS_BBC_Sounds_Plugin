@@ -1268,6 +1268,7 @@ sub _getPlayableItemMenu {
 		type        => 'link',
 		order 		=> 3,
 		url         => '',
+		image       => Plugins::BBCSounds::Utilities::IMG_BOOKMARK,
 		passthrough => [
 			{
 				activitytype => 'bookmark',
@@ -1290,6 +1291,7 @@ sub _getPlayableItemMenu {
 			type        => 'link',
 			order 		=> 4,
 			url         => '',
+			image       => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 			passthrough => [
 				{
 					activitytype => 'subscribe',
@@ -1303,6 +1305,7 @@ sub _getPlayableItemMenu {
 			type        => 'link',
 			order 		=> 2,
 			url         => '',
+			image       => Plugins::BBCSounds::Utilities::IMG_EPISODES,
 			passthrough => [
 				{
 					type    => 'tleo',
@@ -1320,6 +1323,7 @@ sub _getPlayableItemMenu {
 		type        => 'link',
 		order 		=> 5,
 		url         => '',
+		image       => Plugins::BBCSounds::Utilities::IMG_TRACKS,
 		passthrough => [
 			{
 				type    => 'segments',
@@ -1346,6 +1350,7 @@ sub _getPlayableItemMenu {
 		  {
 			name => 'Synopsis',
 			order => 6,
+			image => Plugins::BBCSounds::Utilities::IMG_SYNOPSIS,
 			items => [
 				{
 					name        => $syn,
@@ -1361,6 +1366,8 @@ sub _getPlayableItemMenu {
 		  {
 			name => 'Play' . $playLabel,
 			url  => $soundsUrl,
+			image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
+			icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
 			type => 'audio',
 			order => 1,
 			passthrough => [ {} ],
@@ -1379,6 +1386,8 @@ sub _getPlayableItemMenu {
 				  {
 					name => 'Play (live rewind)',
 					url  => $soundsUrl,
+					image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
+					icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
 					type => 'audio',
 					order => 1,
 					passthrough => [ {} ],
