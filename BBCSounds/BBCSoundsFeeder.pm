@@ -1229,7 +1229,7 @@ sub _parseTopInlineMenu {
 			return $module;
 		}
 	}
-	$log->warn('Failed to find Top menu module ' . $moduleName);
+	main::INFOLOG && $log->is_info && $log->info('Failed to find Top menu module ' . $moduleName);
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTopInlineMenu");
 	return;
 }
