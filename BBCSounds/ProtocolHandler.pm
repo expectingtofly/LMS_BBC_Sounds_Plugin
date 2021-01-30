@@ -835,26 +835,21 @@ sub sysread {
 					},
 
 					onError => sub {
-						my ( $http, $error ) = @_;
-						my $res = $http->response;
-						my $statusLine = $res->status_line;
 
 						$v->{'retryCount'}++;
 
 						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
 							
-							$log->error("Failed because $statusLine to get $url");
+							$log->error("Failed to get $url");
 							$v->{'inBuf'}    = '';
 							$v->{'fetching'} = 0;
 							$v->{'streaming'} = 0
 							  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
 						} else {
-							$log->warn("Retrying because $statusLine of $url");
+							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again
-							$v->{'fetching'} = 0;
-							$v->{'baseURL'} = ${*$self}{'url'};
+							$v->{'fetching'} = 0;						
 						}
-
 					},
 					Timeout => CHUNK_TIMEOUT,
 				}
