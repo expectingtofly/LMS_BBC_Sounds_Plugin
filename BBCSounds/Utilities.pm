@@ -30,20 +30,20 @@ my $prefs = preferences('plugin.bbcsounds');
 use constant MAX_RECENT => 30;
 
 #IMAGE CONSTANTS
-use constant IMG_SPEECH => 'plugins/BBCSounds/html/images/BBCSoundsSpeech.png';
-use constant IMG_SUBSCRIBE => 'plugins/BBCSounds/html/images/BBCSoundsSubscribe.png';
-use constant IMG_CONTINUE => 'plugins/BBCSounds/html/images/BBCSoundsContinue.png';
-use constant IMG_LATEST => 'plugins/BBCSounds/html/images/BBCSoundsLatest.png';
-use constant IMG_BOOKMARK => 'plugins/BBCSounds/html/images/BBCSoundsBookmark.png';
-use constant IMG_MY_SOUNDS => 'plugins/BBCSounds/html/images/BBCSoundsMySounds.png';
-use constant IMG_MUSIC => 'plugins/BBCSounds/html/images/BBCSoundsMusic.png';
-use constant IMG_STATIONS => 'plugins/BBCSounds/html/images/BBCSoundsStations.png';
-use constant IMG_BROWSE_CATEGORIES => 'plugins/BBCSounds/html/images/BBCSoundsBrowse.png';
-use constant IMG_SEARCH => 'plugins/BBCSounds/html/images/BBCSoundsSearch.png';
-use constant IMG_PLAY => 'plugins/BBCSounds/html/images/BBCSoundsPlay.png';
-use constant IMG_SYNOPSIS => 'plugins/BBCSounds/html/images/BBCSoundsSynopsis.png';
-use constant IMG_TRACKS => 'plugins/BBCSounds/html/images/BBCSoundsTracks.png';
-use constant IMG_EPISODES => 'plugins/BBCSounds/html/images/BBCSoundsAllEpisodes.png';
+use constant IMG_SPEECH => 'plugins/BBCSounds/html/images/Speech_MTL_icon_format_quote.png';
+use constant IMG_SUBSCRIBE => 'plugins/BBCSounds/html/images/Subscribe_MTL_icon_rss_feed.png';
+use constant IMG_CONTINUE => 'plugins/BBCSounds/html/images/Continue_MTL_icon_subscriptions.png';
+use constant IMG_LATEST => 'plugins/BBCSounds/html/images/Latest_MTL_icon_update.png';
+use constant IMG_BOOKMARK => 'plugins/BBCSounds/html/images/Bookmark_MTL_icon_add.png';
+use constant IMG_MY_SOUNDS => 'plugins/BBCSounds/html/images/MySounds_MTL_icon_recent_actors.png';
+use constant IMG_MUSIC => 'plugins/BBCSounds/html/images/Music_MTL_svg_music.png';
+use constant IMG_STATIONS => 'plugins/BBCSounds/html/images/Stations_MTL_icon_radio.png';
+use constant IMG_BROWSE_CATEGORIES => 'plugins/BBCSounds/html/images/Categories_MTL_icon_library_books.png';
+use constant IMG_SEARCH => 'plugins/BBCSounds/html/images/Search_MTL_icon_search.png';
+use constant IMG_PLAY => 'plugins/BBCSounds/html/images/Play_MTL_icon_play_arrow.png';
+use constant IMG_SYNOPSIS => 'plugins/BBCSounds/html/images/Synopsis_MTL_icon_view_headline.png';
+use constant IMG_TRACKS => 'plugins/BBCSounds/html/images/Tracks_MTL_icon_album.png';
+use constant IMG_EPISODES => 'plugins/BBCSounds/html/images/Episodes_MTL_icon_dynamic_feed.png';
 
 
 
