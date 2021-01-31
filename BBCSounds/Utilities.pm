@@ -44,6 +44,10 @@ use constant IMG_PLAY => 'plugins/BBCSounds/html/images/Play_MTL_icon_play_arrow
 use constant IMG_SYNOPSIS => 'plugins/BBCSounds/html/images/Synopsis_MTL_icon_view_headline.png';
 use constant IMG_TRACKS => 'plugins/BBCSounds/html/images/Tracks_MTL_icon_album.png';
 use constant IMG_EPISODES => 'plugins/BBCSounds/html/images/Episodes_MTL_icon_dynamic_feed.png';
+use constant IMG_RECOMMENDATIONS => 'plugins/BBCSounds/html/images/Personalised_MTL_icon_playlist_add_check.png';
+use constant IMG_EDITORIAL => 'plugins/BBCSounds/html/images/Editorial_MTL_icon_star.png';
+use constant IMG_FEATURED => 'plugins/BBCSounds/html/images/Featured_MTL_icon_new_releases.png';
+
 
 
 

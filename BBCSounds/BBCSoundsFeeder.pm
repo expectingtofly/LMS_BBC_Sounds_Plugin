@@ -167,13 +167,12 @@ sub toplevel {
 				my $submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					my $icon = @$submenu[0]->{image};
+					_parseItems( $module->{data}, $submenu );				
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						image  => $icon,
+						image  => Plugins::BBCSounds::Utilities::IMG_FEATURED,
 						items => $submenu,
 						order => 4,
 					  };
@@ -185,13 +184,12 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					my $icon = @$submenu[0]->{image};
+					_parseItems( $module->{data}, $submenu );				
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						image  => $icon,
+						image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
 						items => $submenu,
 						order => 5,
 					  };
@@ -203,13 +201,12 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					my $icon = @$submenu[0]->{image};
+					_parseItems( $module->{data}, $submenu );					
 					push @$menu,
 					  {
 						name  => $moduleTitle,
 						type  => 'link',
-						image => $icon,
+						image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 						items => $submenu,
 						order => 7,
 					  };
