@@ -167,7 +167,7 @@ sub toplevel {
 				my $submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );				
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -184,7 +184,7 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );				
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -201,7 +201,7 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );					
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -227,7 +227,22 @@ sub toplevel {
 					my $dataArr = [];
 					push @$dataArr, $singlePromo->{item};
 
-					_parseItems($dataArr, $submenu);
+					#some times it points to a live network
+					if ( $singlePromo->{item}->{urn} =~ /:network:/) {
+						push @$submenu,
+						  {
+							name        => $moduleTitle,
+							type        => 'audio',
+							image        =>  Plugins::BBCSounds::PlayManager::createIcon(_getPidfromImageURL( $singlePromo->{item}->{image_url} )),
+							url         => 'sounds://_LIVE_'. $singlePromo->{item}->{id},
+							on_select   => 'play'
+						  };
+
+					} else {
+						_parseItems($dataArr, $submenu);
+					}
+
+
 					if (scalar @$submenu ) {
 
 						#fix up
