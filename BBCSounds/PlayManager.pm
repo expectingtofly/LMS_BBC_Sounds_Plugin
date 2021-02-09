@@ -29,27 +29,16 @@ my $log = logger('plugin.bbcsounds');
 
 
 sub createIcon {
-	my $pid = shift;
+	my $url = shift;
 	$log->debug("++createIcon");
 
-	my $icon = "http://ichef.bbci.co.uk/images/ic/320x320/$pid.jpg";
+	my $icon = $url; 
+
+	$icon =~ s/{recipe}/320x320/;
 
 	$log->debug("--createIcon - $icon");
 	return $icon;
 }
-
-
-sub _placeImageRecipe {
-	my $url = shift;
-	$log->debug("++_placeImageRecipe");
-	my $chars = "\\\$recipe";
-
-	$url =~ s/$chars/320x320/ig;
-
-	$log->debug("--_placeImageRecipe -  $url");
-	return $url;
-}
-
 
 sub getSoundsURLForPid {
 	my $gpid = shift;
@@ -76,20 +65,6 @@ sub getSoundsURLForPid {
 
 	$log->debug("--getSoundsURLForPid");
 	return;
-}
-
-
-sub _getPidfromImageURL {
-	my $url = shift;
-	$log->debug("++_getPidfromImageURL");
-
-	$log->debug("url to create pid : $url");
-	my @pid = split /\//x, $url;
-	my $pid = pop(@pid);
-	$pid = substr $pid, 0, -4;
-
-	$log->debug("--_getPidfromImageURL - $pid");
-	return $pid;
 }
 
 1;

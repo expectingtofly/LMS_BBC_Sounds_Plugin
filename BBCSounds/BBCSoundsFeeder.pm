@@ -167,7 +167,7 @@ sub toplevel {
 				my $submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );				
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -184,7 +184,7 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );				
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -201,7 +201,7 @@ sub toplevel {
 				$submenu = [];
 
 				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );					
+					_parseItems( $module->{data}, $submenu );
 					push @$menu,
 					  {
 						name  => $moduleTitle,
@@ -227,7 +227,22 @@ sub toplevel {
 					my $dataArr = [];
 					push @$dataArr, $singlePromo->{item};
 
-					_parseItems($dataArr, $submenu);
+					#some times it points to a live network
+					if ( $singlePromo->{item}->{urn} =~ /:network:/) {
+						push @$submenu,
+						  {
+							name        => $moduleTitle,
+							type        => 'audio',
+							image        =>  Plugins::BBCSounds::PlayManager::createIcon($singlePromo->{item}->{image_url}),
+							url         => 'sounds://_LIVE_'. $singlePromo->{item}->{id},
+							on_select   => 'play'
+						  };
+
+					} else {
+						_parseItems($dataArr, $submenu);
+					}
+
+
 					if (scalar @$submenu ) {
 
 						#fix up
@@ -444,7 +459,11 @@ sub getPersonalisedPage {
 	my $callurl  = "";
 
 	if ( $menuType eq 'latest' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable';
+		my $offset = '';
+		if (defined $passDict->{'offset'}) {
+			$offset = '?offset='. $passDict->{'offset'};
+		}
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable' . $offset;
 	}elsif ( $menuType eq 'subscribed' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows';
 	}elsif ( $menuType eq 'bookmarks' ) {
@@ -971,8 +990,7 @@ sub _parsePlayableItem {
 	my $title = $title1 . $title2 . $title3 . $release;
 	my $pid   = _getPidfromSoundsURN( $item->{urn} );
 
-	my $iurl = $item->{image_url};
-	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
+	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 
 	my $playMenu = [];
 	_getPlayableItemMenu($item, $playMenu);
@@ -1002,8 +1020,7 @@ sub _parseBroadcastItem {
 
 	my $title = $sttime . $title1 . ' - ' . $title2;
 
-	my $iurl = $item->{image_url};
-	my $image =Plugins::BBCSounds::PlayManager::createIcon(( _getPidfromImageURL($iurl) ) );
+	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 
 	my $playMenu = [];
 	_getPlayableItemMenu($item, $playMenu);
@@ -1067,7 +1084,7 @@ sub _parseContainerItem {
 
 	my $pid = $podcast->{id};
 
-	my $image =Plugins::BBCSounds::PlayManager::createIcon(_getPidfromImageURL( $podcast->{image_url} ) );
+	my $image =Plugins::BBCSounds::PlayManager::createIcon($podcast->{image_url});
 
 	push @$menu,
 	  {
@@ -1102,7 +1119,7 @@ sub _parseCategories {
 
 	for my $cat (@$jsonData) {
 		my $title = $cat->{titles}->{primary};
-		my $image =Plugins::BBCSounds::PlayManager::createIcon(_getPidfromImageURL( $cat->{image_url} ) );
+		my $image =Plugins::BBCSounds::PlayManager::createIcon($cat->{image_url});
 		push @$menu,
 		  {
 			name        => $title,
@@ -1173,20 +1190,6 @@ sub _parseChildCategories {
 }
 
 
-sub _getPidfromImageURL {
-	my $url = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPidfromImageURL");
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("url to create pid : $url");
-	my @pid = split /\//x, $url;
-	my $pid = pop(@pid);
-	$pid = substr $pid, 0, -4;
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPidfromImageURL - $pid");
-	return $pid;
-}
-
-
 sub _getPidfromSoundsURN {
 	my $urn = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPidfromSoundsURN");
@@ -1197,19 +1200,6 @@ sub _getPidfromSoundsURN {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPidfromSoundsURN - $pid");
 	return $pid;
-}
-
-
-sub _parseEditorialTitle {
-	my $htmlref = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseEditorialTitle");
-
-	my $edJSON = decode_json $$htmlref;
-	my $title =
-	  $edJSON->{titles}->{primary} . ' - ' . $edJSON->{synopses}->{short};
-
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseEditorialTitle - $title");
-	return $title;
 }
 
 
