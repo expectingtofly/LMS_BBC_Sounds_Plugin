@@ -459,7 +459,11 @@ sub getPersonalisedPage {
 	my $callurl  = "";
 
 	if ( $menuType eq 'latest' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable';
+		my $offset = '';
+		if (defined $passDict->{'offset'}) {
+			$offset = '?offset='. $passDict->{'offset'};
+		}
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable' . $offset;
 	}elsif ( $menuType eq 'subscribed' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows';
 	}elsif ( $menuType eq 'bookmarks' ) {
