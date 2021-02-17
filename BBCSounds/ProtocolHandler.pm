@@ -251,6 +251,7 @@ sub close {
 	my $self = shift;
 
 	${*$self}{'active'} = 0;
+	${*$self}{'vars'}->{'session'}->disconnect;
 
 	main::INFOLOG && $log->is_info && $log->info('close called');
 
