@@ -290,7 +290,7 @@ sub toplevel {
 				sub {
 					$menu = [
 						{
-							name =>'Not Signed In!  Please sign in to your BBC Account in preferences'
+							name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
 						}
 					];
 					$callback->( { items => $menu } );
@@ -299,7 +299,7 @@ sub toplevel {
 		}else {
 			$menu = [
 				{
-					name =>'Not Signed In!  Please sign in to your BBC Account in preferences'
+					name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
 				}
 			];
 			$callback->( { items => $menu } );
