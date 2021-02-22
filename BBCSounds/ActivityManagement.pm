@@ -31,12 +31,12 @@ my $log = logger('plugin.bbcsounds');
 
 
 sub createActivity {
-	my ( $client, $callback, $args, $passDict ) = @_;
+	my ( $callback,  $passDict ) = @_;
 	$log->debug("++createActivity");
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
-	my $menu         = [ { name => 'Failed to create ' . $activitytype, type => 'text' } ];
+	my $result =  'Failed to create ' . $activitytype;
 
 	my $body = '{"urn":"' . $urn . '"}';
 
@@ -54,25 +54,25 @@ sub createActivity {
 						my ( $http, $self ) = @_;
 						my $res = $http->response;
 						$log->debug( 'status - ' . $res->status_line );
-
+						my $result = '';
 						if (   ( $res->code eq '202' )
 							|| ( $res->code eq '200' ) ){
-							$menu = [ { name => ucfirst($activitytype) . ' succeeded', type => 'text' } ];
+							$result =  ucfirst($activitytype) . ' succeeded';
 						}
-						$callback->( { items => $menu } );
+						$callback->( $result );
 					},
 					onError => sub {
 						my ( $http, $self ) = @_;
 
 						my $res = $http->response;
 						$log->debug( 'Error status - ' . $res->status_line );
-						$callback->( { items => $menu } );
+						$callback->( $result );
 					}
 				}
 			);
 		},
 		sub {
-			$callback->( { items => $menu } );
+			$callback->( $result);
 		}
 	);
 	$log->debug("--createActivity");
@@ -123,12 +123,12 @@ sub heartBeat {
 
 
 sub deleteActivity {
-	my ( $client, $callback, $args, $passDict ) = @_;
+	my ( $callback, $passDict ) = @_;
 	$log->debug("++deleteActivity");
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
-	my $menu         = [ { name => 'Failed to remove ' . $activitytype, type => 'text' } ];
+	my $result = 'Failed to remove ' . $activitytype;
 
 
 	Plugins::BBCSounds::SessionManagement::renewSession(
@@ -145,28 +145,23 @@ sub deleteActivity {
 						$log->debug( 'status - ' . $res->status_line );
 
 						if (   ( $res->code eq '202' )
-							|| ( $res->code eq '200' ) ){
-							$menu = [
-								{
-									name => 'Removal of '. $activitytype. ' succeeded',
-									type => 'text'
-								}
-							];
+							|| ( $res->code eq '200' ) ) {
+							$result = 'Removal of '. $activitytype. ' succeeded';
 						}
-						$callback->( { items => $menu } );
+						$callback->( $result );
 					},
 					onError => sub {
 						my ( $http, $self ) = @_;
 
 						my $res = $http->response;
 						$log->error( 'Error status - ' . $res->status_line );
-						$callback->( { items => $menu } );
+						$callback->( $result );
 					}
 				}
 			);
 		},
 		sub {
-			$callback->( { items => $menu } );
+			$callback->( $result );
 		}
 	);
 	$log->debug("--deleteActivity");
