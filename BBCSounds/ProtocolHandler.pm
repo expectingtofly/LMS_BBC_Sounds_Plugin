@@ -157,10 +157,10 @@ sub new {
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
 	$song->pluginData( 'lastpos', 0 );
 
-	my $nowPlayingButtons = ( $prefs->get('nowPlayingButtons') eq 'on');
+	my $nowPlayingButtons = $prefs->get('nowPlayingActivityButtons');
 	$song->pluginData ( nowPlayingButtons => $nowPlayingButtons );
 
-	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  ");
+	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  NowPlayingButtons $nowPlayingButtons ");
 
 	if ($startTime) {
 
