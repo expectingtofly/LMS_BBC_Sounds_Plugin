@@ -1768,8 +1768,8 @@ sub buttonBookmark {
 	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
 
 	my $urn = $request->getParam('_urn');
-
-	my $items = [];
+	
+	main::INFOLOG && $log->is_info && $log->info("Button Bookmarking to $urn");
 
 	Plugins::BBCSounds::ActivityManagement::createActivity(
 		sub {
@@ -1807,8 +1807,8 @@ sub buttonSubscribe {
 	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
 
 	my $urn = $request->getParam('_urn');
-
-	my $items = [];
+	
+	main::INFOLOG && $log->is_info && $log->info("Button Subscribing to $urn");
 
 	Plugins::BBCSounds::ActivityManagement::createActivity(
 		sub {

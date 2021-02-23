@@ -1248,7 +1248,7 @@ sub getMetadataFor {
 						icon    =>  Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_SUBSCRIBE,
 						jiveStyle => 'love',
 						tooltip => 'Subscribe to series',
-						command => [ 'sounds', 'subscribe', $meta->{urn} ],						
+						command => [ 'sounds', 'subscribe', $meta->{containerUrn}  ],						
 					},
 				};
 			} else {
@@ -1258,7 +1258,7 @@ sub getMetadataFor {
 						icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
 						jiveStyle => 'thumbsUp',
 						tooltip => 'Bookmark the episode',
-						command => [ 'sounds', 'bookmark', $meta->{containerUrn} ],						
+						command => [ 'sounds', 'bookmark', $meta->{urn} ],						
 					},
 				};
 			}
