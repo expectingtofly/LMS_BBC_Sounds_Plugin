@@ -92,6 +92,12 @@
 	[% END %]
 
 	<br/>
+	[% WRAPPER setting title="Now Playing Buttons" desc="" %]	
+	<input name="pref_nowPlayingActivityButtons" type="checkbox" [% IF prefs.pref_nowPlayingActivityButtons %] checked [% END %] >
+	<label for="pref_nowPlayingActivityButtons">Display Bookmark and Subscribe Buttons in place of Repeat and Shuffle on the Now Playing Screen</label>	
+	[% END %]
+
+	<br/>
 
 	[% WRAPPER setting title="Search History" desc="" %]	
 	<input name="clearSearchHistory" type="checkbox" >

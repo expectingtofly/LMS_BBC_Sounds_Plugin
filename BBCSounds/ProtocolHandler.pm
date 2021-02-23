@@ -48,6 +48,7 @@ use Slim::Utils::Cache;
 use Plugins::BBCSounds::M4a;
 use Plugins::BBCSounds::BBCSoundsFeeder;
 use Plugins::BBCSounds::PlayManager;
+use Plugins::BBCSounds::Utilities;
 
 
 use constant MIN_OUT    => 8192;
@@ -156,7 +157,10 @@ sub new {
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
 	$song->pluginData( 'lastpos', 0 );
 
-	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  ");
+	my $nowPlayingButtons = $prefs->get('nowPlayingActivityButtons');
+	$song->pluginData ( nowPlayingButtons => $nowPlayingButtons );
+
+	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  NowPlayingButtons $nowPlayingButtons ");
 
 	if ($startTime) {
 
@@ -215,7 +219,7 @@ sub new {
 			'endOffset' => $props->{endNumber}, #the end number of this track.
 			'session' 	  => Slim::Networking::Async::HTTP->new,
 			'baseURL'	  => $args->{'url'},
-			'resetMeta'=> 1,			
+			'resetMeta'=> 1,
 			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
 			'trackData' => {   # For managing showing live track data
@@ -224,7 +228,7 @@ sub new {
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
 			},
-			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC			
+			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC
 		};
 	}
 
@@ -774,9 +778,10 @@ sub sysread {
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
 			if ($edge > Time::HiRes::time()){
+
 				#bail
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
-				$bail = 1;				
+				$bail = 1;
 			}
 		}
 		if (!$bail) {
@@ -832,7 +837,7 @@ sub sysread {
 						}
 
 						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;						
+						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
 					},
 
 					onError => sub {
@@ -840,7 +845,7 @@ sub sysread {
 						$v->{'retryCount'}++;
 
 						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
-							
+
 							$log->error("Failed to get $url");
 							$v->{'inBuf'}    = '';
 							$v->{'fetching'} = 0;
@@ -849,7 +854,7 @@ sub sysread {
 						} else {
 							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again
-							$v->{'fetching'} = 0;						
+							$v->{'fetching'} = 0;
 						}
 					},
 					Timeout => CHUNK_TIMEOUT,
@@ -860,7 +865,7 @@ sub sysread {
 
 	# process all available data
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
-	
+
 	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
 		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
@@ -1055,10 +1060,10 @@ sub getMPD {
 
 				my $endURI = URI->new( $res->base );
 
-		 		main::INFOLOG
+				main::INFOLOG
 				  && $log->is_info
 				  && $log->info("Parsing MPD");
-				
+
 				main::INFOLOG
 				  && $log->is_info
 				  && $log->info('source base : ' . $res->base);
@@ -1074,7 +1079,7 @@ sub getMPD {
 
 				#if not dynamic then we start from a relative position.
 				my $startBase = '';
-				if ($mpd->{'type'} eq 'static') {										
+				if ($mpd->{'type'} eq 'static') {
 					$startBase = $endURI->scheme . '://' . $endURI->host . dirname( $endURI->path ) . '/';
 				}
 
@@ -1226,10 +1231,40 @@ sub getMetadataFor {
 	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
 		if (my $meta = $song->pluginData('meta')) {
-
-			# if live, the only place it will be is on the song
-			main::DEBUGLOG && $log->is_debug && $log->debug("meta from song");
+			
 			$song->track->secs( $meta->{duration} );
+
+			if ($song->pluginData('nowPlayingButtons')) {
+				if ($meta->{containerUrn} ne '') {
+
+					$meta->{buttons} = {
+
+						repeat  => {
+							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
+							jiveStyle => 'thumbsUp',
+							tooltip => 'Bookmark the episode',
+							command => [ 'sounds', 'bookmark', $meta->{urn},materialIcon => 'add' ]
+						},
+
+						shuffle => {
+							icon    =>  Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_SUBSCRIBE,
+							jiveStyle => 'love',
+							tooltip => 'Subscribe to series',
+							command => [ 'sounds', 'subscribe', $meta->{containerUrn}  ],
+						},
+					};
+				} else {
+					$meta->{buttons} = {
+
+						repeat  => {
+							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
+							jiveStyle => 'thumbsUp',
+							tooltip => 'Bookmark the episode',
+							command => [ 'sounds', 'bookmark', $meta->{urn} ],
+						},
+					};
+				}
+			}
 			return $meta;
 		}
 	}
@@ -1467,6 +1502,13 @@ sub _getAODMeta {
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}
+				my $urn = $json->{'urn'};
+
+				my $containerUrn = '';
+				if (defined $json->{'container'}->{'urn'}) {
+					$containerUrn = $json->{'container'}->{'urn'};
+				}
+
 				my $meta = {
 					title    => $title,
 					realTitle => $title,
@@ -1481,6 +1523,9 @@ sub _getAODMeta {
 					track => '',
 					spotify => '',
 					type     => 'BBCSounds',
+					buttons => undef,
+					urn => $urn,
+					containerUrn => $containerUrn
 				};
 				$cache->set("bs:meta-$pid",$meta,86400);
 				$cbY->($meta);
@@ -1634,6 +1679,8 @@ sub _getLiveMeta {
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}
+				my $urn = $json->{'urn'};				
+
 				my $meta = {
 					title    => $title,
 					realTitle => $title,
@@ -1648,10 +1695,13 @@ sub _getLiveMeta {
 					track =>   '',
 					spotify => '',
 					type     => 'BBCSounds',
+					buttons => undef,
+					urn => $urn,
+					containerUrn => '',
 				};
 
 				$cache->set( "bs:meta-" . $id, $meta, 3600 );
-				main::DEBUGLOG && $log->is_debug && $log->debug("Live meta receiced and in cache  $id ");
+				main::DEBUGLOG && $log->is_debug && $log->debug("Live meta received and in cache  $id ");
 				$cbY->($meta);
 
 			},
@@ -1725,7 +1775,7 @@ sub _getMPDUrl {
 					}
 				}
 			}
-			
+
 			$log->error("No Dash Found");
 			$cbN->();
 		},

@@ -41,6 +41,7 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 
+
 $prefs->migrate(
 	7,
 	sub {
@@ -83,8 +84,14 @@ sub initPlugin {
 			displayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY,
 			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING,
 			forceHTTP => 0,
+			nowPlayingActivityButtons => 1,
 		}
 	);
+
+	# make sure the value is defined, otherwise it would be enabled again
+	$prefs->setChange( sub {
+		$prefs->set($_[0], 0) unless defined $_[1];
+	}, 'nowPlayingActivityButtons' );
 
 
 	$class->SUPER::initPlugin(

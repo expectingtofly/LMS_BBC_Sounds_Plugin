@@ -153,7 +153,7 @@ sub prefs {
 
 	$log->debug("--prefs");
 	return (
-		$prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP)
+		$prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons)
 	);
 }
 

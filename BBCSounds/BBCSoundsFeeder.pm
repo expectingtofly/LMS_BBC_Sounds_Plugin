@@ -77,6 +77,10 @@ sub init {
 	#                                                               C  Q  T  F
 	Slim::Control::Request::addDispatch(['sounds','recentsearches'],[0, 0, 1, \&_recentSearchesCLI]);
 
+	Slim::Control::Request::addDispatch(['sounds', 'bookmark', '_urn'],[0, 1, 1, \&buttonBookmark]);
+
+	Slim::Control::Request::addDispatch(['sounds', 'subscribe', '_urn'],[0, 1, 1, \&buttonSubscribe]);
+
 	_removeCacheMenu('toplevel'); #force remove
 }
 
@@ -286,7 +290,7 @@ sub toplevel {
 				sub {
 					$menu = [
 						{
-							name =>'Not Signed In!  Please sign in to your BBC Account in preferences'
+							name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
 						}
 					];
 					$callback->( { items => $menu } );
@@ -295,7 +299,7 @@ sub toplevel {
 		}else {
 			$menu = [
 				{
-					name =>'Not Signed In!  Please sign in to your BBC Account in preferences'
+					name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
 				}
 			];
 			$callback->( { items => $menu } );
@@ -1245,10 +1249,10 @@ sub _getPlayableItemMenu {
 	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
 
 	my $booktype = 'Bookmark';
-	my $bookCodeRef = 'createActivity';
+	my $bookCodeRef = 'createActivityWrapper';
 	if (_isFavouritedActivity($item->{activities})) {
 		$booktype = 'Remove bookmark';
-		$bookCodeRef = 'deleteActivity';
+		$bookCodeRef = 'deleteActivityWrapper';
 	}
 	push @$menu,
 	  {
@@ -1268,10 +1272,10 @@ sub _getPlayableItemMenu {
 
 	if ( defined $item->{container}->{id} ) {
 		my $subtype = 'Subscribe';
-		my $subCodeRef = 'createActivity';
+		my $subCodeRef = 'createActivityWrapper';
 		if (_isFollowedActivity($item->{container}->{activities})) {
 			$subtype = 'Unsubscribe';
-			$subCodeRef = 'deleteActivity';
+			$subCodeRef = 'deleteActivityWrapper';
 		}
 		push @$menu,
 		  {
@@ -1496,10 +1500,10 @@ sub _renderMenuCodeRefs {
 				$menuItem->{'url'} = \&getStationMenu;
 			}elsif ( $codeRef eq 'handlePlaylist' ) {
 				$menuItem->{'url'} =\&Plugins::BBCSounds::PlayManager::handlePlaylist;
-			}elsif ( $codeRef eq 'createActivity' ) {
-				$menuItem->{'url'} =\&Plugins::BBCSounds::ActivityManagement::createActivity;
-			}elsif ( $codeRef eq 'deleteActivity' ) {
-				$menuItem->{'url'} =\&Plugins::BBCSounds::ActivityManagement::deleteActivity;
+			}elsif ( $codeRef eq 'createActivityWrapper' ) {
+				$menuItem->{'url'} =\&createActivityWrapper;
+			}elsif ( $codeRef eq 'deleteActivityWrapper' ) {
+				$menuItem->{'url'} =\&deleteActivityWrapper;
 			}elsif ( $codeRef eq 'getPersonalisedPage' ) {
 				$menuItem->{'url'} = \&getPersonalisedPage;
 			}elsif ( $codeRef eq 'recentSearches' ) {
@@ -1655,12 +1659,12 @@ sub soundsInfoIntegration {
 				name        => 'Bookmark Episode',
 				type        => 'link',
 				order 		=> 3,
-				url         => \&Plugins::BBCSounds::ActivityManagement::createActivity,
+				url         => \&Plugins::BBCSounds::ActivityManagement::createActivityWrapper,
 				passthrough => [
 					{
 						activitytype => 'bookmark',
 						urn          => 'urn:bbc:radio:episode:' . Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
-						codeRef      => 'createActivity'
+						codeRef      => 'createActivityWrapper'
 					}
 				],
 			  };
@@ -1748,5 +1752,131 @@ sub _recentSearchesCLI {
 
 	$request->setStatusDone;
 }
+
+
+sub buttonBookmark {
+	my $request = shift;
+	my $client  = $request->client();
+	main::DEBUGLOG && $log->is_debug && $log->debug("++buttonBookmark");
+
+	return unless defined $client;
+
+	my $song = $client->playingSong() || return;
+
+	# ignore if user is not using Sounds
+	my $url = $song->currentTrack()->url;
+	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
+
+	my $urn = $request->getParam('_urn');
+	
+	main::INFOLOG && $log->is_info && $log->info("Button Bookmarking to $urn");
+
+	Plugins::BBCSounds::ActivityManagement::createActivity(
+		sub {
+			my $result = shift;
+			$request->addResult($result);
+			$client->showBriefly(
+				{
+					line => [ $result, 'BBC Sounds' ],
+				}
+			);
+			$request->setStatusDone();
+		},
+		{
+			activitytype => 'bookmark',
+			urn          => $urn
+		}
+	);
+
+	$request->setStatusProcessing();
+	main::DEBUGLOG && $log->is_debug && $log->debug("++buttonBookmark");
+}
+
+
+sub buttonSubscribe {
+	my $request = shift;
+	my $client  = $request->client();
+	main::DEBUGLOG && $log->is_debug && $log->debug("++buttonSubscribe");
+
+	return unless defined $client;
+
+	my $song = $client->playingSong() || return;
+
+	# ignore if user is not using Sounds
+	my $url = $song->currentTrack()->url;
+	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
+
+	my $urn = $request->getParam('_urn');
+	
+	main::INFOLOG && $log->is_info && $log->info("Button Subscribing to $urn");
+
+	Plugins::BBCSounds::ActivityManagement::createActivity(
+		sub {
+			my $result = shift;
+			$request->addResult($result);
+			$client->showBriefly(
+				{
+					line => [ $result, 'BBC Sounds' ],
+				}
+			);
+
+			$request->setStatusDone();
+		},
+		{
+			activitytype => 'subscribe',
+			urn          => $urn
+		}
+	);
+
+	$request->setStatusProcessing();
+	main::DEBUGLOG && $log->is_debug && $log->debug("--buttonSubscribe");
+}
+
+
+sub createActivityWrapper {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++createActivityWrapper");
+
+	my $menu = [];
+	Plugins::BBCSounds::ActivityManagement::createActivity(
+		sub {
+			my $resp = shift;
+			push @$menu,
+			  {
+				name => $resp,
+				type => 'text'
+			  };
+			$callback->({ items => $menu });
+		},
+		$passDict
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--createActivityWrapper");
+	return;
+}
+
+
+sub deleteActivityWrapper {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++deleteActivityWrapper");
+
+	my $menu = [];
+	Plugins::BBCSounds::ActivityManagement::deleteActivity(
+		sub {
+			my $resp = shift;
+			push @$menu,
+			  {
+				name => $resp,
+				type => 'text'
+			  };
+			$callback->({ items => $menu });
+		},
+		$passDict
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--deleteActivityWrapper");
+	return;
+}
+
 
 1;
