@@ -42,6 +42,15 @@ my $prefs = preferences('plugin.bbcsounds');
 
 
 $prefs->migrate(
+	8,
+	sub {
+		$prefs->set('nowPlayingButtons', 'on');
+		1;
+	}
+);
+
+
+$prefs->migrate(
 	7,
 	sub {
 		$prefs->set('forceHTTP', 0);
@@ -83,6 +92,7 @@ sub initPlugin {
 			displayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY,
 			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING,
 			forceHTTP => 0,
+			nowPlayingButtons => 'on',
 		}
 	);
 

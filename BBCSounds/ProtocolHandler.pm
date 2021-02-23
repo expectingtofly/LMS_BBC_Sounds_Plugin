@@ -157,6 +157,9 @@ sub new {
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
 	$song->pluginData( 'lastpos', 0 );
 
+	my $nowPlayingButtons = ( $prefs->get('nowPlayingButtons') eq 'on');
+	$song->pluginData ( nowPlayingButtons => $nowPlayingButtons );
+
 	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  ");
 
 	if ($startTime) {
@@ -1228,39 +1231,39 @@ sub getMetadataFor {
 	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
 		if (my $meta = $song->pluginData('meta')) {
-
-			main::DEBUGLOG && $log->is_debug && $log->debug("meta from song");
+			
 			$song->track->secs( $meta->{duration} );
 
-			if ($meta->{containerUrn} ne '') {
+			if ($song->pluginData('nowPlayingButtons')) {
+				if ($meta->{containerUrn} ne '') {
 
-				$meta->{buttons} = {
+					$meta->{buttons} = {
 
-					repeat  => {
-						icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
-						jiveStyle => 'thumbsUp',
-						tooltip => 'Bookmark the episode',
-						command => [ 'sounds', 'bookmark', $meta->{urn},
-						materialIcon => 'add' ]
-					},
+						repeat  => {
+							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
+							jiveStyle => 'thumbsUp',
+							tooltip => 'Bookmark the episode',
+							command => [ 'sounds', 'bookmark', $meta->{urn},materialIcon => 'add' ]
+						},
 
-					shuffle => {
-						icon    =>  Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_SUBSCRIBE,
-						jiveStyle => 'love',
-						tooltip => 'Subscribe to series',
-						command => [ 'sounds', 'subscribe', $meta->{containerUrn}  ],						
-					},
-				};
-			} else {
-				$meta->{buttons} = {
+						shuffle => {
+							icon    =>  Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_SUBSCRIBE,
+							jiveStyle => 'love',
+							tooltip => 'Subscribe to series',
+							command => [ 'sounds', 'subscribe', $meta->{containerUrn}  ],
+						},
+					};
+				} else {
+					$meta->{buttons} = {
 
-					repeat  => {
-						icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
-						jiveStyle => 'thumbsUp',
-						tooltip => 'Bookmark the episode',
-						command => [ 'sounds', 'bookmark', $meta->{urn} ],						
-					},
-				};
+						repeat  => {
+							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
+							jiveStyle => 'thumbsUp',
+							tooltip => 'Bookmark the episode',
+							command => [ 'sounds', 'bookmark', $meta->{urn} ],
+						},
+					};
+				}
 			}
 			return $meta;
 		}
@@ -1505,6 +1508,7 @@ sub _getAODMeta {
 				if (defined $json->{'container'}->{'urn'}) {
 					$containerUrn = $json->{'container'}->{'urn'};
 				}
+
 				my $meta = {
 					title    => $title,
 					realTitle => $title,
@@ -1675,7 +1679,7 @@ sub _getLiveMeta {
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}
-				my $urn = $json->{'urn'};
+				my $urn = $json->{'urn'};				
 
 				my $meta = {
 					title    => $title,
