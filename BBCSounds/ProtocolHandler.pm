@@ -205,6 +205,10 @@ sub new {
 
 	my $self = $class->SUPER::new;
 
+	#Throttle setup
+	my $throttleInterval = $prefs->get('throttleInterval');
+	my $nextThrottle = time();
+
 	if ( defined($self) ) {
 		${*$self}{'client'} = $args->{'client'};
 		${*$self}{'song'}   = $args->{'song'};
@@ -228,7 +232,9 @@ sub new {
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
 			},
-			'nextHeartbeat' =>  time() + 30   #AOD data sends a heartbeat to the BBC
+			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
+			'throttleInterval' => $throttleInterval,   #A value to delay making streaming data available to help the community firmware
+			'nextThrottle' => $nextThrottle,
 		};
 	}
 
@@ -768,7 +774,7 @@ sub sysread {
 	# need more data
 	if (   length $v->{'outBuf'} < MIN_OUT
 		&& !$v->{'fetching'}
-		&& $v->{'streaming'} ) {
+		&& $v->{'streaming'}) {
 		my $url =  $v->{'baseURL'};
 		my $bail = 0;
 		if ($props->{isDynamic}) {
@@ -779,11 +785,18 @@ sub sysread {
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
 			if ($edge > Time::HiRes::time()){
 
-				#bail
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
 				$bail = 1;
 			}
 		}
+		
+		main::DEBUGLOG && $log->is_debug && $log->debug('Throttle '  . $v->{'nextThrottle'} . ' now ' . time());
+		if ( (!bail) && ($v->{'nextThrottle'} > time()) ) {
+			main::INFOLOG && $log->is_info && $log->info('Throttle bail');
+			$bail = 1;			
+		}
+
+
 		if (!$bail) {
 			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} . 'base url :' . $url);
 			my $headers = [ 'Connection', 'keep-alive' ];
@@ -807,6 +820,10 @@ sub sysread {
 					request => $request,
 					onBody => sub {
 						my $response = shift->response;
+						
+						#A Throttle to help with community firmware buffering problem.
+						$v->{'nextThrottle'} += $v->{'throttleInterval'};
+						main::DEBUGLOG && $log->is_debug && $log->debug('Next Throttle  will be : ' . $v->{'nextThrottle'} . ' Time Now  : ' . time());
 
 						$v->{'inBuf'} .= $response->content;
 						$v->{'fetching'} = 0;
@@ -822,6 +839,7 @@ sub sysread {
 						}
 
 						main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
+
 
 						if ($props->{'isDynamic'}) {
 
@@ -1231,7 +1249,7 @@ sub getMetadataFor {
 	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
 		if (my $meta = $song->pluginData('meta')) {
-			
+
 			$song->track->secs( $meta->{duration} );
 
 			if ($song->pluginData('nowPlayingButtons')) {
@@ -1679,7 +1697,7 @@ sub _getLiveMeta {
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}
-				my $urn = $json->{'urn'};				
+				my $urn = $json->{'urn'};
 
 				my $meta = {
 					title    => $title,

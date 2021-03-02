@@ -120,6 +120,16 @@
 	<label for="pref_forceHTTP">Force HTTP streaming</label>
 	[% END %]
 
+	[% WRAPPER setting title="" desc="" %]	
+	<label for="pref_throttleInterval" >Stream throttling interval : </label>
+	<select class="stdedit" name="pref_throttleInterval" id=pref_throttleInterval">			
+		<option [% IF prefs.pref_throttleInterval == 0 %]selected [% END %]value="0">0 Seconds</option>
+		<option [% IF prefs.pref_throttleInterval == 1 %]selected [% END %]value="1">1 Second</option>
+		<option [% IF prefs.pref_throttleInterval == 2 %]selected [% END %]value="2">2 Seconds</option>
+		<option [% IF prefs.pref_throttleInterval == 3 %]selected [% END %]value="3">3 Seconds</option>				
+	</select>	
+	[% END %]
+
 
 
 [% PROCESS settings/footer.html %]
