@@ -791,7 +791,7 @@ sub sysread {
 		}
 		
 		main::DEBUGLOG && $log->is_debug && $log->debug('Throttle '  . $v->{'nextThrottle'} . ' now ' . time());
-		if ( (!bail) && ($v->{'nextThrottle'} > time()) ) {
+		if ( (!$bail) && ($v->{'nextThrottle'} > time()) ) {
 			main::INFOLOG && $log->is_info && $log->info('Throttle bail');
 			$bail = 1;			
 		}
