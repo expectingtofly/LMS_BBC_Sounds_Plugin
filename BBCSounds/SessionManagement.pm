@@ -88,8 +88,12 @@ sub signIn {
                             my ( $http, $self ) = @_;
                             my $res = $http->response;
 
+                            #Place cookie in prefs
+                            addCookieIDToPrefs($username, $session->cookie_jar->{COOKIES});
+
+
                             #makes sure the cookies are persisted
-                            $session->cookie_jar->save();
+                            #$session->cookie_jar->save();
                             $cbYes->();
                         },
                         onRedirect => sub {
@@ -126,6 +130,37 @@ sub signIn {
 
 sub isSignedIn {
     main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
+    
+    my $accountTokens =  $prefs->get('account_tokens');
+
+    return unless (defined $accountTokens);  #return if not set
+    
+    my $size scalar @$accountTokens;
+    main::DEBUGLOG && $log->is_debug && $log->debug("Number of accounts $size");
+
+    return unless $size;   #return if nothing there.
+
+    for ( my $i = 0 ; $i < $size ; $i++ ) {
+
+        my $cookie = $accountTokens[$i]->{'ckns_id'};
+        my $cookieepoch = @{$cookie}[5];
+        If (defined)
+
+    
+        if ( $accountTokens[$i]->{'userName'} eq $username ) {
+            $accountTokens[$i]->{'ckns_atkn'} = $token;
+            
+            $prefs->set( 'account_tokens', $accountTokens );
+            return;
+         }
+    }
+
+
+
+
+
+
+
     my $session   = Slim::Networking::Async::HTTP->new;
     my $cookiejar = $session->cookie_jar;
     my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
@@ -261,6 +296,45 @@ sub _hasSession {
         main::DEBUGLOG && $log->is_debug && $log->debug("--_hasSession - false");
         return;
     }
+}
+
+
+sub addCookieIDToPrefs {
+    my ( $username, $bbcCookieCollection ) = @_;
+
+    my $accountTokens =  $prefs->get('account_tokens');
+    my $token = $bbcCookieCollection->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
+
+
+    main::DEBUGLOG && $log->is_debug && $log->debug("Storing token for $username, token : " Dumper($token));
+
+    if (!(defined $accountTokens)) { $accountTokens = [];}
+
+    my $size = scalar @$accountTokens;
+
+
+    for ( my $i = 0 ; $i < $size ; $i++ ) {
+    
+        if ( $accountTokens[$i]->{'userName'} eq $username ) {
+            $accountTokens[$i]->{'ckns_id'} = $token;
+            
+            $prefs->set( 'account_tokens', $accountTokens );
+            return;
+        }
+    }
+    
+    #not there, push a new one
+    push @$accountTokens, 
+    {
+        userName => $username,
+        ckns_atkn =>  $bbcCookieCollection->{'.bbc.co.uk'}->{'/'}->{'ckns_id'},
+        isDefault => 1,   #It's the only one, must be the default.
+    }
+
+    $prefs->set( 'account_tokens', $accountTokens );
+
+    return;
+
 }
 1;
 
