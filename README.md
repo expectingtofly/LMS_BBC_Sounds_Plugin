@@ -1,6 +1,6 @@
 # BBC Sounds Plugin for LMS
 
-Provides access to the BBC Sounds features as an LMS plugin, it includes :
+Provides access to the BBC Sounds features as an LMS (Logitech Media Server) plugin, it includes :
 
 1. Search
 2. My Sounds (Subscriptions and Bookmarks)
