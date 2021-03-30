@@ -86,6 +86,7 @@ sub initPlugin {
 			forceHTTP => 0,
 			nowPlayingActivityButtons => 1,
 			throttleInterval => 1,
+			playableAsPlaylist => 0
 		}
 	);
 

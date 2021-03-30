@@ -898,12 +898,14 @@ sub _parseItems {
 
 	for my $item (@$jsonData) {
 
+		my $isPlayablePref = $prefs->get('playableAsPlaylist');
+
 		if ( $item->{type} eq 'playable_item' ) {
-			_parsePlayableItem( $item, $menu );
+			_parsePlayableItem( $item, $menu, $isPlayablePref );
 		}elsif ( $item->{type} eq 'container_item' ) {
 			_parseContainerItem( $item, $menu );
 		}elsif ( $item->{type} eq 'broadcast_summary' ) {
-			_parseBroadcastItem( $item, $menu );
+			_parseBroadcastItem( $item, $menu, $isPlayablePref );
 		}
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseItems");
@@ -940,8 +942,6 @@ sub _parseStationlist {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseStationlist");
 	my $size = scalar @$jsonData;
 
-	$log->info("Number of items : $size ");
-
 	for my $item (@$jsonData) {
 		my $image = Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url});
 		push @$menu,
@@ -966,8 +966,8 @@ sub _parseStationlist {
 
 
 sub _parsePlayableItem {
-	my $item = shift;
-	my $menu = shift;
+	my ($item, $menu, $isPlayable) = @_;
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parsePlayableItem");
 
 	my $title1 = $item->{titles}->{primary};
@@ -999,20 +999,34 @@ sub _parsePlayableItem {
 	my $playMenu = [];
 	_getPlayableItemMenu($item, $playMenu);
 
+	my $favUrl = '';
+	my $type = 'link';
+	
+	if ($isPlayable && (defined @$playMenu[0]->{type})) {
+		$favUrl = @$playMenu[0]->{url};
+		$type = 'playlist';
+	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("Is Playable : $isPlayable");
+
 	push @$menu,
 	  {
 		name => $title,
-		type => 'link',
+		type => $type,
+		favorites_url => $favUrl,
 		image => $image,
 		items => $playMenu,
 		order => 0,
 	  };
+	 
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parsePlayableItem");
+	return;
+
 }
 
 
 sub _parseBroadcastItem {
-	my $item = shift;
-	my $menu = shift;
+	my ($item, $menu, $isPlayable) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseBroadcastItem");
 
 	my $title1 = $item->{titles}->{primary};
@@ -1029,15 +1043,25 @@ sub _parseBroadcastItem {
 	my $playMenu = [];
 	_getPlayableItemMenu($item, $playMenu);
 
+	my $favUrl = '';
+	my $type = 'link';
+
+	
+	if ($isPlayable && (defined @$playMenu[0]->{type})) {
+		$favUrl = @$playMenu[0]->{url};
+		$type = 'playlist';
+	}	
+
 	push @$menu,
 	  {
 		name => $title,
-		type => 'link',
+		type => $type,
 		image => $image,
+		favorites_url => $favUrl,
 		items => $playMenu,
 		order => 0,
 	  };
-
+	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
 	return;
 }
@@ -1095,7 +1119,7 @@ sub _parseContainerItem {
 		name        => $title . ' - ' . $desc,
 		type        => 'link',
 		image        => $image,
-		url         => '',
+		url         => '',		
 		order 		=> 0,
 		passthrough => [
 			{
@@ -1453,7 +1477,7 @@ sub _removeCacheMenu {
 
 sub _isFollowedActivity {
 	my $activities = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFollowedActivity " . Dumper($activities) );
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFollowedActivity");
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'follow_activity') {
@@ -1470,7 +1494,7 @@ sub _isFollowedActivity {
 
 sub _isFavouritedActivity {
 	my $activities = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFavouritedActivity " . Dumper($activities) );
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_isFavouritedActivity");
 	if (defined $activities) {
 		for my $activity (@$activities) {
 			if  ($activity->{type} eq 'favourite_activity') {

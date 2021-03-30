@@ -1,6 +1,4 @@
-[% PROCESS settings/header.html %]
-	
-    <br>
+[% PROCESS settings/header.html %]	
 	[% IF isSignedIn %]
 	<strong>You are already successfully signed in, you can sign out by pressing the button below :</strong>
 	<br/>
@@ -9,8 +7,7 @@
 	
 	[% END %]
 	[% IF isSignedOut %]
-		To sign in, enter your BBC Account credentials below and click the "Sign In" button :<br/>
-    
+		To sign in, enter your BBC Account credentials below and click the "Sign In" button :<br/>    
 	
 		[% WRAPPER setting title="PLUGIN_BBCSOUNDS_USERNAME" desc="PLUGIN_BBCSOUNDS_USERNAME_DESC" %]
 		<div class="prefDesc">
@@ -37,13 +34,13 @@
 	[% WRAPPER setting title="Menu Location" desc="" %]
 	
 	<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
-	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu.  Requires an LMS restart.</label>
+	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu.  Requires a restart of LMS.</label>
 	
 	[% END %]
 	<br/>
 
 	[% WRAPPER setting title="Playing Information Display" desc="" %]
-		Amend the settings below to adjust what is displayed when a programme is playing.
+		Amend the settings below to adjust the display when a programme is playing :
 	[% END %]
 
 	[% WRAPPER setting title="" desc="" %]
@@ -94,9 +91,15 @@
 	<br/>
 	[% WRAPPER setting title="Now Playing Buttons" desc="" %]	
 	<input name="pref_nowPlayingActivityButtons" type="checkbox" [% IF prefs.pref_nowPlayingActivityButtons %] checked [% END %] >
-	<label for="pref_nowPlayingActivityButtons">Display Bookmark and Subscribe Buttons in place of Repeat and Shuffle on the Now Playing Screen</label>	
+	<label for="pref_nowPlayingActivityButtons">Display <i>bookmark</i> and <i>Subscribe</i> buttons in place of <i>Repeat</i> and <i>Shuffle</i> on the Now Playing Screen</label>	
 	[% END %]
 
+	<br/>
+	[% WRAPPER setting title="Playable Item Menu Behaviour" desc="" %]	
+	<input name="pref_playableAsPlaylist" type="checkbox" [% IF prefs.pref_playableAsPlaylist %] checked [% END %] >
+	<label for="pref_playableAsPlaylist">Set the top menu for a programme to be playable without the requirement to enter the sub menu</label>	
+	[% END %]
+	
 	<br/>
 
 	[% WRAPPER setting title="Search History" desc="" %]	
@@ -105,6 +108,8 @@
 	[% END %]
 
 	<hr/>
+
+	
 	
 	[% WRAPPER setting title="Advanced Settings" desc="" %]
 	The settings below should only be changed if you have a specific reason to do so.
@@ -118,7 +123,7 @@
 	[% WRAPPER setting title="" desc="" %]
 	<input name="pref_forceHTTP" id="pref_forceHTTP" type="checkbox" [% IF prefs.pref_forceHTTP %] checked [% END %]>
 	<label for="pref_forceHTTP">Force HTTP streaming</label>
-	[% END %]
+	[% END %]	
 
 	[% WRAPPER setting title="" desc="" %]	
 	<label for="pref_throttleInterval" >Stream throttling interval : </label>
@@ -129,7 +134,15 @@
 		<option [% IF prefs.pref_throttleInterval == 3 %]selected [% END %]value="3">3 Seconds</option>				
 	</select>	
 	[% END %]
+	<hr/>	
+	[% WRAPPER setting title="About BBC Sounds LMS Plugin" desc="" %]
+	<i><p>The BBC Sounds LMS Plugin consumes the BBC API's and every effort has been made to adhere to the BBC distribution policy.  However, the plugin itself is not endorsed or approved by the BBC.</p>
+	<p><a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki" target="none">BBC Sounds LMS Plugin Wiki</a></p>
+	<p><a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin" target="none">BBC Sounds LMS Plugin Project Home Page</a></p>	
+	<p>The BBC Sounds LMS Plugin is free and open source, it has been developed for my own use with the hope it will be useful for the LMS community.  If you wish to support the project you can buy the developer a coffee from the BBC Sounds Plugin home page.</p></i>
+	<p>(c) 2020-2021 Stuart McLean (stu@expectingtofly.co.uk)</p>
+	[% END %]	
 
-
+	
 
 [% PROCESS settings/footer.html %]
