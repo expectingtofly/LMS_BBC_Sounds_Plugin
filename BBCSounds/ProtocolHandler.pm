@@ -717,6 +717,7 @@ sub explodePlaylist {
 			);
 		}
 	}else {
+	
 		$cb->([$uri]);
 	}
 
@@ -1392,6 +1393,18 @@ sub isRewind {
 
 	my @pid  = split /_/x, $url;
 	if ( @pid[1] eq 'REWIND') {
+		return 1;
+	}else {
+
+		return;
+	}
+}
+
+sub isContainer {
+	my ( $class, $url ) = @_;
+
+	my @pid  = split /_/x, $url;
+	if ( @pid[1] eq 'CONTAINER') {
 		return 1;
 	}else {
 
