@@ -445,9 +445,9 @@ sub getStationMenu {
 
 		if ($i < 7) {
 			push @$scheduleMenu, $menuItem;
-		};
-		
-		push @$olderMenu, $menuItem;		
+		}
+
+		push @$olderMenu, $menuItem;
 
 	}
 
@@ -465,7 +465,7 @@ sub getStationMenu {
 	push @$menu,
 	  {
 		name        => $NetworkDetails->{short_title} . ' Highlights',
-		type        => 'link',	
+		type        => 'link',
 		url         => \&getPage,
 		passthrough => [
 			{
@@ -1549,34 +1549,26 @@ sub _renderMenuCodeRefs {
 	my $menu = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs");
 
+	my %subItems = (
+		'getPage' => \&getPage,
+		'getSubMenu' => \&getSubMenu,
+		'getStationMenu' => \&getStationMenu,
+		'createActivityWrapper' => \&createActivityWrapper,
+		'deleteActivityWrapper' => \&deleteActivityWrapper,
+		'getPersonalisedPage' => \&getPersonalisedPage,
+		'recentSearches' => \&recentSearches
+	);
+
 	for my $menuItem (@$menu) {
 		my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
 		if ( defined $codeRef ) {
-			if ( $codeRef eq 'getPage' ) {
-				$menuItem->{'url'} = \&getPage;
-			}elsif ( $codeRef eq 'getSubMenu' ) {
-				$menuItem->{'url'} = \&getSubMenu;
-			}elsif ( $codeRef eq 'getStationMenu' ) {
-				$menuItem->{'url'} = \&getStationMenu;
-			}elsif ( $codeRef eq 'handlePlaylist' ) {
-				$menuItem->{'url'} =\&Plugins::BBCSounds::PlayManager::handlePlaylist;
-			}elsif ( $codeRef eq 'createActivityWrapper' ) {
-				$menuItem->{'url'} =\&createActivityWrapper;
-			}elsif ( $codeRef eq 'deleteActivityWrapper' ) {
-				$menuItem->{'url'} =\&deleteActivityWrapper;
-			}elsif ( $codeRef eq 'getPersonalisedPage' ) {
-				$menuItem->{'url'} = \&getPersonalisedPage;
-			}elsif ( $codeRef eq 'recentSearches' ) {
-				$menuItem->{'url'} = \&recentSearches;
-			}else {
-				$log->error("Unknown Code Reference : $codeRef");
-			}
+			$menuItem->{'url'} = $subItems{$codeRef};
 		}
 		if (defined $menuItem->{'items'}) {
 			_renderMenuCodeRefs($menuItem->{'items'});
 		}
-
 	}
+	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
 	return;
 }
