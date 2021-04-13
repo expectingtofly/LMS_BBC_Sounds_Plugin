@@ -361,6 +361,8 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
 	}elsif ( $menuType eq 'segments' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
+	}elsif ( $menuType eq 'stationfeatured' ) {
+		$callurl = 'https://rms.api.bbc.co.uk/v2/networks/' . $passDict->{'stationid'} . '/promos/playable';
 	}else {
 		$log->error("Invalid menu selection");
 	}
@@ -410,15 +412,9 @@ sub getStationMenu {
 	my $stationid = $passDict->{'stationid'};
 	my $NetworkDetails = $passDict->{'networkDetails'};
 
-	my $menu      = [
-		{
-			name        => $NetworkDetails->{short_title} . ' LIVE',
-			type        => 'audio',
-			image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
-			url         => 'sounds://_LIVE_'. $stationid,
-			on_select   => 'play'
-		}
-	];
+	my $scheduleMenu = [];
+	my $olderMenu = [];
+
 
 	for ( my $i = 0 ; $i < 30 ; $i++ ) {
 		my $d = '';
@@ -433,8 +429,7 @@ sub getStationMenu {
 
 		my $scheduledate = strftime( '%Y-%m-%d', localtime($epoch) );
 
-		push @$menu,
-		  {
+		my $menuItem = {
 			name        => $d,
 			type        => 'link',
 			url         => \&getPage,
@@ -446,9 +441,49 @@ sub getStationMenu {
 					codeRef      => 'getPage'
 				}
 			],
-		  };
+		};
+
+		if ($i < 7) {
+			push @$scheduleMenu, $menuItem;
+		};
+		
+		push @$olderMenu, $menuItem;		
 
 	}
+
+	my $menu      = [
+		{
+			name        => $NetworkDetails->{short_title} . ' LIVE',
+			type        => 'audio',
+			image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+			url         => 'sounds://_LIVE_'. $stationid,
+			on_select   => 'play'
+		}
+	];
+
+	push @$menu, @$scheduleMenu;
+	push @$menu,
+	  {
+		name        => $NetworkDetails->{short_title} . ' Highlights',
+		type        => 'link',	
+		url         => \&getPage,
+		passthrough => [
+			{
+				type         => 'stationfeatured',
+				stationid    => $stationid,
+				codeRef      => 'getPage'
+			}
+		],
+	  };
+
+	push @$menu,
+	  {
+		name        => 'Full 30 Day Schedule',
+		type        => 'link',
+		items       => $olderMenu
+	  };
+
+
 	$callback->( { items => $menu } );
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getStationMenu");
 	return;
@@ -842,7 +877,8 @@ sub _parse {
 		|| ( $optstr eq 'subscribed' )
 		|| ( $optstr eq 'continue' )
 		|| ( $optstr eq 'searchepisodes')
-		|| ( $optstr eq 'searchshows' )) {
+		|| ( $optstr eq 'searchshows' )
+		|| ( $optstr eq 'stationfeatured' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
 		_createOffset( $JSON, $passthrough, $menu );
@@ -1001,7 +1037,7 @@ sub _parsePlayableItem {
 
 	my $favUrl = '';
 	my $type = 'link';
-	
+
 	if ($isPlayable && (defined @$playMenu[0]->{type})) {
 		$favUrl = @$playMenu[0]->{url};
 		$type = 'playlist';
@@ -1018,7 +1054,7 @@ sub _parsePlayableItem {
 		items => $playMenu,
 		order => 0,
 	  };
-	 
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parsePlayableItem");
 	return;
 
@@ -1046,11 +1082,11 @@ sub _parseBroadcastItem {
 	my $favUrl = '';
 	my $type = 'link';
 
-	
+
 	if ($isPlayable && (defined @$playMenu[0]->{type})) {
 		$favUrl = @$playMenu[0]->{url};
 		$type = 'playlist';
-	}	
+	}
 
 	push @$menu,
 	  {
@@ -1061,7 +1097,7 @@ sub _parseBroadcastItem {
 		items => $playMenu,
 		order => 0,
 	  };
-	
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseBroadcastItem");
 	return;
 }
@@ -1119,7 +1155,7 @@ sub _parseContainerItem {
 		name        => $title . ' - ' . $desc,
 		type        => 'link',
 		image        => $image,
-		url         => '',		
+		url         => '',
 		order 		=> 0,
 		passthrough => [
 			{
@@ -1792,7 +1828,7 @@ sub buttonBookmark {
 	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
 
 	my $urn = $request->getParam('_urn');
-	
+
 	main::INFOLOG && $log->is_info && $log->info("Button Bookmarking to $urn");
 
 	Plugins::BBCSounds::ActivityManagement::createActivity(
@@ -1831,7 +1867,7 @@ sub buttonSubscribe {
 	return unless Plugins::BBCSounds::Utilities::isSoundsURL($url);
 
 	my $urn = $request->getParam('_urn');
-	
+
 	main::INFOLOG && $log->is_info && $log->info("Button Subscribing to $urn");
 
 	Plugins::BBCSounds::ActivityManagement::createActivity(
