@@ -492,10 +492,11 @@ sub getStationMenu {
 
 sub getPersonalisedPage {
 	my ( $client, $callback, $args, $passDict ) = @_;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getPersonalisedPage");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getPersonalisedPage Args : " . Dumper($args));
 
 	my $menuType = $passDict->{'type'};
 	my $callurl  = "";
+	my $cacheIt = 1;
 
 	if ( $menuType eq 'latest' ) {
 		my $offset = '';
@@ -509,39 +510,55 @@ sub getPersonalisedPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable';
 	}elsif ( $menuType eq 'recommended' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
-	}elsif ( $menuType eq 'continue' ) {
+	}elsif ( $menuType eq 'continue' ) {		
 		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable';
 	}
 
 	my $menu        = [];
 	my $denominator = '';
+	my $fetch;
 
-	Plugins::BBCSounds::SessionManagement::renewSession(
-		sub {
-			main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
 
-			Slim::Networking::SimpleAsyncHTTP->new(
-				sub {
-					my $http = shift;
-					_parse( $http, $menuType, $menu, $denominator, $passDict );
-					_renderMenuCodeRefs($menu);
-					$callback->( { items => $menu } );
-				},
-				sub {
+	$fetch = sub {
+
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				main::DEBUGLOG && $log->is_debug && $log->debug("fetching: $callurl");
+
+				Slim::Networking::SimpleAsyncHTTP->new(
+					sub {
+						my $http = shift;
+						_parse( $http, $menuType, $menu, $denominator, $passDict );
+						if ($cacheIt) { _cacheMenu( $callurl, $menu, 21600); }  # Long term cache if needed
+						_renderMenuCodeRefs($menu);
+						$callback->( { items => $menu } );
+					},
+
 					# Called when no response was received or an error occurred.
+					sub {
+						$log->warn("error: $_[1]");
+						$callback->( [ { name => $_[1], type => 'text' } ] );
+					}
+				)->get($callurl);
+			},
 
-					$log->warn("error: $_[1]");
-					$callback->( [ { name => $_[1], type => 'text' } ] );
-				}
-			)->get($callurl);
-		},
+			#could not get a session
+			sub {
+				$menu = [ { name => 'Failed! - Could not get session' } ];
+				$callback->( { items => $menu } );
+			}
+		);
+	};
 
-		#could not get a session
-		sub {
-			$menu = [ { name => 'Failed! - Could not get session' } ];
-			$callback->( { items => $menu } );
-		}
-	);
+	#For Personalised Pages, we only retreive from cache if we are futher down the menu tree
+	if ( $cacheIt && ($args->{'quantity'} == 1) && ( my $cachemenu = _getCachedMenu($callurl) ) ) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Have cached menu");
+		_renderMenuCodeRefs($cachemenu);
+		$callback->( { items => $cachemenu } );
+	}else {
+		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
+		$fetch->();
+	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getPersonalisedPage");
 	return;
@@ -1568,7 +1585,7 @@ sub _renderMenuCodeRefs {
 			_renderMenuCodeRefs($menuItem->{'items'});
 		}
 	}
-	
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
 	return;
 }
