@@ -32,7 +32,7 @@ use POSIX qw(strftime);
 use HTTP::Date;
 use Digest::MD5 qw(md5_hex);
 use Slim::Utils::Strings qw(string cstring);
-use XML::Simple qw(:strict);
+use XML::Simple;
 
 use Data::Dumper;
 
