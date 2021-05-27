@@ -32,7 +32,6 @@ use POSIX qw(strftime);
 use HTTP::Date;
 use Digest::MD5 qw(md5_hex);
 use Slim::Utils::Strings qw(string cstring);
-use XML::Simple;
 
 use Data::Dumper;
 
@@ -47,7 +46,6 @@ my $prefs = preferences('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
 
-my $xml_simple = XML::Simple->new(KeepRoot => 1, KeyAttr => []);
 
 sub init {
 
@@ -513,7 +511,7 @@ sub getPersonalisedPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable';
 	}elsif ( $menuType eq 'recommended' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
-	}elsif ( $menuType eq 'continue' ) {		
+	}elsif ( $menuType eq 'continue' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable';
 	}
 
@@ -1712,22 +1710,6 @@ sub soundsInfoIntegration {
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
 
-			my $programmes_url = URI->new('https://www.bbc.co.uk/');
-			$programmes_url->path_segments(
-				'programmes',
-				Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
-			);
-			push @$items,
-			  {
-				name => $xml_simple->XMLout({
-					a => {
-						href => $programmes_url->as_string,
-						target => '_blank',
-						content => 'BBC Programmes page',
-					},
-				}),
-				type => 'textarea',
-			  };
 
 			push @$items,
 			  {
@@ -1758,6 +1740,7 @@ sub soundsInfoIntegration {
 					}
 				],
 			  };
+
 		}
 		my $song = Slim::Player::Source::playingSong($client);
 
