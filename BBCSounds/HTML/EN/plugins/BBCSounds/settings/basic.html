@@ -88,6 +88,11 @@
 	</select>	
 	[% END %]
 
+	[% WRAPPER setting title="" desc="" %]
+	<input name="pref_rewoundind" id="pref_rewoundind" type="checkbox" [% IF prefs.pref_rewoundind %] checked [% END %]>
+	<label for="pref_forceHTTP">Show a "Rewound" indicator in the title for paused/rewound live radio</label>
+	[% END %]	
+
 	<br/>
 	[% WRAPPER setting title="Now Playing Buttons" desc="" %]	
 	<input name="pref_nowPlayingActivityButtons" type="checkbox" [% IF prefs.pref_nowPlayingActivityButtons %] checked [% END %] >

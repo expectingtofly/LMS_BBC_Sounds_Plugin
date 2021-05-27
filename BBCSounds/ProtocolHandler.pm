@@ -158,7 +158,7 @@ sub new {
 	$song->pluginData( 'lastpos', 0 );
 
 	my $nowPlayingButtons = $prefs->get('nowPlayingActivityButtons');
-	$song->pluginData ( nowPlayingButtons => $nowPlayingButtons );
+	$song->pluginData( nowPlayingButtons => $nowPlayingButtons );
 
 	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  NowPlayingButtons $nowPlayingButtons ");
 
@@ -623,6 +623,7 @@ sub aodMetaData {
 
 sub liveMetaData {
 	my $self = shift;
+	my $isLive = shift;
 	my $client = ${*$self}{'client'};
 	my $v        = $self->vars;
 	my $song      = ${*$self}{'song'};
@@ -652,6 +653,12 @@ sub liveMetaData {
 					sub {
 						my $retMeta = shift;
 						main::DEBUGLOG && $log->is_debug && $log->debug('Setting Title to ' .$retMeta->{title});
+
+						#Ensure that it is known that we have rewound live
+						if ((!$isLive) && $prefs->get('rewoundind')) {
+							$retMeta->{title} = '<Rewound> ' . $retMeta->{title};
+						}
+
 						$song->pluginData( meta  => $retMeta );
 
 						#fix progress bar
@@ -717,7 +724,7 @@ sub explodePlaylist {
 			);
 		}
 	}else {
-	
+
 		$cb->([$uri]);
 	}
 
@@ -790,11 +797,11 @@ sub sysread {
 				$bail = 1;
 			}
 		}
-		
+
 		main::DEBUGLOG && $log->is_debug && $log->debug('Throttle '  . $v->{'nextThrottle'} . ' now ' . time());
 		if ( (!$bail) && ($v->{'nextThrottle'} > time()) ) {
 			main::INFOLOG && $log->is_info && $log->info('Throttle bail');
-			$bail = 1;			
+			$bail = 1;
 		}
 
 
@@ -821,7 +828,7 @@ sub sysread {
 					request => $request,
 					onBody => sub {
 						my $response = shift->response;
-						
+
 						#A Throttle to help with community firmware buffering problem.
 						$v->{'nextThrottle'} += $v->{'throttleInterval'};
 						main::DEBUGLOG && $log->is_debug && $log->debug('Next Throttle  will be : ' . $v->{'nextThrottle'} . ' Time Now  : ' . time());
@@ -844,12 +851,16 @@ sub sysread {
 
 						if ($props->{'isDynamic'}) {
 
+							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+							my $isNow = (Time::HiRes::time()-$edge) < 30;
+
 							# get the meta data for this live track if we don't have it yet.
-							$self->liveMetaData() if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+
+							$self->liveMetaData($isNow) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 
 							# check for live track if we are within striking distance of the live edge
-							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-							$self->liveTrackData() if (Time::HiRes::time()-$edge) < 30;
+							$self->liveTrackData() if $isNow;
+
 						} else {
 							$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 							$self->liveTrackData();
@@ -1399,6 +1410,7 @@ sub isRewind {
 		return;
 	}
 }
+
 
 sub isContainer {
 	my ( $class, $url ) = @_;
