@@ -77,6 +77,7 @@ sub init {
 	#                                                               |  |  |  |Function to call
 	#                                                               C  Q  T  F
 	Slim::Control::Request::addDispatch(['sounds','recentsearches'],[0, 0, 1, \&_recentSearchesCLI]);
+	Slim::Control::Request::addDispatch(['sounds','subscribeUnsubscribe'],[0, 0, 1, \&_subscribeCLI]);
 
 	Slim::Control::Request::addDispatch(['sounds', 'bookmark', '_urn'],[0, 1, 1, \&buttonBookmark]);
 
@@ -1165,8 +1166,12 @@ sub _parseContainerItem {
 	my $desc  = $podcast->{synopses}->{short};
 
 	my $pid = $podcast->{id};
+	my $urn = $podcast->{urn};
 
 	my $image =Plugins::BBCSounds::PlayManager::createIcon($podcast->{image_url});
+
+	my $isFollowed = _isFollowedActivity($podcast->{activities});
+	$isFollowed = 0 if (!(defined $isFollowed));
 
 	push @$menu,
 	  {
@@ -1174,6 +1179,12 @@ sub _parseContainerItem {
 		type        => 'link',
 		image        => $image,
 		url         => '',
+		itemActions => {
+			info => {
+				command     => ['sounds', 'subscribeUnsubscribe'],
+				fixedParams => { urn => $urn, isSubscribed => $isFollowed },
+			},
+		},
 		order 		=> 0,
 		passthrough => [
 			{
@@ -1762,10 +1773,117 @@ sub soundsInfoIntegration {
 	return \@$items;
 }
 
+
+sub _subscribeCLI {
+	my $request = shift;
+	my $client = $request->client;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_subscribeCLI");
+
+	# check this is the correct command.
+	if ($request->isNotCommand([['sounds'], ['subscribeUnsubscribe']])) {
+		$request->setStatusBadDispatch();
+		return;
+	}
+
+	my $items = [];
+
+	my $urn = $request->getParam('urn');
+
+	if (defined $request->getParam('isSubscribed')) {
+		my $isSubscribed = $request->getParam('isSubscribed');
+
+		if ($isSubscribed) {
+			push @$items,
+			  {
+				text => 'Unsubscribe',
+				actions => {
+					go => {
+						player => 0,
+						cmd    => ['sounds', 'subscribeUnsubscribe' ],
+						params => {
+							urn => $urn,
+							act => 'unfollow'
+						},
+					}
+				},
+				nextWindow => 'parent',
+			  };
+		} else {
+			push @$items,
+			  {
+				text => 'Subcribe',
+				actions => {
+					go => {
+						player => 0,
+						cmd    => ['sounds', 'subscribeUnsubscribe' ],
+						params => {
+							urn => $urn,
+							act => 'follow'
+						},
+					}
+				},
+				nextWindow => 'parent',
+			  };
+
+		}
+		$request->addResult('offset', 0);
+		$request->addResult('count', scalar @$items);
+		$request->addResult('item_loop', $items);
+		$request->setStatusDone;
+			
+	} else {
+		my $act = $request->getParam('act');
+		if ($act eq 'follow') {
+			Plugins::BBCSounds::ActivityManagement::createActivity(
+				sub {
+					my $result = shift;
+					$request->addResult($result);
+					$client->showBriefly(
+						{
+							line => [ $result, 'BBC Sounds' ],
+						}
+					);
+
+					$request->setStatusDone();
+				},
+				{
+					activitytype => 'subscribe',
+					urn          => $urn
+				}
+			);
+		} elsif ($act eq 'unfollow') {
+			Plugins::BBCSounds::ActivityManagement::deleteActivity(
+				sub {
+					my $result = shift;
+					$request->addResult($result);
+					$client->showBriefly(
+						{
+							line => [ $result, 'BBC Sounds' ],
+						}
+					);
+
+					$request->setStatusDone();
+				},
+				{
+					activitytype => 'subscribe',
+					urn          => $urn
+				}
+			);
+		} else {
+			$log->error("Unknown subscibe menu action");
+			$request->setStatusDone;
+		}
+	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_subscribeCLI");
+	return;
+}
+
 #This came from Mherger for managing the search history
 sub _recentSearchesCLI {
 	my $request = shift;
 	my $client = $request->client;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_recentSearchesCLI");
 
 	# check this is the correct command.
 	if ($request->isNotCommand([['sounds'], ['recentsearches']])) {
@@ -1824,6 +1942,8 @@ sub _recentSearchesCLI {
 	}
 
 	$request->setStatusDone;
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_recentSearchesCLI");
+	return;
 }
 
 
