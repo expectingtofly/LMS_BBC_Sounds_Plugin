@@ -500,20 +500,19 @@ sub getPersonalisedPage {
 	my $callurl  = "";
 	my $cacheIt = 1;
 
+	my $offset = '';
+	if (defined $passDict->{'offset'}) {
+		$offset = '?offset='. $passDict->{'offset'};
+	}
+
 	if ( $menuType eq 'latest' ) {
-		my $offset = '';
-		if (defined $passDict->{'offset'}) {
-			$offset = '?offset='. $passDict->{'offset'};
-		}
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/follows/playable' . $offset;
 	}elsif ( $menuType eq 'subscribed' ) {
-		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows';
+		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/follows' . $offset;
 	}elsif ( $menuType eq 'bookmarks' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable';
-	}elsif ( $menuType eq 'recommended' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/favourites/playable' . $offset;
 	}elsif ( $menuType eq 'continue' ) {
-		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable';
+		$callurl = 'https://rms.api.bbc.co.uk/v2/my/programmes/plays/playable' . $offset;
 	}
 
 	my $menu        = [];
@@ -1830,7 +1829,7 @@ sub _subscribeCLI {
 		$request->addResult('count', scalar @$items);
 		$request->addResult('item_loop', $items);
 		$request->setStatusDone;
-			
+
 	} else {
 		my $act = $request->getParam('act');
 		if ($act eq 'follow') {
