@@ -94,14 +94,25 @@ my $getStartOffset = { 'aac' => \&Plugins::BBCSounds::M4a::getStartOffset };
 sub canDoAction {
 	my ( $class, $client, $url, $action ) = @_;
 
-	main::INFOLOG && $log->is_info && $log->info("action=$action");
-	if ( $action eq 'pause' ) {
-		if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
+	main::INFOLOG && $log->is_info && $log->info("action=$action url=$url");
+
+	if (!( ($class->isLive($url) || $class->isRewind($url)) )) { #an AOD stream
+		if ( $action eq 'pause' ) {
 			Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($url),Plugins::BBCSounds::ProtocolHandler->getPid($url),'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
 		}
-	}
+		if ($action eq 'rew') { #skip back to start of track
+			if ( $class->getLastPos($url) > 0) { #if this is a resume at last pos, we want to skip back to the start,not the resume point
+				my $song = $client->playingSong();
+				my $props = $song->pluginData('props');
 
-	if ($class->isLive($url)) {
+				# Set a temporary variable so that the start offset can be ignored if they have skipped back to the start of the track.
+				$props->{_ignoreResumePoint} = 1;
+				$song->pluginData( props   => $props );
+				main::INFOLOG && $log->is_info && $log->info("Allowing skip back to zero on resumed tracks");
+				return 1;
+			}
+		}
+	}elsif ($class->isLive($url)) {
 		if ($action eq 'stop') { #skip to next track
 			 #only allow skiping if we have an end number and it is in the past
 			my $song = $client->playingSong();
@@ -186,6 +197,14 @@ sub new {
 				$props->{isContinue} = 0;
 				$song->pluginData( props   => $props );
 				return;
+			}
+		}else {
+			if ($props->{_ignoreResumePoint}) {
+
+				# we have skipped back when there is a resume point. clear it and set start time to zero
+				$startTime = 0;
+				$props->{_ignoreResumePoint} = 0;
+				$song->pluginData( props   => $props );
 			}
 		}
 
