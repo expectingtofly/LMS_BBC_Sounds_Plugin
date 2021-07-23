@@ -129,9 +129,16 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 8,
-			}
-
+				order => 9,
+			},
+			{
+				name        => 'Podcasts',
+				type        => 'link',
+				url         => '',
+				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+				passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
+				order       => 7,
+			},
 		];
 
 		if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
@@ -214,7 +221,7 @@ sub toplevel {
 						type  => 'link',
 						image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 						items => $submenu,
-						order => 7,
+						order => 8,
 					  };
 				}
 
@@ -327,6 +334,9 @@ sub getPage {
 	}elsif ( $menuType eq 'tleo' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=-release_date&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
+	}elsif ( $menuType eq 'inlineURN' ) {		
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/'.  $passDict->{'urn'}. '?&offset='. $passDict->{'offset'};
+		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
@@ -365,6 +375,8 @@ sub getPage {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
 	}elsif ( $menuType eq 'stationfeatured' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/networks/' . $passDict->{'stationid'} . '/promos/playable';
+	}elsif ( $menuType eq 'podcasts' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/speech';
 	}else {
 		$log->error("Invalid menu selection");
 	}
@@ -900,9 +912,12 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
 		_createOffset( $JSON, $passthrough, $menu );
-	}elsif( $optstr eq 'categories' )  {
+	}elsif ( $optstr eq 'categories' )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseCategories( $JSON->{data}, $menu );
+	}elsif ( $optstr eq 'podcasts' ) {
+		my $JSON = decode_json ${ $http->contentRef };
+		_parsePodcasts( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'childcategories' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseChildCategories( $JSON, $menu );
@@ -910,6 +925,11 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseStationlist( _getDataNode( $JSON->{data}, 'promoted_stations' ),$menu );
 		_parseStationlist( _getDataNode( $JSON->{data}, 'local_stations' ),$menu );
+	}elsif ( $optstr eq 'inlineURN') {
+		my $JSON = decode_json ${ $http->contentRef };
+		my $node = _getNode( $JSON->{data}, 'container_list' );
+		_parseItems($node->{data},$menu );
+		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
@@ -939,6 +959,22 @@ sub _getDataNode {
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getDataNode");
 	return $item;
+}
+
+
+sub _getNode {
+	my $json = shift;
+	my $id   = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getNode");
+
+	my $item = [];
+
+	for my $top (@$json) {
+		if ( $top->{id} eq $id ) {
+			return $top;
+		}
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getNode");	
 }
 
 
@@ -1230,6 +1266,61 @@ sub _parseCategories {
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseCategories");
+	return;
+}
+
+
+sub _parsePodcasts {
+	my $jsonData = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parsePodcasts");
+
+	for my $podline (@$jsonData) {
+		_InlineMenuCreator($podline, $menu);
+	}
+
+	return;
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parsePodcasts");
+
+}
+
+
+sub _InlineMenuCreator {
+	my $menuInline = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_InlineMenuCreator");
+	if ($menuInline->{type} eq 'inline_display_module') {
+		if ($menuInline->{uris}) {			
+			push @$menu,
+			  {
+				name        =>  $menuInline->{title},
+				type        => 'link',
+				url         => '',
+				passthrough => [
+					{
+						type     => 'inlineURN',
+						urn => $menuInline->{controls}->{navigation}->{target}->{urn},
+						offset   => 0,
+						codeRef  => 'getPage'
+					}
+				]
+			  };
+		} else {
+
+			#we can place it inline
+			my $submenu = [];
+			_parseItems( $menuInline->{data}, $submenu );
+
+
+			push @$menu,{
+				name  =>  $menuInline->{title},
+				type  => 'link',
+				items => $submenu,
+
+			};
+		}
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_InlineMenuCreator");
 	return;
 }
 
