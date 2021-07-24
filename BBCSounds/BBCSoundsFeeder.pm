@@ -100,11 +100,11 @@ sub toplevel {
 	$fetch = sub {
 		$menu = [
 			{
-				name        => 'Music Mixes',
+				name        => 'Music',
 				type        => 'link',
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
-				passthrough => [ { type => 'mixes', codeRef => 'getSubMenu' } ],
+				passthrough => [ { type => 'music', codeRef => 'getPage' } ],
 				order       => 6,
 			},
 			{
@@ -129,9 +129,16 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 8,
-			}
-
+				order => 9,
+			},
+			{
+				name        => 'Podcasts',
+				type        => 'link',
+				url         => '',
+				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+				passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
+				order       => 7,
+			},
 		];
 
 		if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
@@ -214,7 +221,7 @@ sub toplevel {
 						type  => 'link',
 						image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 						items => $submenu,
-						order => 7,
+						order => 8,
 					  };
 				}
 
@@ -327,6 +334,9 @@ sub getPage {
 	}elsif ( $menuType eq 'tleo' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=-release_date&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
+	}elsif ( $menuType eq 'inlineURN' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/'.  $passDict->{'urn'}. '?&offset='. $passDict->{'offset'};
+		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
 		$denominator = $passDict->{'category'};
@@ -352,9 +362,7 @@ sub getPage {
 	}elsif ( $menuType eq 'searchall' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
-		$cacheIt = 0;
-	}elsif ( $menuType eq 'mixes' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/tagged/'. $passDict->{'tag'}. '/playable?experience=domestic';
+		$cacheIt = 0;	
 	}elsif ( $menuType eq 'categories' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/categories/container?kind='. $passDict->{'categorytype'};
 	}elsif ( $menuType eq 'childcategories' ) {
@@ -365,6 +373,10 @@ sub getPage {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
 	}elsif ( $menuType eq 'stationfeatured' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/networks/' . $passDict->{'stationid'} . '/promos/playable';
+	}elsif ( $menuType eq 'podcasts' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/speech';
+	}elsif ( $menuType eq 'music' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/music';
 	}else {
 		$log->error("Invalid menu selection");
 	}
@@ -725,79 +737,6 @@ sub getSubMenu {
 			}
 
 		];
-	}elsif ( $menuType eq 'mixes' ) {
-		$menu = [
-			{
-				name        => 'Fresh New Music',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'mixes',
-						tag     => 'fresh_new_music',
-						codeRef => 'getPage'
-					}
-				],
-			},
-			{
-				name => 'Music to Chill to',
-				type => 'link',
-				url  => \&getPage,
-				passthrough =>[ { type => 'mixes', tag => 'chill', codeRef => 'getPage' } ],
-			},
-			{
-				name        => 'Dance Music',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'mixes',
-						tag     => 'dance',
-						page    => '1',
-						codeRef => 'getPage'
-					}
-				],
-			},
-			{
-				name        => 'Feel Good Tunes',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'mixes',
-						tag     => 'feel_good_tunes',
-						page    => '1',
-						codeRef => 'getPage'
-					}
-				],
-			},
-			{
-				name        => 'Music to Focus to',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'mixes',
-						tag     => 'focus',
-						page    => '1',
-						codeRef => 'getPage'
-					}
-				],
-			},
-			{
-				name        => 'Greatest Hits',
-				type        => 'link',
-				url         => \&getPage,
-				passthrough => [
-					{
-						type    => 'mixes',
-						tag     => 'greatest_hits',
-						page    => '1',
-						codeRef => 'getPage'
-					}
-				],
-			},
-		];
 	}
 
 	$callback->( { items => $menu } );
@@ -885,9 +824,6 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'container_search' ), $menu );
 		_parseItems( _getDataNode( $JSON->{data}, 'playable_search' ),  $menu );
-	}elsif ( $optstr eq 'mixes' ) {
-		my $JSON = decode_json ${ $http->contentRef };
-		_parseItems( $JSON->{data}, $menu );
 	}elsif (( $optstr eq 'tleo' )
 		|| ( $optstr eq 'container' )
 		|| ( $optstr eq 'latest' )
@@ -900,9 +836,13 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
 		_createOffset( $JSON, $passthrough, $menu );
-	}elsif( $optstr eq 'categories' )  {
+	}elsif ( $optstr eq 'categories' )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseCategories( $JSON->{data}, $menu );
+	}elsif (( $optstr eq 'podcasts' )
+		|| ( $optstr eq 'music' )) {
+		my $JSON = decode_json ${ $http->contentRef };
+		_parseInline( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'childcategories' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseChildCategories( $JSON, $menu );
@@ -910,6 +850,11 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseStationlist( _getDataNode( $JSON->{data}, 'promoted_stations' ),$menu );
 		_parseStationlist( _getDataNode( $JSON->{data}, 'local_stations' ),$menu );
+	}elsif ( $optstr eq 'inlineURN') {
+		my $JSON = decode_json ${ $http->contentRef };
+		my $node = _getNode( $JSON->{data}, 'container_list' );
+		_parseItems($node->{data},$menu );
+		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
@@ -939,6 +884,22 @@ sub _getDataNode {
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getDataNode");
 	return $item;
+}
+
+
+sub _getNode {
+	my $json = shift;
+	my $id   = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getNode");
+
+	my $item = [];
+
+	for my $top (@$json) {
+		if ( $top->{id} eq $id ) {
+			return $top;
+		}
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_getNode");
 }
 
 
@@ -1157,24 +1118,58 @@ sub _createOffset {
 
 
 sub _parseContainerItem {
-	my $podcast = shift;
+	my $JSON = shift;
 	my $menu    = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseContainerItem");
 
-	my $title = $podcast->{titles}->{primary};
-	my $desc  = $podcast->{synopses}->{short};
+	my $title = $JSON->{titles}->{primary};
+	my $desc  = $JSON->{synopses}->{short};
 
-	my $pid = $podcast->{id};
-	my $urn = $podcast->{urn};
+	if ($desc) {
+		$title .= ' - ' . $desc;
+	}
 
-	my $image =Plugins::BBCSounds::PlayManager::createIcon($podcast->{image_url});
+	my $pid = $JSON->{id};
+	my $urn = $JSON->{urn};
 
-	my $isFollowed = _isFollowedActivity($podcast->{activities});
+	my $image =Plugins::BBCSounds::PlayManager::createIcon($JSON->{image_url});
+
+	my $isFollowed = _isFollowedActivity($JSON->{activities});
 	$isFollowed = 0 if (!(defined $isFollowed));
+
+	my $passthrough = [
+		{
+			type    => 'tleo',
+			filter  => 'container=' . $pid,
+			offset  => 0,
+			codeRef => 'getPage'
+		}
+	];
+
+	#check that the item is a normal container not a tag
+	if ( $urn =~ /:tag:/) {
+		$passthrough = [
+			{
+				type    => 'inlineURN',
+				urn  => $urn,
+				offset  => 0,
+				codeRef => 'getPage'
+			}
+		];
+	}elsif ( $urn =~ /:category:/) {
+		$passthrough = [
+			{
+				type    => 'inlineURN',
+				urn  => $urn,
+				offset  => 0,
+				codeRef => 'getPage'
+			}
+		];
+	}
 
 	push @$menu,
 	  {
-		name        => $title . ' - ' . $desc,
+		name        => $title,
 		type        => 'link',
 		image        => $image,
 		url         => '',
@@ -1185,14 +1180,7 @@ sub _parseContainerItem {
 			},
 		},
 		order 		=> 0,
-		passthrough => [
-			{
-				type    => 'tleo',
-				filter  => 'container=' . $pid,
-				offset  => 0,
-				codeRef => 'getPage'
-			}
-		],
+		passthrough => $passthrough,
 	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseContainerItem");
@@ -1230,6 +1218,60 @@ sub _parseCategories {
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseCategories");
+	return;
+}
+
+
+sub _parseInline {
+	my $jsonData = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseInline");
+
+	for my $podline (@$jsonData) {
+		_InlineMenuCreator($podline, $menu);
+	}
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseInline");
+	return;
+}
+
+
+sub _InlineMenuCreator {
+	my $menuInline = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_InlineMenuCreator");
+	if ($menuInline->{type} eq 'inline_display_module') {
+		if ($menuInline->{uris}) {
+			push @$menu,
+			  {
+				name        =>  $menuInline->{title},
+				type        => 'link',
+				url         => '',
+				passthrough => [
+					{
+						type     => 'inlineURN',
+						urn => $menuInline->{controls}->{navigation}->{target}->{urn},
+						offset   => 0,
+						codeRef  => 'getPage'
+					}
+				]
+			  };
+		} else {
+
+			#we can place it inline
+			my $submenu = [];
+			_parseItems( $menuInline->{data}, $submenu );
+
+
+			push @$menu,{
+				name  =>  $menuInline->{title},
+				type  => 'link',
+				items => $submenu,
+
+			};
+		}
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_InlineMenuCreator");
 	return;
 }
 
