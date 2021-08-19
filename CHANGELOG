@@ -1,0 +1,128 @@
+2.20.0
+Favourites support for Programmes/series in LMS 8.2.0
+
+2.19.0 
+New Podcast/Music Menus. Bugfix.
+
+2.18.1
+Bugfix : Paging of "My Sounds" Subscriptions & Bookmarks
+
+2.18.0
+Subscribe/Unsubscribe context menu for series/podcasts
+
+2.17.3
+"Rewound" indicator on pause/rewind of live radio
+
+2.17.1
+Back-out of info menu
+
+2.17.0
+BBC Programmes page from info menu
+
+2.16.1
+Bug fix
+
+2.16.0
+Station Highlights menu
+
+2.15.0
+Option to make playable programme menu item immediately playable without entering the sub-menu
+
+2.14.0
+Bookmark and Subscribe button on now playing controller screens
+
+2.13.4
+Minor bug fixes
+
+2.13.3
+Material Icon compatibility
+
+2.13.0
+Menu Improvement. Bookmark from info menu
+
+2.12.0
+Streaming Improvements, including HTTPS by default
+
+2.11.0
+Added fully flexible now playing display preferences + bugfixes
+
+2.10.1
+Bugfixes
+
+2.10.0
+Search History Added. Preference/Settings screen overhaul.
+
+2.9.1
+Bug fixes
+
+2.9.0
+Better AOD availability for recent programmes through live rewind fallback. Tracklist times.
+
+2.8.1
+Minor Bug Fix
+
+2.8.0
+Synopses on Play menu; Track Info Display Preferences; Tracklist on Info Menu
+
+2.7.2
+Track info preferences; Bugfixes
+
+2.7.1
+Bug fixes
+
+2.7.0 
+Tracklists and BBC Url compatibility
+
+2.6.8 
+Bugfixes
+
+2.6.7 
+Added menu preferences
+
+2.6.5 
+Improved Category Browsing; Improved now playing info. Spotty Integration
+
+2.6.0 
+Now Playing track info on live and catch up
+
+2.5.2 
+Bugfixes
+
+2.5.0 
+Live Stations with current live programme as a seekable 'track'
+
+2.1.1 
+Bugfixes
+
+2.1.0 
+Added BBC Sounds to the global search. Ability to unsubscribe or remove bookmark.
+
+2.0.2 
+Bugfixes
+
+2.0.0 
+Audio now handled from the plugin. "Continue Listening" Implemented
+
+1.1.0 
+Performance improvement for menus. Sub categories introduces to category browsing
+
+1.0.0 
+Stable version following beta test. Includes a number of minor bug fixes since the previous version
+
+0.2.6 
+Fixed the paging issues when greater than 30 items in a menu. Changed sign-in to be completely in the setting page
+
+0.2.5 
+Added the ability to subscribe/bookmark. Station schedules with 30 day schedules. New improved search
+
+0.1.4 
+Minor update to reorder the menus to fix the offset issue after sign in (and promote the "My Sounds" option nearer the top of the menu)
+
+0.1.3 
+Included BBC Account authentication and session management providing access to "My sounds" and associated curated content
+
+0.0.2 
+Amended source of featured "Podcasts & More" section to match that of the BBC sounds app
+
+0.0.1 
+Initial Beta Release
