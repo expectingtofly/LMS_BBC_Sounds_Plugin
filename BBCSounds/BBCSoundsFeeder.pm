@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
-# Copyright (C) 2020 mcleanexpectingtofly
+# Copyright (C) 2020 stu@expectingtofly.co.uk
 #
 # This file is part of LMS_BBC_Sounds_Plugin.
 #
@@ -111,6 +111,8 @@ sub toplevel {
 				name => 'My Sounds',
 				type => 'link',
 				url  => '',
+				favorites_url => 'soundslist://_MYSOUNDS',
+				favorites_type	=> 'link',
 				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
@@ -1146,6 +1148,8 @@ sub _parseContainerItem {
 		}
 	];
 
+	my $favouritesUrl = 'soundslist://_CONTAINER_' . $pid;
+
 	#check that the item is a normal container not a tag
 	if ( $urn =~ /:tag:/) {
 		$passthrough = [
@@ -1156,7 +1160,9 @@ sub _parseContainerItem {
 				codeRef => 'getPage'
 			}
 		];
-	}elsif ( $urn =~ /:category:/) {
+		$favouritesUrl = '';
+
+	} elsif ( $urn =~ /:category:/) {
 		$passthrough = [
 			{
 				type    => 'inlineURN',
@@ -1165,6 +1171,7 @@ sub _parseContainerItem {
 				codeRef => 'getPage'
 			}
 		];
+		$favouritesUrl = '';
 	}
 
 	push @$menu,
@@ -1173,6 +1180,8 @@ sub _parseContainerItem {
 		type        => 'link',
 		image        => $image,
 		url         => '',
+		favorites_url => $favouritesUrl,
+		favorites_type	=> 'link',
 		itemActions => {
 			info => {
 				command     => ['sounds', 'subscribeUnsubscribe'],
