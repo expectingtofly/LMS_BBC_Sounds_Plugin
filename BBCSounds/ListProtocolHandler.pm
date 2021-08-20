@@ -36,6 +36,7 @@ sub explodePlaylist {
 	my ( $class, $client, $url, $cb ) = @_;
 
 	if ($main::VERSION lt '8.2.0') {
+		$log->warn("BBC Sounds Favourites only supported in LMS 8.2.0 and greater");
 		$cb->(['BBC Sounds Favourites require LMS 8.2.0 or greater']);
 		return;
 	}
