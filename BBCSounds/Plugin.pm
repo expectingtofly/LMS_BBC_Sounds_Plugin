@@ -29,6 +29,7 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Plugins::BBCSounds::BBCSoundsFeeder;
 use Plugins::BBCSounds::ProtocolHandler;
+use Plugins::BBCSounds::ListProtocolHandler;
 
 my $log = Slim::Utils::Log->addLogCategory(
 	{
