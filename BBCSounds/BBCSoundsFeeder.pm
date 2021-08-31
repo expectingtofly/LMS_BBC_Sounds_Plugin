@@ -113,6 +113,7 @@ sub toplevel {
 				url  => '',
 				favorites_url => 'soundslist://_MYSOUNDS',
 				favorites_type	=> 'link',
+				playlist => 'soundslist://_MYSOUNDS',
 				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
@@ -1182,6 +1183,7 @@ sub _parseContainerItem {
 		url         => '',
 		favorites_url => $favouritesUrl,
 		favorites_type	=> 'link',
+		playlist => $favouritesUrl,
 		itemActions => {
 			info => {
 				command     => ['sounds', 'subscribeUnsubscribe'],
