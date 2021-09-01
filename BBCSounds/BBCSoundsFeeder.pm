@@ -113,6 +113,7 @@ sub toplevel {
 				url  => '',
 				favorites_url => 'soundslist://_MYSOUNDS',
 				favorites_type	=> 'link',
+				playlist => 'soundslist://_MYSOUNDS',
 				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
 				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
 				order => 2,
@@ -364,7 +365,7 @@ sub getPage {
 	}elsif ( $menuType eq 'searchall' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. $searchstr;
-		$cacheIt = 0;	
+		$cacheIt = 0;
 	}elsif ( $menuType eq 'categories' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/categories/container?kind='. $passDict->{'categorytype'};
 	}elsif ( $menuType eq 'childcategories' ) {
@@ -1182,6 +1183,7 @@ sub _parseContainerItem {
 		url         => '',
 		favorites_url => $favouritesUrl,
 		favorites_type	=> 'link',
+		playlist => $favouritesUrl,
 		itemActions => {
 			info => {
 				command     => ['sounds', 'subscribeUnsubscribe'],
@@ -1239,7 +1241,7 @@ sub _parseInline {
 	for my $podline (@$jsonData) {
 		_InlineMenuCreator($podline, $menu);
 	}
-	
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseInline");
 	return;
 }
