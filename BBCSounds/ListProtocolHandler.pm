@@ -23,6 +23,7 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
 use Plugins::BBCSounds::BBCSoundsFeeder;
+use Plugins::BBCSounds::SessionManagement;
 
 Slim::Player::ProtocolHandlers->registerHandler('soundslist', __PACKAGE__);
 
@@ -31,6 +32,7 @@ my $log = logger('plugin.bbcsounds');
 sub canDirectStream { 0 }
 sub contentType { 'BBCSounds' }
 sub isRemote { 1 }
+
 
 sub explodePlaylist {
 	my ( $class, $client, $url, $cb ) = @_;
@@ -43,13 +45,28 @@ sub explodePlaylist {
 
 	my $type = _gettype($url);
 
-    if ($type eq 'MYSOUNDS') {
-        Plugins::BBCSounds::BBCSoundsFeeder::getSubMenu(undef, $cb, undef, {type => 'mysounds'});        
-    } elsif ($type = 'CONTAINER') {
-        my $pid = _getpid($url);
-        Plugins::BBCSounds::BBCSoundsFeeder::getPage(undef, $cb, undef, {type    => 'tleo',	filter  => 'container=' . $pid,	offset  => 0});
-    }	
+	if ($type eq 'MYSOUNDS') {
+
+		Plugins::BBCSounds::BBCSoundsFeeder::getSubMenu(undef, $cb, undef, {type => 'mysounds'});
+
+	} elsif ($type = 'CONTAINER') {
+
+		my $pid = _getpid($url);
+
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				Plugins::BBCSounds::BBCSoundsFeeder::getPage(undef, $cb, undef, {type    => 'tleo',	filter  => 'container=' . $pid,	offset  => 0});
+			},
+			sub {
+				$log->warn("Failed to renew session to retreive series from favourites");
+			}
+		);
+
+	}
+	
+	return;
 }
+
 
 sub _gettype {
 	my $url  = shift;
@@ -57,6 +74,7 @@ sub _gettype {
 	my @types  = split /_/x, $url;
 	return @types[1];
 }
+
 
 sub _getpid {
 	my $url  = shift;
