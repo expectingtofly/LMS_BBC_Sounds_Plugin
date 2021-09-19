@@ -1387,7 +1387,8 @@ sub _getPlayableItemMenu {
 		$playLabel  = ' - ' . $progress->{label};
 	}
 
-	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_0';
+	my $soundsResumeUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivityWrapper';
@@ -1399,7 +1400,7 @@ sub _getPlayableItemMenu {
 	  {
 		name        => $booktype,
 		type        => 'link',
-		order 		=> 3,
+		order 		=> 4,
 		url         => '',
 		image       => Plugins::BBCSounds::Utilities::IMG_BOOKMARK,
 		passthrough => [
@@ -1422,7 +1423,7 @@ sub _getPlayableItemMenu {
 		  {
 			name        => $subtype,
 			type        => 'link',
-			order 		=> 4,
+			order 		=> 5,
 			url         => '',
 			image       => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 			passthrough => [
@@ -1436,7 +1437,7 @@ sub _getPlayableItemMenu {
 		push @$menu, {
 			name        => 'All Episodes',
 			type        => 'link',
-			order 		=> 2,
+			order 		=> 3,
 			url         => '',
 			image       => Plugins::BBCSounds::Utilities::IMG_EPISODES,
 			passthrough => [
@@ -1454,7 +1455,7 @@ sub _getPlayableItemMenu {
 	push @$menu, {
 		name        => 'Tracklist',
 		type        => 'link',
-		order 		=> 5,
+		order 		=> 6,
 		url         => '',
 		image       => Plugins::BBCSounds::Utilities::IMG_TRACKS,
 		passthrough => [
@@ -1482,7 +1483,7 @@ sub _getPlayableItemMenu {
 		push @$menu,
 		  {
 			name => 'Synopsis',
-			order => 6,
+			order => 7,
 			image => Plugins::BBCSounds::Utilities::IMG_SYNOPSIS,
 			items => [
 				{
@@ -1497,7 +1498,7 @@ sub _getPlayableItemMenu {
 	if (defined $item->{availability}) {
 		push @$menu,
 		  {
-			name => 'Play' . $playLabel,
+			name => 'Play',
 			url  => $soundsUrl,
 			image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
 			icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
@@ -1506,6 +1507,20 @@ sub _getPlayableItemMenu {
 			passthrough => [ {} ],
 			on_select   => 'play',
 		  };
+
+		if ($timeOffset) {
+			push @$menu,
+			  {
+				name => 'Resume' . $playLabel,
+				url  => $soundsResumeUrl,
+				image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
+				icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
+				type => 'audio',
+				order => 2,
+				passthrough => [ {} ],
+				on_select   => 'play',
+			  };
+		}
 
 	} else {
 
