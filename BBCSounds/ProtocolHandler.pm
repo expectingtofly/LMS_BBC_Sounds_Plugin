@@ -357,6 +357,10 @@ sub songBytes { }
 
 sub canSeek { 1 }
 
+sub audioScrobblerSource {
+	# R (radio source)
+	return 'R';
+}
 
 sub getSeekData {
 	my ( $class, $client, $song, $newtime ) = @_;
