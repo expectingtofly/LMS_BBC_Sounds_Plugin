@@ -358,6 +358,13 @@ sub songBytes { }
 sub canSeek { 1 }
 
 
+sub audioScrobblerSource {
+
+	# R (radio source)
+	return 'R';
+}
+
+
 sub getSeekData {
 	my ( $class, $client, $song, $newtime ) = @_;
 
@@ -458,34 +465,38 @@ sub liveTrackData {
 
 		#we only need to reset the title if we have gone forward 2
 		return if ($v->{'trackData'}->{chunkCounter} < 3);
-		$v->{'trackData'}->{awaitingCb} = 1;
 		$v->{'trackData'}->{isShowingTitle} = 0;
 		$v->{'trackData'}->{chunkCounter} = 1;
 
 
 		my $meta = $song->pluginData('meta');
+		my $oldmeta;
+		%$oldmeta = %$meta;
 		$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
 		$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
 		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
-		$song->pluginData( meta  => $meta );
 
-		my $cb = sub {
-			main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
-			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
-			$v->{'trackData'}->{awaitingCb} = 0;
-		};
+		if ( _isMetaDiff($meta, $oldmeta) ) {
+			$v->{'trackData'}->{awaitingCb} = 1;
+			$song->pluginData( meta  => $meta );
 
-		#the title will be set when the current buffer is done
-		Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
+			my $cb = sub {
+				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
+				Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+				$v->{'trackData'}->{awaitingCb} = 0;
+			};
+
+			#the title will be set when the current buffer is done
+			Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
+		}
 
 
-	}else{
+	} else {
+
 		#we only need to set the title if we have gone forward 4 chunks
 		return if $v->{'trackData'}->{chunkCounter} < 5;
-
-		$v->{'trackData'}->{awaitingCb} = 1;
 		$v->{'trackData'}->{isShowingTitle} = 1;
 		$v->{'trackData'}->{chunkCounter} = 1;
 
@@ -513,6 +524,9 @@ sub liveTrackData {
 			sub {
 				my $track = shift;
 				my $meta = $song->pluginData('meta');
+				my $oldmeta;
+				%$oldmeta = %$meta;
+
 				if ($track->{total} == 0) {
 
 					#nothing there
@@ -528,7 +542,11 @@ sub liveTrackData {
 					$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					$meta->{spotify} = '';
 
-					$song->pluginData( meta  => $meta );
+					if ( _isMetaDiff($meta, $oldmeta) ) {
+
+						$song->pluginData( meta  => $meta );
+
+					}
 
 					return;
 				} else {
@@ -550,7 +568,12 @@ sub liveTrackData {
 						$meta->{icon} =	 $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
-						$song->pluginData( meta  => $meta );
+
+						if ( _isMetaDiff($meta, $oldmeta) ) {
+
+							$song->pluginData( meta  => $meta );
+
+						}
 
 						return;
 					}
@@ -582,17 +605,21 @@ sub liveTrackData {
 					}
 					$meta->{spotify} = $spotifyId;
 
-					$song->pluginData( meta  => $meta );
+					if ( _isMetaDiff($meta, $oldmeta) ) {
 
-					main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
-					my $cb = sub {
-						main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
-						Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
-						$v->{'trackData'}->{awaitingCb} = 0;
-					};
+						$v->{'trackData'}->{awaitingCb} = 1;
+						$song->pluginData( meta  => $meta );
 
-					#the title will be set when the current buffer is done
-					Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
+						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
+						my $cb = sub {
+							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+							$v->{'trackData'}->{awaitingCb} = 0;
+						};
+
+						#the title will be set when the current buffer is done
+						Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
+					}
 
 				}
 			},
@@ -1854,6 +1881,26 @@ sub _getStationID {
 
 	my @stationid  = split /_LIVE_/x, $url;
 	return @stationid[1];
+}
+
+
+sub _isMetaDiff {
+	my $meta1 = shift;
+	my $meta2 = shift;
+
+	if (   ($meta1->{title} eq $meta2->{title})
+		&& ($meta1->{artist} eq $meta2->{artist})
+		&& ($meta1->{album} eq $meta2->{album})
+		&& ($meta1->{cover} eq $meta2->{cover})
+		&& ($meta1->{track} eq $meta2->{track})) {
+
+		return;
+
+	} else {
+
+		main::INFOLOG && $log->is_info && $log->info("Meta Data Changed");
+		return 1;
+	}
 }
 
 1;
