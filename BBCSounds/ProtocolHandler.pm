@@ -545,6 +545,16 @@ sub liveTrackData {
 					if ( _isMetaDiff($meta, $oldmeta) ) {
 
 						$song->pluginData( meta  => $meta );
+						$v->{'trackData'}->{awaitingCb} = 1;
+
+						my $cb = sub {
+							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+							$v->{'trackData'}->{awaitingCb} = 0;
+						};
+
+						#the title will be set when the current buffer is done
+						Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
 
 					}
 
@@ -570,8 +580,17 @@ sub liveTrackData {
 						$meta->{spotify} = '';
 
 						if ( _isMetaDiff($meta, $oldmeta) ) {
-
 							$song->pluginData( meta  => $meta );
+							$v->{'trackData'}->{awaitingCb} = 1;
+
+							my $cb = sub {
+								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+								$v->{'trackData'}->{awaitingCb} = 0;
+							};
+
+							#the title will be set when the current buffer is done
+							Slim::Music::Info::setDelayedCallback( $client, $cb, 'output-only' );
 
 						}
 
