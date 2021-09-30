@@ -732,6 +732,7 @@ sub liveMetaData {
 						  : ( $client->playingSong()->{startOffset} = $resp->{secondsIn} );
 						$client->master()->remoteStreamStartTime( Time::HiRes::time() - $resp->{secondsIn} );
 						$client->playingSong()->duration( $retMeta->{duration} );
+						$song->track->secs( $retMeta->{duration} );						
 
 						#we can now set the end point for this
 						$v->{'endOffset'} = $resp->{endOffset};
