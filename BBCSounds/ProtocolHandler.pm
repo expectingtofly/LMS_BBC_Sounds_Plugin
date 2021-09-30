@@ -1327,7 +1327,9 @@ sub getMetadataFor {
 
 		if (my $meta = $song->pluginData('meta')) {
 
-			$song->track->secs( $meta->{duration} );
+			if (!($class->isLive($url) || $class->isRewind($url))) {
+				$song->track->secs( $meta->{duration} );
+			}
 
 			if ($song->pluginData('nowPlayingButtons')) {
 				if ($meta->{containerUrn} ne '') {
