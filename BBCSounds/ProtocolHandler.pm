@@ -484,6 +484,7 @@ sub liveTrackData {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
+				Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 				Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 				$v->{'trackData'}->{awaitingCb} = 0;
 			};
@@ -549,6 +550,7 @@ sub liveTrackData {
 
 						my $cb = sub {
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
@@ -674,6 +676,7 @@ sub aodMetaData {
 			$retMeta->{'duration'} = $props->{'duration'};
 
 			$song->pluginData( meta  => $retMeta );
+			Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
 			$v->{'resetMeta'} = 0;
 			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 		},
@@ -746,6 +749,7 @@ sub liveMetaData {
 						#ensure plug in data up to date
 						$song->pluginData( props   => $props );
 
+						Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
 						Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );
 
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
