@@ -1819,7 +1819,25 @@ sub soundsInfoIntegration {
 				],
 			  };
 
+		} elsif (Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))  {
+
+			push @$items,
+			  {
+				name => 'Station Schedule',
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type         => 'stationsdayschedule',
+						stationid    => Plugins::BBCSounds::ProtocolHandler::_getStationID($url),
+						scheduledate => strftime( '%Y-%m-%d', localtime(time()) ),
+						codeRef      => 'getPage'
+					}
+				],
+			  };
+
 		}
+
 		my $song = Slim::Player::Source::playingSong($client);
 
 		#get the meta data
