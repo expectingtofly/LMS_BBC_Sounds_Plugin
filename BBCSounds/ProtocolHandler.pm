@@ -592,6 +592,7 @@ sub liveTrackData {
 							my $cb = sub {
 								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");								
 								$song->pluginData( meta  => $meta );
+								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 								$v->{'trackData'}->{awaitingCb} = 0;
 							};
@@ -640,6 +641,7 @@ sub liveTrackData {
 						my $cb = sub {					
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
 							$song->pluginData( meta  => $meta );
+							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
