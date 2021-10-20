@@ -1,3 +1,9 @@
+2.21.0
+Station Schedule from info menu for live radio.  Tighter precision for track data. SetCurrentTitle for assisting Alexa to report now playing.
+
+2.20.6
+Bugfixes to meta data
+
 2.20.4
 Expose audio scrobbling type.  Improvements to meta data refreshing.
 
