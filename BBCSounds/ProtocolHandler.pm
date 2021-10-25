@@ -541,8 +541,7 @@ sub liveTrackData {
 				if ($track->{total} == 0) {
 
 					#nothing there
-					$v->{'trackData'}->{trackPlaying} = 0;
-					$v->{'trackData'}->{awaitingCb} = 0;
+					$v->{'trackData'}->{trackPlaying} = 0;					
 					$meta->{track} = '';
 
 					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
