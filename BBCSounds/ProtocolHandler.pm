@@ -976,9 +976,8 @@ sub sysread {
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
 
 	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
-		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes );
-		$v->{'outBuf'} = substr( $v->{'outBuf'}, $bytes );
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});		
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );		
 
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
