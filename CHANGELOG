@@ -1,3 +1,9 @@
+2.21.2
+Bugfix and minor improvements (Fixed tracklist urls on info "more" menu, performance improvements)
+
+2.21.1
+Bugfix (missing call back flag)
+
 2.21.0
 Station Schedule from info menu for live radio.  Tighter precision for track data. SetCurrentTitle for assisting Alexa to report now playing.
 

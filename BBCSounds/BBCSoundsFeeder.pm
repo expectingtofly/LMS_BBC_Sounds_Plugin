@@ -1798,6 +1798,7 @@ sub soundsInfoIntegration {
 					{
 						type    => 'segments',
 						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
+						pid => Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
 						offset  => 0,
 						codeRef => 'getPage'
 					}
