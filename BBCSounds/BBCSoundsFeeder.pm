@@ -354,6 +354,8 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/search?q='. URI::Escape::uri_escape_utf8($searchstr);
 		$cacheIt = 0;
 		if (Plugins::BBCSounds::Utilities::hasRecentSearches != 1 ) { 	_removeCacheMenu('toplevel'); }    #make sure the new search menu appears at the top level to save confusion.
+	}elsif ( $menuType eq 'playqueue' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playqueue/' . $passDict->{'pid'};
 	}elsif ( $menuType eq 'searchshows' ) {
 		my $searchstr = URI::Escape::uri_escape_utf8( $passDict->{'query'} );
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/search/container?q='. $searchstr;
@@ -832,6 +834,7 @@ sub _parse {
 		|| ( $optstr eq 'latest' )
 		|| ( $optstr eq 'bookmarks' )
 		|| ( $optstr eq 'subscribed' )
+		|| ( $optstr eq 'playqueue' )
 		|| ( $optstr eq 'continue' )
 		|| ( $optstr eq 'searchepisodes')
 		|| ( $optstr eq 'searchshows' )
@@ -1787,7 +1790,8 @@ sub soundsInfoIntegration {
 	my $items = [];
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
-
+			my $id  = Plugins::BBCSounds::ProtocolHandler::getId(undef,$url);
+			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url);
 
 			push @$items,
 			  {
@@ -1797,8 +1801,24 @@ sub soundsInfoIntegration {
 				passthrough => [
 					{
 						type    => 'segments',
-						id => Plugins::BBCSounds::ProtocolHandler::getId(undef,$url),
-						pid => Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
+						id => $id,
+						pid => $pid,
+						offset  => 0,
+						codeRef => 'getPage'
+					}
+				],
+			  };			
+
+			push @$items,
+			  {
+				name => 'Next Episodes',
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type    => 'playqueue',
+						id => $id,
+						pid => $pid,
 						offset  => 0,
 						codeRef => 'getPage'
 					}
@@ -1814,7 +1834,7 @@ sub soundsInfoIntegration {
 				passthrough => [
 					{
 						activitytype => 'bookmark',
-						urn          => 'urn:bbc:radio:episode:' . Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url),
+						urn          => 'urn:bbc:radio:episode:' . $pid,
 						codeRef      => 'createActivityWrapper'
 					}
 				],
