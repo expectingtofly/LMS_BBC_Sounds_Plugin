@@ -617,6 +617,35 @@ sub getPidDataForMeta {
 }
 
 
+sub getNetworkTrackPollingInfo {
+	my $network = shift;	
+	my $cb  = shift;
+	my $cbError = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkTrackPollingInfo");
+
+	my $url = "https://rms.api.bbc.co.uk/v2/experience/inline/play/$network";
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };			
+			my $node = _getNode( $JSON->{data}, 'recent_tracks' );			
+			my $poll = $node->{uris}->{polling}->{wait_before_poll_sec};	
+			main::DEBUGLOG && $log->is_debug && $log->debug("Track Poll discovered as $poll seconds ");		
+			$cb->($poll);
+		},
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$cbError->();
+		}
+	)->get($url);
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getNetworkTrackPollingInfo");
+	return;
+}
+
+
 sub getLatestSegmentForNetwork {
 	my $network = shift;
 	my $cb  = shift;
