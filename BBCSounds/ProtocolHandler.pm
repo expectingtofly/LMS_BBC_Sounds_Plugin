@@ -249,7 +249,9 @@ sub new {
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
 				'isShowingTitle' => 1,   # indicates what cycle we are on
 				'awaitingCb' => 0,      #flag for callback on track data
-				'trackPlaying' => 0  #flag indicating meta data is showing track is playing
+				'trackPlaying' => 0,  #flag indicating meta data is showing track is playing
+				'pollTime' => 30,    #Track polling default every 30 seconds
+				'lastPoll' => $nextThrottle  #last time we polled				
 			},
 			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
 			'throttleInterval' => $throttleInterval,   #A value to delay making streaming data available to help the community firmware
@@ -465,11 +467,11 @@ sub liveTrackData {
 
 	if ($v->{'trackData'}->{isShowingTitle}) {
 
-		#we only need to reset the title if we have gone forward 2
-		if ($v->{'trackData'}->{chunkCounter} < 3) {
+		#we only need to reset the title if we have gone forward 3
+		if ($v->{'trackData'}->{chunkCounter} < 4) {
 			$v->{'trackData'}->{awaitingCb} = 0;
-			return;			
-		};
+			return;
+		}
 
 		$v->{'trackData'}->{isShowingTitle} = 0;
 		$v->{'trackData'}->{chunkCounter} = 1;
@@ -484,7 +486,7 @@ sub liveTrackData {
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 
-		if ( _isMetaDiff($meta, $oldmeta) ) {						
+		if ( _isMetaDiff($meta, $oldmeta) ) {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");				
@@ -492,19 +494,19 @@ sub liveTrackData {
 				Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 				Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 				$v->{'trackData'}->{awaitingCb} = 0;
-			};
+			};			
 
 			#the title will be set when the current buffer is done
 			Slim::Music::Info::setDelayedCallback( $client, $cb );
-		} else { 
+		} else {			
 			$v->{'trackData'}->{awaitingCb} = 0;
 		}
 
 
 	} else {
 
-		#we only need to set the title if we have gone forward 4 chunks
-		if ($v->{'trackData'}->{chunkCounter} < 5) {
+		#we only need to set the title if we have gone forward 3 chunks
+		if ($v->{'trackData'}->{chunkCounter} < 4) {
 			$v->{'trackData'}->{awaitingCb} = 0;
 			return;
 		}
@@ -515,21 +517,30 @@ sub liveTrackData {
 		my $props =  ${*$self}{'props'};
 
 		my $sub;
+		my $isLive;
 
 		if ($self->isLive($masterUrl) || $self->isRewind($masterUrl)) {
 			$sub = sub {
 				my $cbY = shift;
 				my $cbN = shift;
 				_getLiveTrack(_getStationID($masterUrl), $self->_timeFromOffset( $currentOffset, $props) - $self->_timeFromOffset($props->{virtualStartNumber},$props),$cbY,$cbN);
+				$v->{'trackData'}->{lastPoll} = time();
 			};
+			$isLive = 1; 
 		} else {
 			$sub = sub {
 				my $cbY = shift;
-				my $cbN = shift;				
+				my $cbN = shift;
 				_getAODTrack($self->getId($masterUrl), $self->_timeFromOffset( $currentOffset, $props),$cbY,$cbN);
+				$v->{'trackData'}->{lastPoll} = time();
 			};
+			$isLive = 0;
 		}
 
+		if ( $isLive && ((time() < ($v->{'trackData'}->{lastPoll} + $v->{'trackData'}->{pollTime})) || ($v->{'trackData'}->{pollTime} == 0)) ) {
+			$v->{'trackData'}->{awaitingCb} = 0;			
+			return;
+		}
 
 		$sub->(
 			sub {
@@ -541,7 +552,7 @@ sub liveTrackData {
 				if ($track->{total} == 0) {
 
 					#nothing there
-					$v->{'trackData'}->{trackPlaying} = 0;					
+					$v->{'trackData'}->{trackPlaying} = 0;
 					$meta->{track} = '';
 
 					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
@@ -561,10 +572,10 @@ sub liveTrackData {
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
-						#the title will be set when the current buffer is done
+						#the title will be set when the current buffer is done						
 						Slim::Music::Info::setDelayedCallback( $client, $cb );
 
-					} else {
+					} else {						
 						$v->{'trackData'}->{awaitingCb} = 0;
 					}
 
@@ -573,9 +584,9 @@ sub liveTrackData {
 
 					if (($self->isLive($masterUrl) || $self->isRewind($masterUrl)) && (($self->_timeFromOffset($props->{virtualStartNumber},$props) + $track->{data}[0]->{offset}->{start}) > $self->_timeFromOffset( $currentOffset, $props))) {
 
-						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");						
-						
-						$v->{'trackData'}->{trackPlaying} = 0;						
+						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
+
+						$v->{'trackData'}->{trackPlaying} = 0;
 						$meta->{track} = '';
 
 
@@ -586,20 +597,20 @@ sub liveTrackData {
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
 
-						if ( _isMetaDiff($meta, $oldmeta) ) {														
+						if ( _isMetaDiff($meta, $oldmeta) ) {
 
 							my $cb = sub {
-								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");								
+								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");							
 								$song->pluginData( meta  => $meta );
 								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 								$v->{'trackData'}->{awaitingCb} = 0;
 							};
 
-							#the title will be set when the current buffer is done
+							#the title will be set when the current buffer is done							
 							Slim::Music::Info::setDelayedCallback( $client, $cb );
 
-						} else {
+						} else {							
 							$v->{'trackData'}->{awaitingCb} = 0;
 						}
 
@@ -634,20 +645,20 @@ sub liveTrackData {
 					$meta->{spotify} = $spotifyId;
 
 					if ( _isMetaDiff($meta, $oldmeta) ) {
-						
+
 
 						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
-						my $cb = sub {					
-							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+						my $cb = sub {
+							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");							
 							$song->pluginData( meta  => $meta );
 							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
-						#the title will be set when the current buffer is done
+						#the title will be set when the current buffer is done						
 						Slim::Music::Info::setDelayedCallback( $client, $cb );
-					} else {
+					} else {						
 						$v->{'trackData'}->{awaitingCb} = 0;
 					}
 
@@ -657,7 +668,7 @@ sub liveTrackData {
 				# an error occured
 				$v->{'trackData'}->{isShowingTitle} = 1;
 				$v->{'trackData'}->{awaitingCb} = 0;
-				$v->{'trackData'}->{trackPlaying} = 0;				
+				$v->{'trackData'}->{trackPlaying} = 0;
 
 				$log->warn('Failed to retrieve live track data');
 			}
@@ -744,7 +755,7 @@ sub liveMetaData {
 						  : ( $client->playingSong()->{startOffset} = $resp->{secondsIn} );
 						$client->master()->remoteStreamStartTime( Time::HiRes::time() - $resp->{secondsIn} );
 						$client->playingSong()->duration( $retMeta->{duration} );
-						$song->track->secs( $retMeta->{duration} );						
+						$song->track->secs( $retMeta->{duration} );
 
 						#we can now set the end point for this
 						$v->{'endOffset'} = $resp->{endOffset};
@@ -762,6 +773,26 @@ sub liveMetaData {
 						Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );
 
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
+
+
+						#finally ensure polling is set up correctly
+						Plugins::BBCSounds::BBCSoundsFeeder::getNetworkTrackPollingInfo(
+							$station,
+							sub {
+								my $poll = shift;
+								if ($poll) {
+									$v->{'trackData'}->{'pollTime'} = $poll;
+								} else {
+									$v->{'trackData'}->{'pollTime'} = 0; # never poll
+								}
+								main::INFOLOG && $log->is_info && $log->info("Track Polling set to " . $v->{'trackData'}->{'pollTime'});
+							},
+							sub {
+								#Failed to get poll time, set it to zero
+								$v->{'trackData'}->{'pollTime'} = 0;
+								$log->warn("Failed polling setting to  " . $v->{'trackData'}->{'pollTime'});
+							}
+						);
 					},
 
 					#failed
@@ -976,8 +1007,8 @@ sub sysread {
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
 
 	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
-		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});		
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );		
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );
 
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
@@ -1671,13 +1702,13 @@ sub _getAODMeta {
 
 sub _getLiveTrack {
 	my $network = shift;
-	my $currentOffsetTime = shift;
+	my $currentOffsetTime = shift;	
 	my $cbY = shift;
 	my $cbN = shift;
 
 
 	if ( my $track = $cache->get("bs:track-$network") ) {
-		main::INFOLOG && $log->is_info && $log->info("Live track from cache $network");
+		main::INFOLOG && $log->is_info && $log->info("Live track from cache $network");		
 		$cbY->($track);
 	}else {
 		Plugins::BBCSounds::BBCSoundsFeeder::getLatestSegmentForNetwork(
@@ -1687,19 +1718,18 @@ sub _getLiveTrack {
 
 				if ($newTrack->{total} == 0){
 
-					#no live track on this network/programme at the moment,  let's cache for 3 minutes to give the polling a rest
-					$cache->set("bs:track-$network", $newTrack, 180);
-					main::INFOLOG && $log->is_info && $log->info("No track available caching status for 3 minutes");
+					#no live track on this network/programme at the moment
+
+					main::INFOLOG && $log->is_info && $log->info("No track available");					
 					$cbY->($newTrack);
 				}else{
 					my $cachetime =  $newTrack->{data}[0]->{offset}->{end} - $currentOffsetTime;
 					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
-					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
-					$newTrack->{total} = 0  if ($cachetime < 0);  #its old, and not playing any more.
+					
+					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);										
 					$newTrack->{total} = 0  if ($newTrack->{data}[0]->{offset}->{now_playing} == 0);  #for some reason it is set to not playing
 
-					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime");					
-					
+					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime Now Playing : " . $newTrack->{data}[0]->{offset}->{now_playing});					
 					$cbY->($newTrack);
 				}
 			},
@@ -1727,7 +1757,7 @@ sub _getAODTrack{
 			my $tracks = shift;
 			my $jsonData = $tracks->{data};
 			for my $track (@$jsonData) {
-				if ($currentOffsetTime >= $track->{offset}->{start}  && $currentOffsetTime < $track->{offset}->{end} ) {					
+				if ($currentOffsetTime >= $track->{offset}->{start}  && $currentOffsetTime < $track->{offset}->{end} ) {
 					main::INFOLOG && $log->is_info && $log->info("Identified track in schedule");
 					$cbY->({'total' => 1, 'data' => [$track]});
 					return;
