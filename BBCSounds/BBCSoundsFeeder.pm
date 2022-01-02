@@ -39,9 +39,12 @@ use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
 use Plugins::BBCSounds::Utilities;
+use Plugins::BBCSounds::WOTR;
 
 my $log = logger('plugin.bbcsounds');
 my $prefs = preferences('plugin.bbcsounds');
+
+my $isWOTR = Slim::Utils::PluginManager->isEnabled('Plugins::WhatsOnTheRadio::Plugin');
 
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
@@ -82,6 +85,15 @@ sub init {
 	Slim::Control::Request::addDispatch(['sounds', 'bookmark', '_urn'],[0, 1, 1, \&buttonBookmark]);
 
 	Slim::Control::Request::addDispatch(['sounds', 'subscribe', '_urn'],[0, 1, 1, \&buttonSubscribe]);
+
+	if ( Slim::Utils::PluginManager->isEnabled('Plugins::WhatsOnTheRadio::Plugin') ) {
+		Plugins::WhatsOnTheRadio::Plugin::addHandler(
+			{
+				handlerFunctionKey => 'bbcsounds',      #The key to the handler				
+				handlerSub =>  \&Plugins::BBCSounds::WOTR::getStationData          
+			}
+		);
+	}
 
 	_removeCacheMenu('toplevel'); #force remove
 }
@@ -475,6 +487,7 @@ sub getStationMenu {
 			name        => $NetworkDetails->{short_title} . ' LIVE',
 			type        => 'audio',
 			image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+			itemActions =>  getLiveItemActions($NetworkDetails->{short_title} , $stationid, 'sounds://_LIVE_'. $stationid),
 			url         => 'sounds://_LIVE_'. $stationid,
 			on_select   => 'play'
 		}
@@ -506,6 +519,27 @@ sub getStationMenu {
 	$callback->( { items => $menu } );
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getStationMenu");
 	return;
+}
+
+sub getLiveItemActions {
+	my $name = shift;
+	my $stationKey = shift;
+	my $url = shift;
+	if ($isWOTR) {
+		return '';
+	} else {
+		return  {
+			info => {
+				command     => ['wotr', 'addStation'],
+				fixedParams => {
+					name => $name,
+					stationKey => $stationKey,
+					url => $url,
+					handlerFunctionKey => 'bbcsounds'
+				}
+			},
+		};
+	}
 }
 
 
