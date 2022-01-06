@@ -496,8 +496,6 @@ sub getStationMenu {
 	if ($isRadioFavourites) {
 		$liveStation->{itemActions} = getLiveItemActions('BBC ' . $NetworkDetails->{short_title}, $stationid, 'sounds://_LIVE_'. $stationid);
 	}
-
-	main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($liveStation));
 	
 	push @$menu, $liveStation;
 	push @$menu, @$scheduleMenu;
