@@ -13,7 +13,7 @@ package Plugins::BBCSounds::BBCSoundsFeeder;
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
+#i
 # You should have received a copy of the GNU General Public License
 # along with LMS_BBC_Sounds_Plugin.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -39,12 +39,12 @@ use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::SessionManagement;
 use Plugins::BBCSounds::ActivityManagement;
 use Plugins::BBCSounds::Utilities;
-use Plugins::BBCSounds::WOTR;
+use Plugins::BBCSounds::RadioFavourites;
 
 my $log = logger('plugin.bbcsounds');
 my $prefs = preferences('plugin.bbcsounds');
 
-my $isWOTR = Slim::Utils::PluginManager->isEnabled('Plugins::WhatsOnTheRadio::Plugin');
+my $isRadioFavourites = 0;
 
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
@@ -86,13 +86,14 @@ sub init {
 
 	Slim::Control::Request::addDispatch(['sounds', 'subscribe', '_urn'],[0, 1, 1, \&buttonSubscribe]);
 
-	if ( Slim::Utils::PluginManager->isEnabled('Plugins::WhatsOnTheRadio::Plugin') ) {
-		Plugins::WhatsOnTheRadio::Plugin::addHandler(
+	if ( Slim::Utils::PluginManager->isEnabled('Plugins::RadioFavourites::Plugin') ) {
+		Plugins::RadioFavourites::Plugin::addHandler(
 			{
-				handlerFunctionKey => 'bbcsounds',      #The key to the handler				
-				handlerSub =>  \&Plugins::BBCSounds::WOTR::getStationData          
+				handlerFunctionKey => 'bbcsounds',      #The key to the handler
+				handlerSub =>  \&Plugins::BBCSounds::RadioFavourites::getStationData
 			}
 		);
+		$isRadioFavourites = 1;
 	}
 
 	_removeCacheMenu('toplevel'); #force remove
@@ -482,17 +483,23 @@ sub getStationMenu {
 
 	}
 
-	my $menu      = [
-		{
-			name        => $NetworkDetails->{short_title} . ' LIVE',
-			type        => 'audio',
-			image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
-			itemActions =>  getLiveItemActions($NetworkDetails->{short_title} , $stationid, 'sounds://_LIVE_'. $stationid),
-			url         => 'sounds://_LIVE_'. $stationid,
-			on_select   => 'play'
-		}
-	];
+	my $menu      = [];
+	
+	my $liveStation = {
+		name        => $NetworkDetails->{short_title} . ' LIVE',
+		type        => 'audio',
+		image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+		url         => 'sounds://_LIVE_'. $stationid,
+		on_select   => 'play'
+	};
+	
+	if ($isRadioFavourites) {
+		$liveStation->{itemActions} = getLiveItemActions('BBC ' . $NetworkDetails->{short_title}, $stationid, 'sounds://_LIVE_'. $stationid);
+	}
 
+	main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($liveStation));
+	
+	push @$menu, $liveStation;
 	push @$menu, @$scheduleMenu;
 	push @$menu,
 	  {
@@ -521,25 +528,22 @@ sub getStationMenu {
 	return;
 }
 
+
 sub getLiveItemActions {
 	my $name = shift;
 	my $stationKey = shift;
 	my $url = shift;
-	if ($isWOTR) {
-		return '';
-	} else {
-		return  {
-			info => {
-				command     => ['wotr', 'addStation'],
-				fixedParams => {
-					name => $name,
-					stationKey => $stationKey,
-					url => $url,
-					handlerFunctionKey => 'bbcsounds'
-				}
-			},
-		};
-	}
+	return  {
+		info => {
+			command     => ['radiofavourites', 'addStation'],
+			fixedParams => {
+				name => $name,
+				stationKey => $stationKey,
+				url => $url,
+				handlerFunctionKey => 'bbcsounds'
+			}
+		},
+	};
 }
 
 
@@ -652,7 +656,7 @@ sub getPidDataForMeta {
 
 
 sub getNetworkTrackPollingInfo {
-	my $network = shift;	
+	my $network = shift;
 	my $cb  = shift;
 	my $cbError = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getNetworkTrackPollingInfo");
@@ -662,10 +666,10 @@ sub getNetworkTrackPollingInfo {
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;
-			my $JSON = decode_json ${ $http->contentRef };			
-			my $node = _getNode( $JSON->{data}, 'recent_tracks' );			
-			my $poll = $node->{uris}->{polling}->{wait_before_poll_sec};	
-			main::DEBUGLOG && $log->is_debug && $log->debug("Track Poll discovered as $poll seconds ");		
+			my $JSON = decode_json ${ $http->contentRef };
+			my $node = _getNode( $JSON->{data}, 'recent_tracks' );
+			my $poll = $node->{uris}->{polling}->{wait_before_poll_sec};
+			main::DEBUGLOG && $log->is_debug && $log->debug("Track Poll discovered as $poll seconds ");
 			$cb->($poll);
 		},
 
@@ -1870,7 +1874,7 @@ sub soundsInfoIntegration {
 						codeRef => 'getPage'
 					}
 				],
-			  };			
+			  };
 
 			push @$items,
 			  {

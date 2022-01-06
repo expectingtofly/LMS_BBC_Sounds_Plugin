@@ -1,4 +1,4 @@
-package Plugins::BBCSounds::WOTR;
+package Plugins::BBCSounds::RadioFavourites;
 
 # Copyright (C) 2021 Stuart McLean stu@expectingtofly.co.uk
 
@@ -27,10 +27,16 @@ my $log = logger('plugin.bbcsounds');
 
 sub getStationData {
 	my ( $stationUrl, $stationKey, $stationName, $nowOrNext, $cbSuccess, $cbError) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getStationData");
 
 	if ($nowOrNext eq 'next') {
 		$log->error('Next not supported');
-		$cbError->($stationUrl);
+		$cbError->(
+				{
+					url       => $stationUrl,
+					stationName => $stationName
+				}
+			);
 		return;
 	}
 
