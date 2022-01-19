@@ -486,13 +486,11 @@ sub getStationMenu {
 	my $menu      = [];
 	
 	my $liveStation = {
-		name        	=> $NetworkDetails->{short_title} . ' LIVE',
-		type        	=> 'audio',
-		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
-		url         	=> 'sounds://_LIVE_'. $stationid,
-		favorites_url 	=> 'sounds://_LIVE_'. $stationid,
-		favorites_title => 'BBC ' . $NetworkDetails->{short_title},
-		on_select   	=> 'play'
+		name        => $NetworkDetails->{short_title} . ' LIVE',
+		type        => 'audio',
+		image        =>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($NetworkDetails->{logo_url}),
+		url         => 'sounds://_LIVE_'. $stationid,
+		on_select   => 'play'
 	};
 	
 	if ($isRadioFavourites) {

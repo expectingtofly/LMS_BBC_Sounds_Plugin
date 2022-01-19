@@ -93,17 +93,15 @@ sub setProperties {
 				if ( my $atom = parseAtoms( 'moov', $response->content, $args ) ) {
 					$props->{mp4a} =$atom->{'trak'}->{'mdia'}->{'minf'}->{'stbl'}->{'stsd'}->{'entries'}->{'mp4a'};
 					$song->track->bitrate( $props->{bitrate}|| $props->{mp4a}->{'esds'}->{'avgbitrate'} );
-					
-					my $sampleRate = $props->{'samplingRate'}|| $props->{mp4a}->{'samplerate'};
-					
 					if (!($props->{'hideSampleRate'})) {
-						$song->track->samplerate( $sampleRate );
+						$song->track->samplerate( $props->{'samplingRate'}|| $props->{mp4a}->{'samplerate'} );
 					}
 					$song->track->channels( $props->{'channels'}|| $props->{mp4a}->{'channelcount'} );
-					
-					if ( my $meta = $song->pluginData('meta') ) {					
-						$meta->{type} ='aac@' . $sampleRate . 'Hz';
-						$song->pluginData( meta  => $meta );
+
+					my $id = Plugins::BBCSounds::ProtocolHandler->getId($song->track()->url );
+					if ( my $meta = $cache->get("bs:meta-$id") ) {
+						$meta->{type} ='aac@' . $song->track->samplerate . 'Hz';
+						$cache->set( "bs:meta-$id", $meta );
 					}
 
 					$song->master->currentPlaylistUpdateTime(Time::HiRes::time() );
