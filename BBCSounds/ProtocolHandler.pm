@@ -695,6 +695,9 @@ sub aodMetaData {
 			my $props = ${*$self}{'props'};
 			$retMeta->{'duration'} = $props->{'duration'};
 
+			if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
+				$retMeta->{type} = $meta->{type};						
+			}			
 			$song->pluginData( meta  => $retMeta );
 			Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
 			$v->{'resetMeta'} = 0;
@@ -747,6 +750,10 @@ sub liveMetaData {
 							$retMeta->{title} = '<Rewound> ' . $retMeta->{title};
 						}
 
+						if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
+							$retMeta->{type} = $meta->{type};						
+						}
+						
 						$song->pluginData( meta  => $retMeta );
 
 						#fix progress bar
@@ -1142,9 +1149,9 @@ sub getNextTrack {
 				return;
 			}
 		}
+		
 		$song->pluginData(
-			meta => {
-				type  => 'BBCSounds',
+			meta => {				
 				title => $stationid,
 				icon  => $class->getIcon(),
 			}
@@ -1166,6 +1173,13 @@ sub getNextTrack {
 	}else{
 
 		my $id = $class->getId($masterUrl);
+		
+		$song->pluginData(
+			meta => {				
+				title => $id,
+				icon  => $class->getIcon(),
+			}
+		);
 
 		_getMPDUrl(
 			$id,
@@ -1414,8 +1428,7 @@ sub getMetadataFor {
 	if ($class->isLive($url) || $class->isRewind($url)) {
 
 		#leave before we try and attempt to get meta for the PID
-		return {
-			type  => 'BBCSounds',
+		return {			
 			title => $url,
 			icon  => 'https://sounds.files.bbci.co.uk/v2/networks/' . _getStationID($url) . '/blocks-colour_600x600.png',
 		};
@@ -1443,8 +1456,7 @@ sub getMetadataFor {
 		main::DEBUGLOG
 		  && $log->is_debug
 		  && $log->debug("already fetching metadata: $id");
-		return {
-			type  => 'BBCSounds',
+		return {			
 			title => $url,
 			icon  => $icon,
 			cover => $icon,
@@ -1481,8 +1493,7 @@ sub getMetadataFor {
 		);
 
 	}
-	return {
-		type  => 'BBCSounds',
+	return {		
 		title => $url,
 		icon  => $icon,
 		cover => $icon,
@@ -1675,8 +1686,7 @@ sub _getAODMeta {
 					realCover => $image,
 					trackImage => '',
 					track => '',
-					spotify => '',
-					type     => 'BBCSounds',
+					spotify => '',					
 					buttons => undef,
 					urn => $urn,
 					containerUrn => $containerUrn
@@ -1687,8 +1697,7 @@ sub _getAODMeta {
 			},
 			sub {
 				#cache for 3 minutes so that we don't flood their api
-				my $failedmeta ={
-					type  => 'BBCSounds',
+				my $failedmeta ={					
 					title => $pid,
 				};
 				$cache->set("bs:meta-$pid",$failedmeta,180);
@@ -1847,8 +1856,7 @@ sub _getLiveMeta {
 					realCover    => $image,
 					trackImage => '',
 					track =>   '',
-					spotify => '',
-					type     => 'BBCSounds',
+					spotify => '',					
 					buttons => undef,
 					urn => $urn,
 					containerUrn => '',
