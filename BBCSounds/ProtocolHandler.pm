@@ -1134,7 +1134,7 @@ sub getNextTrack {
 		#if we already have props then this is a continuation
 		if (my $existingProps = $song->pluginData('props')) {
 			if ( $existingProps->{isContinue} && $existingProps->{isDynamic} ) {
-				return errorCb->() unless ($existingProps->{endNumber} > 0);
+				return $errorCb->() unless ($existingProps->{endNumber} > 0);
 				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
 				$existingProps->{virtualStartNumber} = $existingProps->{startNumber};
@@ -1165,7 +1165,7 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Failed to get live MPD');
-				errorCb->();
+				$errorCb->();
 			}
 		);
 
