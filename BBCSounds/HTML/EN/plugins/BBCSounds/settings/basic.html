@@ -21,10 +21,22 @@
 			<input type="password" class="stdedit" name="pref_password" value="[% prefs.password %]" size="40" />	
 		</div>
 
+		[% END %]		
+		<br/>		
+		<script type="text/javascript"> 
+			function bschangeText(submitId){
+				var submit = document.getElementById(submitId);
+				submit.value = 'Please wait...';
+				return true;
+			};		
+		</script>
+		[% IF useExtJS || useAJAX %]
+			<input name="signin" type="submit" value="Sign In" class="stdclick" id="btnsignin" onclick="return bschangeText('btnsignin');" />
+		[% ELSE %]
+			<input name="signin" type="submit" value="Sign In" class="stdclick" />
 		[% END %]
 		<br/>
-		<input name="signin" type="submit" value="Sign In" class="stdclick" />
-		<br/>
+
 	
 	[% END %]
 
