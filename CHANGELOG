@@ -1,3 +1,6 @@
+2.23.3
+Fix possible gap in streaming on live streming a follow on programme
+
 2.23.2
 Improve sign in experience; Minor bug fixes
 

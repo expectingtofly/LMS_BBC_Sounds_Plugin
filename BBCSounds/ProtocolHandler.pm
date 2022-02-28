@@ -245,6 +245,7 @@ sub new {
 			'resetMeta'=> 1,
 			'retryCount' => 0,  #Counting Chunk retries
 			'liveId'   => '',  # The ID of the live programme playing
+			'firstIn'  => 1,   # An indicator for the first data call
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
 				'isShowingTitle' => 1,   # indicates what cycle we are on
@@ -907,8 +908,8 @@ sub sysread {
 
 			#check if we can get more if not leave
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time());
-			if ($edge > Time::HiRes::time()){
+			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});		
+			if ((! $v->{'firstIn'} ) && $edge > Time::HiRes::time()) {
 
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
 				$bail = 1;
@@ -923,6 +924,7 @@ sub sysread {
 
 
 		if (!$bail) {
+			$v->{'firstIn'} = 0;
 			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} . 'base url :' . $url);
 			my $headers = [ 'Connection', 'keep-alive' ];
 			my $suffix;
