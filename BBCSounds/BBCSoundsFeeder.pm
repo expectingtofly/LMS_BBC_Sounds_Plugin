@@ -1227,18 +1227,8 @@ sub _parseContainerItem {
 	my $favouritesUrl = 'soundslist://_CONTAINER_' . $pid;
 
 	#check that the item is a normal container not a tag
-	if ( $urn =~ /:tag:/) {
-		$passthrough = [
-			{
-				type    => 'inlineURN',
-				urn  => $urn,
-				offset  => 0,
-				codeRef => 'getPage'
-			}
-		];
-		$favouritesUrl = '';
+	if ( $urn =~ /:tag:|:category:|:curation:/) {
 
-	} elsif ( $urn =~ /:category:/) {
 		$passthrough = [
 			{
 				type    => 'inlineURN',
