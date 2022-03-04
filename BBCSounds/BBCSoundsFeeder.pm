@@ -1015,6 +1015,7 @@ sub _parseTracklist {
 		my $offsetStart = $item->{offset}->{start};
 		if ( $offsetStart ) {
 			$title = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) ) . $title;
+		} else {
 			$offsetStart = 0;
 		}
 		push @$menu,
