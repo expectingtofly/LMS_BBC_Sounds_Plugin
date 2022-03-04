@@ -40,7 +40,14 @@
 	
 	[% END %]
 
-	<hr/>
+	<hr/>	
+
+	[% WRAPPER setting title="Menu Location" desc="" %]	
+	<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
+	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu.  Requires a restart of LMS.</label>	
+	[% END %]	
+
+	<br/>
 
 	[% WRAPPER setting title="Playing Information Display" desc="" %]
 		Amend the settings below to adjust the display when a programme is playing :
@@ -115,16 +122,7 @@
 	<label for="clearSearchHistory">Clear search history</label>	
 	[% END %]
 
-	<br/>
-
-	[% WRAPPER setting title="Menu Location" desc="" %]	
-	<input name="pref_is_radio" type="checkbox" [% IF prefs.pref_is_radio %] checked [% END %]>
-	<label for="pref_is_radio">Place in the "Radio" menu instead of the default "My Apps" menu.  Requires a restart of LMS.</label>	
-	[% END %]	
-
-	<hr/>
-
-	
+	<hr/>	
 	
 	[% WRAPPER setting title="Advanced Settings" desc="" %]
 	The settings below should only be changed if you have a specific reason to do so.
