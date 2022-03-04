@@ -1011,12 +1011,18 @@ sub _parseTracklist {
 	$log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
-		my $title = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) ) . $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
+		my $offsetStart = $item->{offset}->{start};
+		if ( $offsetStart ) {
+			$title = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) ) . $title;
+		} else {
+			$offsetStart = 0;
+		}
 		push @$menu,
 		  {
 			name        => $title,
 			type        => 'audio',
-			url         => 'sounds://_' . $passthrough->{id} . '_' . $passthrough->{pid} . '_' . $item->{offset}->{start},
+			url         => 'sounds://_' . $passthrough->{id} . '_' . $passthrough->{pid} . '_' . $offsetStart,
 		  };
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTracklist");
@@ -1222,18 +1228,8 @@ sub _parseContainerItem {
 	my $favouritesUrl = 'soundslist://_CONTAINER_' . $pid;
 
 	#check that the item is a normal container not a tag
-	if ( $urn =~ /:tag:/) {
-		$passthrough = [
-			{
-				type    => 'inlineURN',
-				urn  => $urn,
-				offset  => 0,
-				codeRef => 'getPage'
-			}
-		];
-		$favouritesUrl = '';
+	if ( $urn =~ /:tag:|:category:|:curation:/) {
 
-	} elsif ( $urn =~ /:category:/) {
 		$passthrough = [
 			{
 				type    => 'inlineURN',
