@@ -121,10 +121,16 @@ sub canDoAction {
 			main::INFOLOG && $log->is_info && $log->info('Skipping forward when end number is ' . $props->{endNumber});
 
 			#is the current endNumber in the past?
-			if ($props->{endNumber} > 0) {
+			if ($props->{endNumber}) {
 				if (Time::HiRes::time() > ($class->_timeFromOffset($props->{endNumber},$props)+10)){
+					main::INFOLOG && $log->is_info && $log->info('Skip initiated');
+					$props->{skip} = 1;
+					$song->pluginData( props   => $props );
+
 					return 1;
 				}
+
+				main::INFOLOG && $log->is_info && $log->info('Returning to live');
 
 				#force it to reload and therefore return to live
 				$props->{isContinue} = 0;
@@ -135,11 +141,27 @@ sub canDoAction {
 		}
 		if ($action eq 'rew') { #skip back to start of track
 			 # make sure start number is correct for the programme (if we have it)
+			my $songTime = Slim::Player::Source::songTime($client);
+
 			my $song = $client->playingSong();
 			my $props = $song->pluginData('props');
-			$props->{comparisonTime} -= (($props->{startNumber} - $props->{virtualStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
-			$props->{startNumber} = $props->{virtualStartNumber};
+
+			if ( ($songTime >= 5) || (!$props->{previousStartNumber}) ) {  # if we are greater than 5 seconds we go back to the start of the current programme
+				main::INFOLOG && $log->is_info && $log->info('Rewinding to start of programme');
+				$props->{comparisonTime} -= (($props->{startNumber} - $props->{virtualStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
+				$props->{startNumber} = $props->{virtualStartNumber};
+			} else { # Go back to the previous programme
+
+				main::INFOLOG && $log->is_info && $log->info('Rewinding to previous programme');
+				$props->{comparisonTime}    -= (($props->{startNumber} - $props->{previousStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
+				$props->{startNumber}        = $props->{previousStartNumber};
+				$props->{virtualStartNumber} = $props->{previousStartNumber};
+				$props->{previousStartNumber} = 0;
+				$props->{endNumber} = 0;
+			}
+
 			$song->pluginData( props   => $props );
+
 			return 1;
 		}
 	}
@@ -252,7 +274,7 @@ sub new {
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0,  #flag indicating meta data is showing track is playing
 				'pollTime' => 30,    #Track polling default every 30 seconds
-				'lastPoll' => $nextThrottle  #last time we polled				
+				'lastPoll' => $nextThrottle  #last time we polled
 			},
 			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
 			'throttleInterval' => $throttleInterval,   #A value to delay making streaming data available to help the community firmware
@@ -295,11 +317,16 @@ sub close {
 		my $v        = $self->vars;
 
 		#make sure we don't try and continue if we were streaming when it is started again.
-		if ($v->{streaming}) {
+		if ($v->{streaming} && (!$props->{skip})) {
 			$props->{isContinue} = 0;
 			$song->pluginData( props   => $props );
 			main::INFOLOG && $log->info("Ensuring live stream closed");
+		} elsif ( $props->{skip} ) {
+			main::INFOLOG && $log->info("Force next track");
+			$props->{isContinue} = 1;
+			$song->pluginData( props   => $props );
 		}
+
 	}
 
 
@@ -490,16 +517,16 @@ sub liveTrackData {
 		if ( _isMetaDiff($meta, $oldmeta) ) {
 
 			my $cb = sub {
-				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");				
+				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
 				$song->pluginData( meta  => $meta );
 				Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 				Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 				$v->{'trackData'}->{awaitingCb} = 0;
-			};			
+			};
 
 			#the title will be set when the current buffer is done
 			Slim::Music::Info::setDelayedCallback( $client, $cb );
-		} else {			
+		} else {
 			$v->{'trackData'}->{awaitingCb} = 0;
 		}
 
@@ -527,7 +554,7 @@ sub liveTrackData {
 				_getLiveTrack(_getStationID($masterUrl), $self->_timeFromOffset( $currentOffset, $props) - $self->_timeFromOffset($props->{virtualStartNumber},$props),$cbY,$cbN);
 				$v->{'trackData'}->{lastPoll} = time();
 			};
-			$isLive = 1; 
+			$isLive = 1;
 		} else {
 			$sub = sub {
 				my $cbY = shift;
@@ -539,7 +566,7 @@ sub liveTrackData {
 		}
 
 		if ( $isLive && ((time() < ($v->{'trackData'}->{lastPoll} + $v->{'trackData'}->{pollTime})) || ($v->{'trackData'}->{pollTime} == 0)) ) {
-			$v->{'trackData'}->{awaitingCb} = 0;			
+			$v->{'trackData'}->{awaitingCb} = 0;
 			return;
 		}
 
@@ -566,17 +593,17 @@ sub liveTrackData {
 					if ( _isMetaDiff($meta, $oldmeta) ) {
 
 						my $cb = sub {
-							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");							
+							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
 							$song->pluginData( meta  => $meta );
 							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
-						#the title will be set when the current buffer is done						
+						#the title will be set when the current buffer is done
 						Slim::Music::Info::setDelayedCallback( $client, $cb );
 
-					} else {						
+					} else {
 						$v->{'trackData'}->{awaitingCb} = 0;
 					}
 
@@ -601,17 +628,17 @@ sub liveTrackData {
 						if ( _isMetaDiff($meta, $oldmeta) ) {
 
 							my $cb = sub {
-								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");							
+								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
 								$song->pluginData( meta  => $meta );
 								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 								$v->{'trackData'}->{awaitingCb} = 0;
 							};
 
-							#the title will be set when the current buffer is done							
+							#the title will be set when the current buffer is done
 							Slim::Music::Info::setDelayedCallback( $client, $cb );
 
-						} else {							
+						} else {
 							$v->{'trackData'}->{awaitingCb} = 0;
 						}
 
@@ -650,16 +677,16 @@ sub liveTrackData {
 
 						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
 						my $cb = sub {
-							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");							
+							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
 							$song->pluginData( meta  => $meta );
 							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
 							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
-						#the title will be set when the current buffer is done						
+						#the title will be set when the current buffer is done
 						Slim::Music::Info::setDelayedCallback( $client, $cb );
-					} else {						
+					} else {
 						$v->{'trackData'}->{awaitingCb} = 0;
 					}
 
@@ -697,8 +724,8 @@ sub aodMetaData {
 			$retMeta->{'duration'} = $props->{'duration'};
 
 			if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
-				$retMeta->{type} = $meta->{type};						
-			}			
+				$retMeta->{type} = $meta->{type};
+			}
 			$song->pluginData( meta  => $retMeta );
 			Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
 			$v->{'resetMeta'} = 0;
@@ -752,9 +779,9 @@ sub liveMetaData {
 						}
 
 						if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
-							$retMeta->{type} = $meta->{type};						
+							$retMeta->{type} = $meta->{type};
 						}
-						
+
 						$song->pluginData( meta  => $retMeta );
 
 						#fix progress bar
@@ -783,7 +810,7 @@ sub liveMetaData {
 						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
 
 
-						#finally ensure polling is set up correctly
+						#Ensure polling is set up correctly
 						Plugins::BBCSounds::BBCSoundsFeeder::getNetworkTrackPollingInfo(
 							$station,
 							sub {
@@ -801,6 +828,16 @@ sub liveMetaData {
 								$log->warn("Failed polling setting to  " . $v->{'trackData'}->{'pollTime'});
 							}
 						);
+
+						#Finally, get the previous start number, if there is one and we haven't got one already
+						if ( !($props->{previousStartNumber}) ) {
+							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 1, $props ) ) {
+
+								$props->{previousStartNumber} = $lastresp->{startOffset};
+								$song->pluginData( props   => $props );
+							}
+						}
+
 					},
 
 					#failed
@@ -814,7 +851,7 @@ sub liveMetaData {
 		sub {
 			$log->warn('Could not retrieve station schedule');
 		},
-		$self->isRewind($masterUrl)==1
+		1
 	);
 }
 
@@ -908,8 +945,8 @@ sub sysread {
 
 			#check if we can get more if not leave
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});		
-			if ((! $v->{'firstIn'} ) && $edge > Time::HiRes::time()) {
+			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});
+			if ((!$v->{'firstIn'} ) && $edge > Time::HiRes::time()) {
 
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
 				$bail = 1;
@@ -1138,9 +1175,11 @@ sub getNextTrack {
 			if ( $existingProps->{isContinue} && $existingProps->{isDynamic} ) {
 				return $errorCb->() unless ($existingProps->{endNumber} > 0);
 				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+				$existingProps->{previousStartNumber} = $existingProps->{virtualStartNumber};
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
 				$existingProps->{virtualStartNumber} = $existingProps->{startNumber};
 				$existingProps->{endNumber} = 0;
+				$existingProps->{skip} = 0;
 				$song->pluginData( props   => $existingProps );
 
 				# reset the meta
@@ -1151,9 +1190,9 @@ sub getNextTrack {
 				return;
 			}
 		}
-		
+
 		$song->pluginData(
-			meta => {				
+			meta => {
 				title => $stationid,
 				icon  => $class->getIcon(),
 			}
@@ -1175,9 +1214,9 @@ sub getNextTrack {
 	}else{
 
 		my $id = $class->getId($masterUrl);
-		
+
 		$song->pluginData(
-			meta => {				
+			meta => {
 				title => $id,
 				icon  => $class->getIcon(),
 			}
@@ -1430,7 +1469,7 @@ sub getMetadataFor {
 	if ($class->isLive($url) || $class->isRewind($url)) {
 
 		#leave before we try and attempt to get meta for the PID
-		return {			
+		return {
 			title => $url,
 			icon  => 'https://sounds.files.bbci.co.uk/v2/networks/' . _getStationID($url) . '/blocks-colour_600x600.png',
 		};
@@ -1458,7 +1497,7 @@ sub getMetadataFor {
 		main::DEBUGLOG
 		  && $log->is_debug
 		  && $log->debug("already fetching metadata: $id");
-		return {			
+		return {
 			title => $url,
 			icon  => $icon,
 			cover => $icon,
@@ -1495,7 +1534,7 @@ sub getMetadataFor {
 		);
 
 	}
-	return {		
+	return {
 		title => $url,
 		icon  => $icon,
 		cover => $icon,
@@ -1620,7 +1659,7 @@ sub _getIDForBroadcast {
 	for my $item (@$items){
 		if (($offsetEpoch >= str2time($item->{start})) && ($offsetEpoch < str2time($item->{end}))) {
 			my $id = $item->{id};
-			$id = $item->{pid} if !(defined $id); #sometimes it is the pid not the id.  It think this is an inconsistency in the API for previous broadcasts
+			$id = $item->{pid} if !(defined $id); #sometimes it is the pid not the id.  I think this is an inconsistency in the API for previous broadcasts
 			main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
 			my $startOffset = floor((str2time($item->{start})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
 			my $endOffset = floor((str2time($item->{end})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
@@ -1688,7 +1727,7 @@ sub _getAODMeta {
 					realCover => $image,
 					trackImage => '',
 					track => '',
-					spotify => '',					
+					spotify => '',
 					buttons => undef,
 					urn => $urn,
 					containerUrn => $containerUrn
@@ -1699,9 +1738,7 @@ sub _getAODMeta {
 			},
 			sub {
 				#cache for 3 minutes so that we don't flood their api
-				my $failedmeta ={					
-					title => $pid,
-				};
+				my $failedmeta ={title => $pid,};
 				$cache->set("bs:meta-$pid",$failedmeta,180);
 				$cbN->();
 			}
@@ -1713,13 +1750,13 @@ sub _getAODMeta {
 
 sub _getLiveTrack {
 	my $network = shift;
-	my $currentOffsetTime = shift;	
+	my $currentOffsetTime = shift;
 	my $cbY = shift;
 	my $cbN = shift;
 
 
 	if ( my $track = $cache->get("bs:track-$network") ) {
-		main::INFOLOG && $log->is_info && $log->info("Live track from cache $network");		
+		main::INFOLOG && $log->is_info && $log->info("Live track from cache $network");
 		$cbY->($track);
 	}else {
 		Plugins::BBCSounds::BBCSoundsFeeder::getLatestSegmentForNetwork(
@@ -1731,16 +1768,16 @@ sub _getLiveTrack {
 
 					#no live track on this network/programme at the moment
 
-					main::INFOLOG && $log->is_info && $log->info("No track available");					
+					main::INFOLOG && $log->is_info && $log->info("No track available");
 					$cbY->($newTrack);
 				}else{
 					my $cachetime =  $newTrack->{data}[0]->{offset}->{end} - $currentOffsetTime;
 					$cachetime = 240 if $cachetime > 240;  # never cache for more than 4 minutes.
-					
-					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);										
+
+					$cache->set("bs:track-$network", $newTrack, $cachetime) if ($cachetime > 0);
 					$newTrack->{total} = 0  if ($newTrack->{data}[0]->{offset}->{now_playing} == 0);  #for some reason it is set to not playing
 
-					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime Now Playing : " . $newTrack->{data}[0]->{offset}->{now_playing});					
+					main::INFOLOG && $log->is_info && $log->info("New track title obtained and cached for $cachetime Now Playing : " . $newTrack->{data}[0]->{offset}->{now_playing});
 					$cbY->($newTrack);
 				}
 			},
@@ -1858,7 +1895,7 @@ sub _getLiveMeta {
 					realCover    => $image,
 					trackImage => '',
 					track =>   '',
-					spotify => '',					
+					spotify => '',
 					buttons => undef,
 					urn => $urn,
 					containerUrn => '',
