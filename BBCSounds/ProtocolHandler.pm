@@ -1676,7 +1676,7 @@ sub _getIDForBroadcast {
 		}
 		main::DEBUGLOG && $log->is_debug && $log->debug('Not found - ' . $item->{start}  . ' - ' . $item->{end});
 	}
-	$log->warn("No schedule found ");
+	main::INFOLOG && $log->is_info && $log->info("No Schedule Found");
 	return;
 }
 
