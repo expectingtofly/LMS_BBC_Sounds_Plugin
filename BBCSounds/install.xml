@@ -3,11 +3,11 @@
 <extension>
 	<name>PLUGIN_BBCSOUNDS</name>
 	<module>Plugins::BBCSounds::Plugin</module>
-	<version>2.24.1</version>
+	<version>2.24.2</version>
 	<description>PLUGIN_BBCSOUNDS_DESC</description>
 	<creator>ExpectingToFly</creator>
 	<homepageURL>https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin</homepageURL>
-	<icon>plugins/BBCSounds/html/images/BBCSounds2_svg.png</icon>
+	<icon>plugins/BBCSounds/html/images/BBCSoundsIcon_svg.png</icon>
 	<defaultState>enabled</defaultState>
 	<targetApplication>
 		<id>SlimServer</id>

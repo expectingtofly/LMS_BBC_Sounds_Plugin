@@ -1,0 +1,20 @@
+<svg width="24" height="24" version="1.1" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <g     
+     id="layer1">
+    <path
+       style="stroke-width:0.17714706"
+       d="m 12.407804,2.0001533 h 9.592195 V 21.147 h -9.592195 z"
+       id="rect6"
+       fill="#000" />
+    <path
+       style="stroke-width:0.17714706"
+       d="M 6.1899705,4.770184 H 10.851832 V 18.376972 H 6.1899705 Z"
+       id="rect6-9"
+       fill="#000" />
+    <path
+       style="stroke-width:0.17714706"
+       d="M 2,8.8796358 H 4.6016357 V 14.267512 H 2 Z"
+       id="rect6-9-1"
+       fill="#000" />
+  </g>
+</svg>
