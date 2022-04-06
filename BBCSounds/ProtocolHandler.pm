@@ -852,7 +852,7 @@ sub liveMetaData {
 		sub {
 			$log->warn('Could not retrieve station schedule');
 		},
-		1
+		! $isLive
 	);
 }
 
@@ -1625,8 +1625,8 @@ sub _getLiveSchedule {
 				my $scheduleJSON = shift;
 				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $isRewind-$network");
 
-				#place in cache for half an hour
-				$cache->set("bs:schedule-$isRewind-$network",$scheduleJSON, 1800);
+				#cache only if rewound
+				$cache->set("bs:schedule-$isRewind-$network",$scheduleJSON, 120) if $isRewind;
 				$cbY->($scheduleJSON);
 			},
 			sub {
