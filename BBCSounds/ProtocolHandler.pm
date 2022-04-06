@@ -757,6 +757,7 @@ sub liveMetaData {
 		#success schedule
 		sub {
 			my $schedule = shift;
+			
 			my $resp = _getIDForBroadcast($schedule, $v->{'offset'}, ${*$self}{'props'});
 			my $id = '';
 			if ($resp){
@@ -830,7 +831,7 @@ sub liveMetaData {
 						);
 
 						#Finally, get the previous start number, if there is one and we haven't got one already
-						if ( !($props->{previousStartNumber}) ) {
+						if ( !($props->{previousStartNumber}) ) {							
 							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 1, $props ) ) {
 
 								$props->{previousStartNumber} = $lastresp->{startOffset};
@@ -1611,9 +1612,7 @@ sub _getLiveSchedule {
 	my $cbN = shift;
 	my $isRewind = shift;
 
-
 	main::INFOLOG && $log->is_info && $log->info("Checking Schedule for : $network");
-
 
 	if (my $schedule = $cache->get("bs:schedule-$isRewind-$network")) {
 		main::DEBUGLOG && $log->is_debug && $log->debug("Cache hit for : $isRewind-$network");
@@ -1627,12 +1626,11 @@ sub _getLiveSchedule {
 				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $isRewind-$network");
 
 				#place in cache for half an hour
-				$cache->set("bs:schedule-$isRewind-network",$scheduleJSON, 1800);
+				$cache->set("bs:schedule-$isRewind-$network",$scheduleJSON, 1800);
 				$cbY->($scheduleJSON);
 			},
 			sub {
-
-				#place in cache for a couple of hours
+				
 				$log->error('Failed to get schedule for ' . $network);
 
 				#try again in 2 mins to prevent flooding
