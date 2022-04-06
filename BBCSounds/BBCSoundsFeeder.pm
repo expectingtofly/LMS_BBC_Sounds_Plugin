@@ -1318,7 +1318,7 @@ sub _InlineMenuCreator {
 	my $menu     = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_InlineMenuCreator");
 	if ($menuInline->{type} eq 'inline_display_module') {
-		if ($menuInline->{uris}) {
+		if ($menuInline->{uris} && $menuInline->{controls}) {
 			push @$menu,
 			  {
 				name        =>  $menuInline->{title},
