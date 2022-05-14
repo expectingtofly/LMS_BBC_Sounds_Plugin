@@ -484,7 +484,7 @@ sub getStationMenu {
 	}
 
 	my $menu      = [];
-	
+
 	my $liveStation = {
 		name        	=> $NetworkDetails->{short_title} . ' LIVE',
 		type        	=> 'audio',
@@ -494,11 +494,11 @@ sub getStationMenu {
 		favorites_title => 'BBC ' . $NetworkDetails->{short_title},
 		on_select   	=> 'play'
 	};
-	
+
 	if ($isRadioFavourites) {
 		$liveStation->{itemActions} = getLiveItemActions('BBC ' . $NetworkDetails->{short_title}, $stationid, 'sounds://_LIVE_'. $stationid);
 	}
-	
+
 	push @$menu, $liveStation;
 	push @$menu, @$scheduleMenu;
 	push @$menu,
@@ -896,8 +896,11 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'container_search' ), $menu );
 		_parseItems( _getDataNode( $JSON->{data}, 'playable_search' ),  $menu );
-	}elsif (( $optstr eq 'tleo' )
-		|| ( $optstr eq 'container' )
+	}elsif ( $optstr eq 'tleo' ) {
+		my $JSON = decode_json ${ $http->contentRef };
+		_parseItems( $JSON->{data}, $menu, 1 );
+		_createOffset( $JSON, $passthrough, $menu );
+	}elsif (( $optstr eq 'container' )
 		|| ( $optstr eq 'latest' )
 		|| ( $optstr eq 'bookmarks' )
 		|| ( $optstr eq 'subscribed' )
@@ -977,8 +980,9 @@ sub _getNode {
 
 
 sub _parseItems {
-	my $jsonData = shift;
-	my $menu     = shift;
+	my $jsonData 		= shift;
+	my $menu     		= shift;
+	my $isFromContainer =  shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
 	my $size = scalar @$jsonData;
 
@@ -989,7 +993,7 @@ sub _parseItems {
 		my $isPlayablePref = $prefs->get('playableAsPlaylist');
 
 		if ( $item->{type} eq 'playable_item' ) {
-			_parsePlayableItem( $item, $menu, $isPlayablePref );
+			_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
 		}elsif ( $item->{type} eq 'container_item' ) {
 			_parseContainerItem( $item, $menu );
 		}elsif ( $item->{type} eq 'broadcast_summary' ) {
@@ -1013,7 +1017,7 @@ sub _parseTracklist {
 	for my $item (@$jsonData) {
 		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
 		my $offsetStart = $item->{offset}->{start};
-		if ( $offsetStart ) {
+		if ($offsetStart) {
 			$title = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) ) . $title;
 		} else {
 			$offsetStart = 0;
@@ -1060,19 +1064,23 @@ sub _parseStationlist {
 
 
 sub _parsePlayableItem {
-	my ($item, $menu, $isPlayable) = @_;
+	my ($item, $menu, $isPlayable, $fromContainer) = @_;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parsePlayableItem");
 
-	my $title1 = $item->{titles}->{primary};
+	my $title1 = '';
+
+	if (!$fromContainer ) {
+		$title1 = $item->{titles}->{primary} . ' - ';
+	}
 	my $title2 = '';
 	if ( $item->{titles}->{secondary} ) {
-		$title2 = ' - ' . $item->{titles}->{secondary};
+		$title2 = $item->{titles}->{secondary};
 	}
 	my $title3 = '';
 	if ( $item->{titles}->{tertiary} ) {
 		$title3 = ' ' . $item->{titles}->{tertiary};
-	}	
+	}
 
 	my $title = $title1 . $title2 . $title3;
 	my $pid   = _getPidfromSoundsURN( $item->{urn} );
@@ -1093,14 +1101,14 @@ sub _parsePlayableItem {
 	main::DEBUGLOG && $log->is_debug && $log->debug("Is Playable : $isPlayable");
 
 	my $imenu =   {
-		name => $title,				
+		name => $title,
 		type => $type,
 		favorites_url => $favUrl,
 		image => $image,
 		items => $playMenu,
 		order => 0,
-	  };
-	
+	};
+
 	if ( $item->{release}->{label} ) {
 		$imenu->{line2} = $item->{release}->{label};
 	}
