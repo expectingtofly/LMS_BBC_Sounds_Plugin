@@ -30,13 +30,13 @@ my $log = logger('plugin.bbcsounds');
 
 sub createIcon {
 	my $url = shift;
-	$log->debug("++createIcon");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++createIcon");
 
 	my $icon = $url; 
 
 	$icon =~ s/{recipe}/320x320/;
 
-	$log->debug("--createIcon - $icon");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--createIcon - $icon");
 	return $icon;
 }
 
@@ -44,7 +44,7 @@ sub getSoundsURLForPid {
 	my $gpid = shift;
 	my $cbY = shift;
 	my $cbN = shift;
-	$log->debug("++getSoundsURLForPid");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getSoundsURLForPid");
 
 	my $playlist_url = URI->new('https://www.bbc.co.uk');
 	$playlist_url->path_segments('programmes', $gpid, 'playlist.json');
@@ -63,7 +63,7 @@ sub getSoundsURLForPid {
 		},
 	)->get($playlist_url);
 
-	$log->debug("--getSoundsURLForPid");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getSoundsURLForPid");
 	return;
 }
 
