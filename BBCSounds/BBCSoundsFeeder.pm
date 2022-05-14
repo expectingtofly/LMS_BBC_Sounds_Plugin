@@ -1065,27 +1065,16 @@ sub _parsePlayableItem {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parsePlayableItem");
 
 	my $title1 = $item->{titles}->{primary};
-	my $title2 = $item->{titles}->{secondary};
-	if ( defined $title2 ) {
-		$title2 = ' - ' . $title2;
-	}else {
-		$title2 = '';
+	my $title2 = '';
+	if ( $item->{titles}->{secondary} ) {
+		$title2 = ' - ' . $item->{titles}->{secondary};
 	}
-	my $title3 = $item->{titles}->{tertiary};
-	if ( defined $title3 ) {
-		$title3 = ' ' . $title3;
-	}else {
-		$title3 = '';
-	}
+	my $title3 = '';
+	if ( $item->{titles}->{tertiary} ) {
+		$title3 = ' ' . $item->{titles}->{tertiary};
+	}	
 
-	my $release = $item->{release}->{label};
-	if ( defined $release ) {
-		$release = ' : ' . $release;
-	}else {
-		$release = '';
-	}
-
-	my $title = $title1 . $title2 . $title3 . $release;
+	my $title = $title1 . $title2 . $title3;
 	my $pid   = _getPidfromSoundsURN( $item->{urn} );
 
 	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
@@ -1103,15 +1092,20 @@ sub _parsePlayableItem {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Is Playable : $isPlayable");
 
-	push @$menu,
-	  {
-		name => $title,
+	my $imenu =   {
+		name => $title,				
 		type => $type,
 		favorites_url => $favUrl,
 		image => $image,
 		items => $playMenu,
 		order => 0,
 	  };
+	
+	if ( $item->{release}->{label} ) {
+		$imenu->{line2} = $item->{release}->{label};
+	}
+
+	push @$menu, $imenu;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parsePlayableItem");
 	return;
@@ -1406,8 +1400,8 @@ sub _getPidfromSoundsURN {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_getPidfromSoundsURN");
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("urn to create pid : $urn");
-	my @pid = split /:/x, $urn;
-	my $pid = pop(@pid);
+	my @pidArr = split /:/x, $urn;
+	my $pid = $pidArr[-1];
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getPidfromSoundsURN - $pid");
 	return $pid;
