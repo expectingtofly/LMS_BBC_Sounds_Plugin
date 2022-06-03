@@ -23,6 +23,7 @@ use HTTP::Date;
 use Data::Dumper;
 
 my $log = logger('plugin.bbcsounds');
+use constant RF_STATIONIMAGE => "https://sounds.files.bbci.co.uk/2.3.0/networks/{station}/colour_default.svg";
 
 
 sub getStationData {
@@ -69,6 +70,9 @@ sub getStationData {
 						$syn = $prog->{'synopses'}->{'medium'};
 					}
 
+					my $networkImage = RF_STATIONIMAGE;
+					
+					$networkImage =~ s/{station}/$stationKey/;
 
 					my $result = {
 						title =>  $title,
@@ -77,7 +81,8 @@ sub getStationData {
 						startTime => $startTime,
 						endTime   => $endTime,
 						url       => $stationUrl,
-						stationName => $stationName
+						stationName => $stationName,
+						stationImage => $networkImage,
 					};
 
 					$cbSuccess->($result);
