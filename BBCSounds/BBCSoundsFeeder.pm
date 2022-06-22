@@ -90,7 +90,8 @@ sub init {
 		Plugins::RadioFavourites::Plugin::addHandler(
 			{
 				handlerFunctionKey => 'bbcsounds',      #The key to the handler
-				handlerSub =>  \&Plugins::BBCSounds::RadioFavourites::getStationData
+				handlerSub =>  \&Plugins::BBCSounds::RadioFavourites::getStationData,
+				handlerSchedule => \&Plugins::BBCSounds::RadioFavourites::getStationSchedule,
 			}
 		);
 		$isRadioFavourites = 1;
