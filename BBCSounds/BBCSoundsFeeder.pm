@@ -924,8 +924,9 @@ sub _parse {
 		_parseChildCategories( $JSON, $menu );
 	}elsif ( $optstr eq 'stationlist' ) {
 		my $JSON = decode_json ${ $http->contentRef };
-		_parseStationlist( _getDataNode( $JSON->{data}, 'national_and_regional_stations' ),$menu );
-		_parseStationlist( _getDataNode( $JSON->{data}, 'local_stations' ),$menu );
+		for ( my $i = 0 ; $i < scalar @{$JSON->{data}} ; $i++ ) {
+			_parseStationlist( $JSON->{data}[$i]->{data}, $menu );
+		}		
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
 		my $node = _getNode( $JSON->{data}, 'container_list' );
