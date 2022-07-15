@@ -925,7 +925,7 @@ sub _parse {
 		_parseChildCategories( $JSON, $menu );
 	}elsif ( $optstr eq 'stationlist' ) {
 		my $JSON = decode_json ${ $http->contentRef };
-		_parseStationlist( _getDataNode( $JSON->{data}, 'promoted_stations' ),$menu );
+		_parseStationlist( _getDataNode( $JSON->{data}, 'national_and_regional_stations' ),$menu );
 		_parseStationlist( _getDataNode( $JSON->{data}, 'local_stations' ),$menu );
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
