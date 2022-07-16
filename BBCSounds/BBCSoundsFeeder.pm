@@ -985,14 +985,14 @@ sub _parseItems {
 	my $menu     		= shift;
 	my $isFromContainer =  shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
-	my $size = scalar @$jsonData;
+	
+	my $size = scalar @$jsonData;	
+	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
 
-	$log->info("Number of items : $size ");
+	my $isPlayablePref = $prefs->get('playableAsPlaylist');
 
 	for my $item (@$jsonData) {
-
-		my $isPlayablePref = $prefs->get('playableAsPlaylist');
-
+		
 		if ( $item->{type} eq 'playable_item' ) {
 			_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
 		}elsif ( $item->{type} eq 'container_item' ) {
@@ -1084,8 +1084,7 @@ sub _parsePlayableItem {
 	}
 
 	my $title = $title1 . $title2 . $title3;
-	my $pid   = _getPidfromSoundsURN( $item->{urn} );
-
+	
 	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 
 	my $playMenu = [];
