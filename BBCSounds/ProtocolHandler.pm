@@ -1207,7 +1207,7 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Failed to get live MPD');
-				$errorCb->();
+				$errorCb->("Not able to obtain live audio", $masterUrl);
 			}
 		);
 
@@ -1231,7 +1231,7 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Failed to get AOD MPD');
-				errorCb->();
+				$errorCb->("Not able to obtain audio", $masterUrl);
 			}
 		);
 
@@ -1981,7 +1981,7 @@ sub _getMPDUrl {
 		sub {
 			$cbN->();
 		}
-	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
+	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/flibble/format/json/");
 	return;
 }
 
