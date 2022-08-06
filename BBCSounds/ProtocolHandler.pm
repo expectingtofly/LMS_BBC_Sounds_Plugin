@@ -1981,7 +1981,7 @@ sub _getMPDUrl {
 		sub {
 			$cbN->();
 		}
-	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/flibble/format/json/");
+	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
 	return;
 }
 
