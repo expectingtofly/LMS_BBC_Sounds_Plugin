@@ -925,8 +925,9 @@ sub _parse {
 		_parseChildCategories( $JSON, $menu );
 	}elsif ( $optstr eq 'stationlist' ) {
 		my $JSON = decode_json ${ $http->contentRef };
-		_parseStationlist( _getDataNode( $JSON->{data}, 'national_and_regional_stations' ),$menu );
-		_parseStationlist( _getDataNode( $JSON->{data}, 'local_stations' ),$menu );
+		for ( my $i = 0 ; $i < scalar @{$JSON->{data}} ; $i++ ) {
+			_parseStationlist( $JSON->{data}[$i]->{data}, $menu );
+		}		
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
 		my $node = _getNode( $JSON->{data}, 'container_list' );
@@ -985,14 +986,14 @@ sub _parseItems {
 	my $menu     		= shift;
 	my $isFromContainer =  shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
-	my $size = scalar @$jsonData;
+	
+	my $size = scalar @$jsonData;	
+	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
 
-	$log->info("Number of items : $size ");
+	my $isPlayablePref = $prefs->get('playableAsPlaylist');
 
 	for my $item (@$jsonData) {
-
-		my $isPlayablePref = $prefs->get('playableAsPlaylist');
-
+		
 		if ( $item->{type} eq 'playable_item' ) {
 			_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
 		}elsif ( $item->{type} eq 'container_item' ) {
@@ -1084,8 +1085,7 @@ sub _parsePlayableItem {
 	}
 
 	my $title = $title1 . $title2 . $title3;
-	my $pid   = _getPidfromSoundsURN( $item->{urn} );
-
+	
 	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 
 	my $playMenu = [];

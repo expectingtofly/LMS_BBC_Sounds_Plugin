@@ -1,3 +1,9 @@
+2.25.3
+Bug fix for error handling when audio not available.
+
+2.25.2
+Minor logic and performance improvements.
+
 2.25.1
 Fix National Stations not showing in Stations & Schedules due to BBC API change.
 

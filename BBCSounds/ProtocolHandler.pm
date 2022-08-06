@@ -1207,7 +1207,7 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Failed to get live MPD');
-				$errorCb->();
+				$errorCb->("Not able to obtain live audio", $masterUrl);
 			}
 		);
 
@@ -1230,8 +1230,8 @@ sub getNextTrack {
 				$processMPD->();
 			},
 			sub {
-				$log->error('Failed to get AOD MPD');
-				errorCb->();
+				$log->error('Failed to get Audio information.  It may not be available in your location.');
+				$errorCb->("Not able to obtain audio", $masterUrl);
 			}
 		);
 
