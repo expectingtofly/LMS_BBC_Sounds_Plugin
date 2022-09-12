@@ -1036,8 +1036,7 @@ sub sysread {
 							$log->error("Failed to get $url");
 							$v->{'inBuf'}    = '';
 							$v->{'fetching'} = 0;
-							$v->{'streaming'} = 0
-							  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+							$v->{'streaming'} = 0;							  
 						} else {
 							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again
