@@ -61,7 +61,7 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
-use constant CHUNK_FAILURECOUNT => 3;
+use constant CHUNK_FAILURECOUNT => 5;
 use constant RESETMETA_THRESHHOLD => 1;
 
 use constant DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME => 1;
