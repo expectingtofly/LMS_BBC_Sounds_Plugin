@@ -1032,9 +1032,9 @@ sub sysread {
 
 					onError => sub {
 
-						$v->{'retryCount'}++;						
+						$v->{'retryCount'}++;
 
-						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {					
+						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
 
 							$log->error("Failed to get $url");
 							$v->{'failureCount'}++;
