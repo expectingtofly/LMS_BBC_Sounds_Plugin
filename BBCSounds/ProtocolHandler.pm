@@ -61,6 +61,7 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
+use constant CHUNK_FAILURECOUNT => 5;
 use constant RESETMETA_THRESHHOLD => 1;
 
 use constant DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME => 1;
@@ -266,6 +267,7 @@ sub new {
 			'baseURL'	  => $args->{'url'},
 			'resetMeta'=> 1,
 			'retryCount' => 0,  #Counting Chunk retries
+			'failureCount' => 0,  #Counting Chunk failures
 			'liveId'   => '',  # The ID of the live programme playing
 			'firstIn'  => 1,   # An indicator for the first data call
 			'trackData' => {   # For managing showing live track data
@@ -993,6 +995,7 @@ sub sysread {
 						$v->{'inBuf'} .= $response->content;
 						$v->{'fetching'} = 0;
 						$v->{'retryCount'} = 0;
+						$v->{'failureCount'} = 0;
 
 						if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
 							$v->{'streaming'} = 0;
@@ -1034,10 +1037,11 @@ sub sysread {
 						if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
 
 							$log->error("Failed to get $url");
+							$v->{'failureCount'}++;
 							$v->{'inBuf'}    = '';
 							$v->{'fetching'} = 0;
 							$v->{'streaming'} = 0
-							  if ($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'});
+							  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) ;
 						} else {
 							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again

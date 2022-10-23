@@ -1,3 +1,9 @@
+2.25.5
+Address issue with expired tokens by forcing a signout before signin.
+
+2.25.4
+Fix bug that can cause infinite logging when audio is unreachable at start of streaming.
+
 2.25.3
 Bug fix for error handling when audio not available.
 
