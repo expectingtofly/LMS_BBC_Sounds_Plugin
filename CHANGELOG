@@ -1,3 +1,6 @@
+2.25.6
+Add logic to extent identity token if credential token is still valid (every 3 weeks)
+
 2.25.5
 Address issue with expired tokens by forcing a signout before signin.
 
