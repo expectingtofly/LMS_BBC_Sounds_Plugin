@@ -1982,7 +1982,7 @@ sub _subscribeCLI {
 		} else {
 			push @$items,
 			  {
-				text => 'Subcribe',
+				text => 'Subscribe',
 				actions => {
 					go => {
 						player => 0,
