@@ -22,6 +22,7 @@ use base qw(Slim::Web::Settings);
 
 use Slim::Utils::Prefs;
 use Slim::Utils::Log;
+use Slim::Utils::DateTime;
 
 use Plugins::BBCSounds::SessionManagement;
 
@@ -141,6 +142,10 @@ sub handler {
 			$prefs->set('sounds_recent_search', []);
 		}
 	}
+
+	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
+	$params->{sylphExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{sylph});
+	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
 
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
