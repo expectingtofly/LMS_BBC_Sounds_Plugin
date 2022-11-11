@@ -200,28 +200,15 @@ sub renewSession {
 	my $cbYes = shift;
 	my $cbNo  = shift;
 
-	if (isSignedIn) {
+	if ( isSignedIn() ) {
 		if ( _hasSession() ) {
 			$cbYes->();
-			main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
+			main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession already");
 			return;
 		}else {
 
-			my $tknState = getIdentityStatus();
-			my $renewID = 0;
-			if ( $tknState->{sylph} ) {
-				my $epoch = time();
-
-				if ( ($epoch < $tknState->{sylph}) && (($tknState->{ID} - $epoch) < TOKEN_RENEW )  ) {
-					main::DEBUGLOG && $log->is_debug && $log->debug("ID requires renew");
-					$renewID = 1;
-				}
-			}
-
 			my $session = Slim::Networking::Async::HTTP->new;
-
-			$session->cookie_jar->clear( '.bbc.co.uk', '/', 'ckns_id') if $renewID;
-
+			
 			my $sessionrequest =HTTP::Request->new( GET =>'https://session.bbc.co.uk/session?context=iplayerradio&userOrigin=sounds');
 			$session->send_request(
 				{
@@ -235,7 +222,7 @@ sub renewSession {
 							return;
 						}else {
 							$cbNo->();
-							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
+							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession failed to get cookie");
 							return;
 						}
 					},
@@ -244,7 +231,7 @@ sub renewSession {
 						my $res = $http->response;
 						main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
 						$cbNo->();
-						main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
+						main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession renew session failed");
 						return;
 					}
 				}
@@ -252,7 +239,7 @@ sub renewSession {
 		}
 	}else {
 		$cbNo->();
-		main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession not signed in");
 		return;
 	}
 }
