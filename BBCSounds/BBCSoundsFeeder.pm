@@ -315,7 +315,7 @@ sub toplevel {
 				sub {
 					$menu = [
 						{
-							name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
+							name =>'Unable to contact the BBC API please check your internet settings'
 						}
 					];
 					$callback->( { items => $menu } );

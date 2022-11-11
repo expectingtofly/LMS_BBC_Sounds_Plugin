@@ -102,6 +102,10 @@ sub handler {
 				if ( Plugins::BBCSounds::SessionManagement::isSignedIn()){
 					$isValid = 0;
 					$msg ='<strong>Successfully signed in</strong>';
+					my $IDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
+					$params->{sylphExp} = Slim::Utils::DateTime::longDateF($IDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{sylph});
+					$params->{idExp} = Slim::Utils::DateTime::longDateF($IDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{ID});
+
 				}
 				$params->{warning} .= $msg . '<br/>';
 				my $body = $class->SUPER::handler( $client, $params );
