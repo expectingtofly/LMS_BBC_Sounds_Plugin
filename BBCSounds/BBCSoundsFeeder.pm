@@ -241,6 +241,22 @@ sub toplevel {
 					  };
 				}
 
+				#Local To Me
+				$module = _parseTopInlineMenu($JSON, 'local_rail');
+				$moduleTitle = $module->{title};
+				$submenu = [];
+
+				if ($module->{total}) {
+					_parseItems( $module->{data}, $submenu );
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
+						items => $submenu,
+						order => 9,
+					  };
+				}
 
 				#single item promo
 				$module = _parseTopInlineMenu($JSON, 'single_item_promo');
