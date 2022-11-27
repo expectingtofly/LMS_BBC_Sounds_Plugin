@@ -145,7 +145,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 9,
+				order => 10,
 			},
 			{
 				name        => 'Podcasts',
@@ -291,7 +291,7 @@ sub toplevel {
 					if (scalar @$submenu ) {
 
 						#fix up
-						@$submenu[0]->{order} = 10;
+						@$submenu[0]->{order} = 11;
 						@$submenu[0]->{name} = $moduleTitle;
 						push @$menu, @$submenu[0];
 					}
