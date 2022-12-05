@@ -142,13 +142,13 @@ sub isSignedIn {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
 	my $session   = Slim::Networking::Async::HTTP->new;
 	my $cookiejar = $session->cookie_jar;
-	my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
+	my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_sylphid'};
 	if ( defined $key ) {
-		my $cookieepoch = @{$key}[5];
+		my $cookieepoch = @{$key}[5];		
 		if (defined $cookieepoch) {
 			my $epoch       = time();
 			if ( $epoch < $cookieepoch ) {
-				main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - true");
+				main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - true $epoch - $cookieepoch");
 				return 1;
 			}else{
 				main::DEBUGLOG && $log->is_debug && $log->debug("--isSignedIn - false");
