@@ -103,6 +103,11 @@ sub handler {
 					$isValid = 0;
 					$msg ='<strong>Successfully signed in</strong>';
 					my $IDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
+					if ($IDStatus->{sylph}) {
+						$params->{sylphExp} = Slim::Utils::DateTime::longDateF($IDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{sylph});
+					} else {
+						$params->{sylphExp} = 'None';
+					}
 					$params->{sylphExp} = Slim::Utils::DateTime::longDateF($IDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{sylph});
 					$params->{idExp} = Slim::Utils::DateTime::longDateF($IDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{ID});
 
@@ -148,7 +153,7 @@ sub handler {
 	}
 
 	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
-	if ($params->{sylphExp}) {
+	if ($currentIDStatus->{sylph}) {
 		$params->{sylphExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{sylph});
 	} else {
 		$params->{sylphExp} = 'None';
