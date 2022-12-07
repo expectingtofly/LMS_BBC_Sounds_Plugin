@@ -88,8 +88,11 @@ sub signIn {
 								my ( $http, $self ) = @_;
 								my $res = $http->response;
 
+								main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on final body : ' . Dumper($session->cookie_jar));
+
 								#makes sure the cookies are persisted
 								$session->cookie_jar->save();
+								
 								$cbYes->();
 							},
 							onRedirect => sub {
@@ -99,6 +102,10 @@ sub signIn {
 								if ( $req->method eq 'POST' ) {
 									$req->method('GET');
 								}
+
+								main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on Redirect : ' . Dumper($session->cookie_jar));
+								
+								
 							},
 							onError => sub {
 								my ( $http, $self ) = @_;
@@ -150,7 +157,7 @@ sub isSignedIn {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
 	my $session   = Slim::Networking::Async::HTTP->new;
 	my $cookiejar = $session->cookie_jar;
-	my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_sylphid'};
+	my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
 	if ( defined $key ) {
 		my $cookieepoch = @{$key}[5];		
 		if (defined $cookieepoch) {

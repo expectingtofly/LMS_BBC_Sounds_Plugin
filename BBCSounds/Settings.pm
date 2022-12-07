@@ -148,8 +148,13 @@ sub handler {
 	}
 
 	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
-	$params->{sylphExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{sylph});
+	if ($params->{sylphExp}) {
+		$params->{sylphExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{sylph});
+	} else {
+		$params->{sylphExp} = 'None';
+	}
 	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
+	
 
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
@@ -169,11 +174,27 @@ sub beforeRender {
 	my ($class, $paramRef) = @_;
 	$log->debug("++beforeRender");
 
-	my $isSignedIn = Plugins::BBCSounds::SessionManagement::isSignedIn();
+	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
 
-	$paramRef->{isSignedIn} = $isSignedIn;
-
-	$paramRef->{isSignedOut} =  !($isSignedIn);
+	$paramRef->{isSignedIn} = 1;
+	$paramRef->{isSignedOut} = 0;
+	
+	if ($currentIDStatus->{sylph}) {
+		if ($currentIDStatus->{sylph} < time()) {
+			$paramRef->{isSignedIn} = 0;
+			$paramRef->{isSignedOut} = 1;
+		}
+	} else {
+		if ($currentIDStatus->{ID}) {
+			if ( $currentIDStatus->{ID} < time() ) {
+				$paramRef->{isSignedIn} = 0;
+				$paramRef->{isSignedOut} = 1;
+			}
+		} else {
+				$paramRef->{isSignedIn} = 0;
+				$paramRef->{isSignedOut} = 1;
+		}
+	}
 
 	$log->debug("--beforeRender");
 }

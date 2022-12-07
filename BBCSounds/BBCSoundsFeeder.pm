@@ -323,28 +323,20 @@ sub toplevel {
 		$callback->( { items => $cachemenu } );
 	}else {
 		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
-		if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
-			Plugins::BBCSounds::SessionManagement::renewSession(
-				sub {
-					$fetch->();
-				},
-				sub {
-					$menu = [
-						{
-							name =>'Unable to contact the BBC API please check your internet settings'
-						}
-					];
-					$callback->( { items => $menu } );
-				}
-			);
-		}else {
-			$menu = [
-				{
-					name =>'Not Signed In or Sign In expired.  Please sign in to your BBC Account in your LMS Server Settings'
-				}
-			];
-			$callback->( { items => $menu } );
-		}
+		
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				$fetch->();
+			},
+			sub {
+				$menu = [
+					{
+						name =>'Not Signed In or Sign In expired.  Please sign in to your BBC Account in your LMS Server Settings'
+					}
+				];
+				$callback->( { items => $menu } );
+			}
+		);		
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--toplevel");
