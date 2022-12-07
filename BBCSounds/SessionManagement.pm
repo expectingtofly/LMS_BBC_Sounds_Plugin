@@ -120,23 +120,31 @@ sub signIn {
 			}
 		);
 	};
-
-	#Force a signout to clear out any strange cookies (needed to ensure expired cookies don't cause problems)
-	signOut(
-		sub {
-			main::DEBUGLOG && $log->is_debug && $log->debug("Force sign out succeeded");
-			$fSignIn->();
-		},
-		sub {
-			main::DEBUGLOG && $log->is_debug && $log->debug("Sign out failed, still attempting sign in");
-			$fSignIn->();
-		}
-	);
+	
+	ensureCookiesAreCleared();
+	$fSignIn->();	
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--signIn");
 	return;
 }
 
+sub ensureCookiesAreCleared {
+	main::DEBUGLOG && $log->is_debug && $log->debug("++ensureCookiesAreCleared");
+	my $session   = Slim::Networking::Async::HTTP->new;
+	my $cookiejar = $session->cookie_jar;
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++ensureCookiesAreCleared");
+	main::DEBUGLOG && $log->is_debug && $log->debug('Before Clear cookies : ' . Dumper($cookiejar));
+
+	$cookiejar->clear( '.bbc.co.uk' );
+	$cookiejar->clear( 'account.bbc.com' );
+	$cookiejar->clear( 'session.bbc.co.uk' );
+	$session->cookie_jar->save();
+	main::DEBUGLOG && $log->is_debug && $log->debug('After Clear cookies : ' . Dumper($cookiejar));
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--ensureCookiesAreCleared");
+	return;
+}
 
 sub isSignedIn {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
