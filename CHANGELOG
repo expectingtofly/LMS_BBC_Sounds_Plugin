@@ -1,3 +1,6 @@
+2.26.3
+Force security cookie removal on sign in.
+
 2.26.2
 Tweak to security token handling.
 
