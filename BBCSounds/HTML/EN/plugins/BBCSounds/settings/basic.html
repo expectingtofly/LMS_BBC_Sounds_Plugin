@@ -1,9 +1,10 @@
 [% PROCESS settings/header.html %]	
 	[% IF isSignedIn %]
-	<strong>You are already successfully signed in, you can sign out by pressing the button below :</strong>
+	<strong>You are currently signed in, you can sign out by pressing the button below :</strong>
 	<br/>
 	<input name="signout" type="submit" value="Sign Out" class="stdclick" />
 	<br/>
+	<p><small>Security tokens available (Expires [% sylphExp %] and [% idExp %])</small></p>
 	
 	[% END %]
 	[% IF isSignedOut %]

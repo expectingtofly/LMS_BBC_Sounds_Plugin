@@ -146,7 +146,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 9,
+				order => 10,
 			},
 			{
 				name        => 'Podcasts',
@@ -242,6 +242,22 @@ sub toplevel {
 					  };
 				}
 
+				#Local To Me
+				$module = _parseTopInlineMenu($JSON, 'local_rail');
+				$moduleTitle = $module->{title};
+				$submenu = [];
+
+				if ($module->{total}) {
+					_parseItems( $module->{data}, $submenu );
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
+						items => $submenu,
+						order => 9,
+					  };
+				}
 
 				#single item promo
 				$module = _parseTopInlineMenu($JSON, 'single_item_promo');
@@ -276,7 +292,7 @@ sub toplevel {
 					if (scalar @$submenu ) {
 
 						#fix up
-						@$submenu[0]->{order} = 10;
+						@$submenu[0]->{order} = 11;
 						@$submenu[0]->{name} = $moduleTitle;
 						push @$menu, @$submenu[0];
 					}
@@ -308,28 +324,20 @@ sub toplevel {
 		$callback->( { items => $cachemenu } );
 	}else {
 		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
-		if ( Plugins::BBCSounds::SessionManagement::isSignedIn() ) {
-			Plugins::BBCSounds::SessionManagement::renewSession(
-				sub {
-					$fetch->();
-				},
-				sub {
-					$menu = [
-						{
-							name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
-						}
-					];
-					$callback->( { items => $menu } );
-				}
-			);
-		}else {
-			$menu = [
-				{
-					name =>'Not Signed In!  Please sign in to your BBC Account in your LMS Server Settings'
-				}
-			];
-			$callback->( { items => $menu } );
-		}
+		
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				$fetch->();
+			},
+			sub {
+				$menu = [
+					{
+						name =>'Not Signed In or Sign In expired.  Please sign in to your BBC Account in your LMS Server Settings'
+					}
+				];
+				$callback->( { items => $menu } );
+			}
+		);		
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--toplevel");
@@ -1983,7 +1991,7 @@ sub _subscribeCLI {
 		} else {
 			push @$items,
 			  {
-				text => 'Subcribe',
+				text => 'Subscribe',
 				actions => {
 					go => {
 						player => 0,

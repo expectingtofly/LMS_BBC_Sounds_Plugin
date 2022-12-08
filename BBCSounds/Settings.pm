@@ -22,6 +22,7 @@ use base qw(Slim::Web::Settings);
 
 use Slim::Utils::Prefs;
 use Slim::Utils::Log;
+use Slim::Utils::DateTime;
 
 use Plugins::BBCSounds::SessionManagement;
 
@@ -101,6 +102,15 @@ sub handler {
 				if ( Plugins::BBCSounds::SessionManagement::isSignedIn()){
 					$isValid = 0;
 					$msg ='<strong>Successfully signed in</strong>';
+					my $IDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
+					if ($IDStatus->{sylph}) {
+						$params->{sylphExp} = Slim::Utils::DateTime::longDateF($IDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{sylph});
+					} else {
+						$params->{sylphExp} = 'None';
+					}
+					$params->{sylphExp} = Slim::Utils::DateTime::longDateF($IDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{sylph});
+					$params->{idExp} = Slim::Utils::DateTime::longDateF($IDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($IDStatus->{ID});
+
 				}
 				$params->{warning} .= $msg . '<br/>';
 				my $body = $class->SUPER::handler( $client, $params );
@@ -142,6 +152,15 @@ sub handler {
 		}
 	}
 
+	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
+	if ($currentIDStatus->{sylph}) {
+		$params->{sylphExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{sylph}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{sylph});
+	} else {
+		$params->{sylphExp} = 'None';
+	}
+	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
+	
+
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
@@ -160,11 +179,27 @@ sub beforeRender {
 	my ($class, $paramRef) = @_;
 	$log->debug("++beforeRender");
 
-	my $isSignedIn = Plugins::BBCSounds::SessionManagement::isSignedIn();
+	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
 
-	$paramRef->{isSignedIn} = $isSignedIn;
-
-	$paramRef->{isSignedOut} =  !($isSignedIn);
+	$paramRef->{isSignedIn} = 1;
+	$paramRef->{isSignedOut} = 0;
+	
+	if ($currentIDStatus->{sylph}) {
+		if ($currentIDStatus->{sylph} < time()) {
+			$paramRef->{isSignedIn} = 0;
+			$paramRef->{isSignedOut} = 1;
+		}
+	} else {
+		if ($currentIDStatus->{ID}) {
+			if ( $currentIDStatus->{ID} < time() ) {
+				$paramRef->{isSignedIn} = 0;
+				$paramRef->{isSignedOut} = 1;
+			}
+		} else {
+				$paramRef->{isSignedIn} = 0;
+				$paramRef->{isSignedOut} = 1;
+		}
+	}
 
 	$log->debug("--beforeRender");
 }

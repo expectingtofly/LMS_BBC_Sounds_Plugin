@@ -1,3 +1,21 @@
+2.26.6
+Manage missing sylphid token.
+
+2.26.3
+Force security cookie removal on sign in.
+
+2.26.2
+Tweak to security token handling.
+
+2.26.1
+Tidy up top level menu order.
+
+2.26.0
+Added "Local To Me" top menu rail.
+
+2.25.7
+Improve security token handling.
+
 2.25.5
 Address issue with expired tokens by forcing a signout before signin.
 
