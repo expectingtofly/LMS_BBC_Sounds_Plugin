@@ -18,6 +18,6 @@ The plugin is available to be installed from "3rd Party Plugins" of your LMS ins
 Full details can be found <a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki">in the Wiki.</a> 
 
 
-The BBC Sounds LMS plugin and all my LMS plugins are completely free and open source, it has been developed for fun and my own use, with the hope it would be useful to others.  No donation is expected.   However, if you find it useful and would like to, you can buy me a coffee via the link below:
+The BBC Sounds LMS plugin and all my LMS plugins are completely free and open source, it has been developed for fun and my own use, with the hope it would be useful to others.  No donation is expected.   However, if you find it useful and would like to make a contribution, you can buy me a coffee via the link below:
 
 [![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X8X02V4LF)
