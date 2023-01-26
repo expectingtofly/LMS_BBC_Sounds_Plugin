@@ -1165,8 +1165,18 @@ sub _parsePlayableItem {
 		order => 0,
 	};
 
+	my $line2 = '';
+	if ($item->{activities}[0]->{label}) {
+		$line2 = $item->{activities}[0]->{label};
+	}
+
 	if ( $item->{release}->{label} ) {
-		$imenu->{line2} = $item->{release}->{label};
+		$line2 .= ' - ' if length($line2);
+		$line2 .= $item->{release}->{label};
+	}
+
+	if (length($line2)) {
+		$imenu->{line2} = $line2;
 	}
 
 	push @$menu, $imenu;
