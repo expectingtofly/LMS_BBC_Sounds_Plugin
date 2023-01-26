@@ -87,7 +87,21 @@ sub initPlugin {
 			nowPlayingActivityButtons => 1,
 			throttleInterval => 1,
 			playableAsPlaylist => 0,
-			rewoundind => 1
+			rewoundind => 1,
+			homeItems => [
+				{ item => 'search', title => 'Search',display=>1, disabled=>1 },
+				{ item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
+				{ item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
+				{ item => 'unmissibleSounds', title => 'Priority Brands (Unmissable Sounds)',display=>1, disabled=>0 },
+				{ item => 'editorial', title => 'Promoted Editorial Content',display=>0, disabled=>0 },
+				{ item => 'music', title => 'Music', display=>1, disabled=>1 },
+				{ item => 'podcasts', title => 'Podcasts', display=>1, disabled=>1 },
+				{ item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
+				{ item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
+				{ item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
+				{ item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
+				{ item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
+			],
 		}
 	);
 

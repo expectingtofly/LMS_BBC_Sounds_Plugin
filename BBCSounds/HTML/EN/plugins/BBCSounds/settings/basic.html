@@ -118,6 +118,20 @@
 	
 	<br/>
 
+	[% WRAPPER setting title="Home Menu Items" desc="" %]
+    <table>
+        <tr><th>Menu Item :</th><th>Displayed :</th></tr>
+        [% FOREACH menuitem = topmenuitems %]
+        <tr>            
+            <td>[% menuitem.title %]</td>            
+            <td><input name="pref_menuitem_[% menuitem.item %]" [% IF menuitem.display %] checked [% END %] [% IF menuitem.disabled %] disabled [% END %]type="checkbox" /></td>		
+        </tr>
+        [% END %]        
+    </table>    
+    [% END %]     
+
+	<br/>
+
 	[% WRAPPER setting title="Search History" desc="" %]	
 	<input name="clearSearchHistory" type="checkbox" >
 	<label for="clearSearchHistory">Clear search history</label>	
