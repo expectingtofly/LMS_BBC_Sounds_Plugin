@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
-# Copyright (C) 2020 stu@expectingtofly.co.uk
+# Copyright (C) 2023 stu@expectingtofly.co.uk
 #
 # This file is part of LMS_BBC_Sounds_Plugin.
 #
@@ -107,7 +107,7 @@ sub init {
 		$isRadioFavourites = 1;
 	}
 
-	$homeMenuItems = $prefs->get('homeItems');
+	$homeMenuItems = $prefs->get('homeMenuItems');
 
 	_removeCacheMenu('toplevel'); #force remove
 }
@@ -2341,7 +2341,7 @@ sub setMenuVisibility {
 sub persistHomeMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++persistHomeMenu");
 
-	$prefs->set('homeItems', $homeMenuItems);
+	$prefs->set('homeMenuItems', $homeMenuItems);
 	_removeCacheMenu('toplevel');
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--persistHomeMenu");

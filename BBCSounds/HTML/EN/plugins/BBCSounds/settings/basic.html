@@ -41,6 +41,8 @@
 	
 	[% END %]
 
+	<p>For help, see the <a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki" target="none">BBC Sounds LMS Plugin Wiki</a></p>
+
 	<hr/>	
 
 	[% WRAPPER setting title="Menu Location" desc="" %]	
@@ -121,7 +123,7 @@
 	[% WRAPPER setting title="Home Menu Items" desc="" %]
     <table>
         <tr><th>Menu Item :</th><th>Displayed :</th></tr>
-        [% FOREACH menuitem = topmenuitems %]
+        [% FOREACH menuitem = homeMenu %]
         <tr>            
             <td>[% menuitem.title %]</td>            
             <td><input name="pref_menuitem_[% menuitem.item %]" [% IF menuitem.display %] checked [% END %] [% IF menuitem.disabled %] disabled [% END %]type="checkbox" /></td>		

@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::Plugin;
 
-#  (c) stu@expectingtofly.co.uk  2020
+#  (c) stu@expectingtofly.co.uk  2023
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ sub initPlugin {
 			throttleInterval => 1,
 			playableAsPlaylist => 0,
 			rewoundind => 1,
-			homeItems => [
+			homeMenuItems => [
 				{ item => 'search', title => 'Search',display=>1, disabled=>1 },
 				{ item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
 				{ item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },

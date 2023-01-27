@@ -89,6 +89,7 @@ sub handler {
 
 			}
 		);
+		$params->{homeMenu} = $prefs->get('homeMenuItems');
 		$log->debug("--handler save sign out");
 		return;
 	}
@@ -144,7 +145,8 @@ sub handler {
 				$callback->( $client, $params, $body, @args );
 			}
 		);
-		$log->debug("--handler save sign in");
+		$params->{homeMenu} = $prefs->get('homeMenuItems');
+		$log->debug("--handler save sign in");		
 		return;
 	}
 
@@ -169,10 +171,8 @@ sub handler {
 		$params->{sylphExp} = 'None';
 	}
 	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
-	my $items = $prefs->get('homeItems');	
-	$params->{topmenuitems} = $items;
 	
-
+	$params->{homeMenu} = $prefs->get('homeMenuItems');
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
@@ -182,7 +182,7 @@ sub prefs {
 
 
 	$log->debug("--prefs");
-	return ($prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind homeMenuItems));
+	return ($prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind ));
 }
 
 
