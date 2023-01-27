@@ -45,15 +45,6 @@ my $log = logger('plugin.bbcsounds');
 my $prefs = preferences('plugin.bbcsounds');
 
 my $isRadioFavourites = 0;
-my %subItems = (
-	'getPage' => \&getPage,
-	'getSubMenu' => \&getSubMenu,
-	'getStationMenu' => \&getStationMenu,
-	'createActivityWrapper' => \&createActivityWrapper,
-	'deleteActivityWrapper' => \&deleteActivityWrapper,
-	'getPersonalisedPage' => \&getPersonalisedPage,
-	'recentSearches' => \&recentSearches
-);
 
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
