@@ -41,6 +41,8 @@
 	
 	[% END %]
 
+	<p>For help, see the <a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki" target="none">BBC Sounds LMS Plugin Wiki</a></p>
+
 	<hr/>	
 
 	[% WRAPPER setting title="Menu Location" desc="" %]	
@@ -118,6 +120,20 @@
 	
 	<br/>
 
+	[% WRAPPER setting title="Home Menu Items" desc="" %]
+    <table>
+        <tr><th>Menu Item :</th><th>Displayed :</th></tr>
+        [% FOREACH menuitem = homeMenu %]
+        <tr>            
+            <td>[% menuitem.title %]</td>            
+            <td><input name="pref_menuitem_[% menuitem.item %]" [% IF menuitem.display %] checked [% END %] [% IF menuitem.disabled %] disabled [% END %]type="checkbox" /></td>		
+        </tr>
+        [% END %]        
+    </table>    
+    [% END %]     
+
+	<br/>
+
 	[% WRAPPER setting title="Search History" desc="" %]	
 	<input name="clearSearchHistory" type="checkbox" >
 	<label for="clearSearchHistory">Clear search history</label>	
@@ -154,7 +170,7 @@
 	<p><a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki" target="none">BBC Sounds LMS Plugin Wiki</a></p>
 	<p><a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin" target="none">BBC Sounds LMS Plugin Project Home Page</a></p>	
 	<p>The BBC Sounds LMS Plugin is free and open source under the GPLv3 license, it has been developed for my own use with the hope it will be useful for the LMS community.  If you wish to support the project you can <a href="https://ko-fi.com/expectingtofly" target="none">buy the developer a coffee.</a></p></i>	
-	<p>(c) 2020-2022 Stuart McLean (stu@expectingtofly.co.uk)</p>
+	<p>(c) 2020-2023 Stuart McLean (stu@expectingtofly.co.uk)</p>
 	[% END %]	
 
 	

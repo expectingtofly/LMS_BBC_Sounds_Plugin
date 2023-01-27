@@ -1,6 +1,6 @@
 package Plugins::BBCSounds::BBCSoundsFeeder;
 
-# Copyright (C) 2020 stu@expectingtofly.co.uk
+# Copyright (C) 2023 stu@expectingtofly.co.uk
 #
 # This file is part of LMS_BBC_Sounds_Plugin.
 #
@@ -49,6 +49,8 @@ my $isRadioFavourites = 0;
 my $cache = Slim::Utils::Cache->new();
 sub flushCache { $cache->cleanup(); }
 
+my $homeMenuItems;
+
 
 sub init {
 
@@ -95,6 +97,8 @@ sub init {
 		);
 		$isRadioFavourites = 1;
 	}
+
+	$homeMenuItems = $prefs->get('homeMenuItems');
 
 	_removeCacheMenu('toplevel'); #force remove
 }
@@ -145,7 +149,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 10,
+				order => 11,
 			},
 			{
 				name        => 'Podcasts',
@@ -195,105 +199,140 @@ sub toplevel {
 				my $moduleTitle = $module->{title};
 				my $submenu = [];
 
-				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					push @$menu,
-					  {
-						name  => $moduleTitle,
-						type  => 'link',
-						image  => Plugins::BBCSounds::Utilities::IMG_FEATURED,
-						items => $submenu,
-						order => 4,
-					  };
-				}
+				if (_getHomeMenuItemDisplay('unmissibleSounds')) {
 
-				#Editorial menu
-				$module = _parseTopInlineMenu($JSON, 'editorial_collection');
-				$moduleTitle = $module->{title};
-				$submenu = [];
-
-				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					push @$menu,
-					  {
-						name  => $moduleTitle,
-						type  => 'link',
-						image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
-						items => $submenu,
-						order => 5,
-					  };
-				}
-
-				#Recommended
-				$module = _parseTopInlineMenu($JSON, 'recommendations');
-				$moduleTitle = $module->{title};
-				$submenu = [];
-
-				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					push @$menu,
-					  {
-						name  => $moduleTitle,
-						type  => 'link',
-						image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
-						items => $submenu,
-						order => 8,
-					  };
-				}
-
-				#Local To Me
-				$module = _parseTopInlineMenu($JSON, 'local_rail');
-				$moduleTitle = $module->{title};
-				$submenu = [];
-
-				if ($module->{total}) {
-					_parseItems( $module->{data}, $submenu );
-					push @$menu,
-					  {
-						name  => $moduleTitle,
-						type  => 'link',
-						image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
-						items => $submenu,
-						order => 9,
-					  };
-				}
-
-				#single item promo
-				$module = _parseTopInlineMenu($JSON, 'single_item_promo');
-				if ($module->{total}) {
-
-					#There will only be one
-					my $promo = $module->{data};
-					my $singlePromo = @$promo[0];
-					$moduleTitle = '';
-					$moduleTitle .= $singlePromo->{titles}->{tertiary} . ' ' if  defined $singlePromo->{titles}->{tertiary};
-					$moduleTitle .= $singlePromo->{titles}->{primary} . ' - ' . $singlePromo->{titles}->{secondary};
-					$submenu = [];
-					my $dataArr = [];
-					push @$dataArr, $singlePromo->{item};
-
-					#some times it points to a live network
-					if ( $singlePromo->{item}->{urn} =~ /:network:/) {
-						push @$submenu,
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
 						  {
-							name        => $moduleTitle,
-							type        => 'audio',
-							image        =>  Plugins::BBCSounds::PlayManager::createIcon($singlePromo->{item}->{image_url}),
-							url         => 'sounds://_LIVE_'. $singlePromo->{item}->{id},
-							on_select   => 'play'
+							name  => $moduleTitle,
+							type  => 'link',
+							image  => Plugins::BBCSounds::Utilities::IMG_FEATURED,
+							items => $submenu,
+							order => 4,
 						  };
-
-					} else {
-						_parseItems($dataArr, $submenu);
 					}
+				}
+
+				if (_getHomeMenuItemDisplay('editorial')) {
+
+					#Editorial menu
+					$module = _parseTopInlineMenu($JSON, 'editorial_collection');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
+							items => $submenu,
+							order => 5,
+						  };
+					}
+				}
+
+				if (_getHomeMenuItemDisplay('recommendations')) {
+
+					#Recommended
+					$module = _parseTopInlineMenu($JSON, 'recommendations');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
+							items => $submenu,
+							order => 8,
+						  };
+					}
+				}
+
+				if (_getHomeMenuItemDisplay('localToMe')) {
+
+					#Local To Me
+					$module = _parseTopInlineMenu($JSON, 'local_rail');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
+							items => $submenu,
+							order => 9,
+						  };
+					}
+				}
+
+				if (_getHomeMenuItemDisplay('continueListening')) {
+
+					#Local To Me
+					$module = _parseTopInlineMenu($JSON, 'continue_listening');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
+							items => $submenu,
+							order => 10,
+						  };
+					}
+				}
+
+				if (_getHomeMenuItemDisplay('SingleItemPromotion')) {
+
+					#single item promo
+					$module = _parseTopInlineMenu($JSON, 'single_item_promo');
+					if ($module->{total}) {
+
+						#There will only be one
+						my $promo = $module->{data};
+						my $singlePromo = @$promo[0];
+						$moduleTitle = '';
+						$moduleTitle .= $singlePromo->{titles}->{tertiary} . ' ' if  defined $singlePromo->{titles}->{tertiary};
+						$moduleTitle .= $singlePromo->{titles}->{primary} . ' - ' . $singlePromo->{titles}->{secondary};
+						$submenu = [];
+						my $dataArr = [];
+						push @$dataArr, $singlePromo->{item};
+
+						#some times it points to a live network
+						if ( $singlePromo->{item}->{urn} =~ /:network:/) {
+							push @$submenu,
+							  {
+								name        => $moduleTitle,
+								type        => 'audio',
+								image        =>  Plugins::BBCSounds::PlayManager::createIcon($singlePromo->{item}->{image_url}),
+								url         => 'sounds://_LIVE_'. $singlePromo->{item}->{id},
+								on_select   => 'play'
+							  };
+
+						} else {
+							_parseItems($dataArr, $submenu);
+						}
 
 
-					if (scalar @$submenu ) {
+						if (scalar @$submenu ) {
 
-						#fix up
-						@$submenu[0]->{order} = 11;
-						@$submenu[0]->{name} = $moduleTitle;
-						push @$menu, @$submenu[0];
+							#fix up
+							@$submenu[0]->{order} = 12;
+							@$submenu[0]->{name} = $moduleTitle;
+							push @$menu, @$submenu[0];
+						}
 					}
 				}
 
@@ -323,7 +362,7 @@ sub toplevel {
 		$callback->( { items => $cachemenu } );
 	}else {
 		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
-		
+
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
 				$fetch->();
@@ -336,7 +375,7 @@ sub toplevel {
 				];
 				$callback->( { items => $menu } );
 			}
-		);		
+		);
 	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--toplevel");
@@ -934,7 +973,7 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		for ( my $i = 0 ; $i < scalar @{$JSON->{data}} ; $i++ ) {
 			_parseStationlist( $JSON->{data}[$i]->{data}, $menu );
-		}		
+		}
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
 		my $node = _getNode( $JSON->{data}, 'container_list' );
@@ -993,14 +1032,14 @@ sub _parseItems {
 	my $menu     		= shift;
 	my $isFromContainer =  shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseItems");
-	
-	my $size = scalar @$jsonData;	
+
+	my $size = scalar @$jsonData;
 	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
 
 	my $isPlayablePref = $prefs->get('playableAsPlaylist');
 
 	for my $item (@$jsonData) {
-		
+
 		if ( $item->{type} eq 'playable_item' ) {
 			_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
 		}elsif ( $item->{type} eq 'container_item' ) {
@@ -1092,7 +1131,7 @@ sub _parsePlayableItem {
 	}
 
 	my $title = $title1 . $title2 . $title3;
-	
+
 	my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 
 	my $playMenu = [];
@@ -1117,8 +1156,18 @@ sub _parsePlayableItem {
 		order => 0,
 	};
 
+	my $line2 = '';
+	if ($item->{activities}[0]->{label}) {
+		$line2 = $item->{activities}[0]->{label};
+	}
+
 	if ( $item->{release}->{label} ) {
-		$imenu->{line2} = $item->{release}->{label};
+		$line2 .= ' - ' if length($line2);
+		$line2 .= $item->{release}->{label};
+	}
+
+	if (length($line2)) {
+		$imenu->{line2} = $line2;
 	}
 
 	push @$menu, $imenu;
@@ -1718,8 +1767,9 @@ sub _isFavouritedActivity {
 
 
 sub _renderMenuCodeRefs {
-	my $menu = shift;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs");
+	my ($menu, $depth) = @_;
+	$depth //= 0;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs - $depth");	
 
 	my %subItems = (
 		'getPage' => \&getPage,
@@ -1732,16 +1782,14 @@ sub _renderMenuCodeRefs {
 	);
 
 	for my $menuItem (@$menu) {
-		my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'};
-		if ( defined $codeRef ) {
+		if ( my $codeRef = $menuItem->{passthrough}[0]->{'codeRef'} ) {
 			$menuItem->{'url'} = $subItems{$codeRef};
-		}
-		if (defined $menuItem->{'items'}) {
-			_renderMenuCodeRefs($menuItem->{'items'});
+		}elsif (defined $menuItem->{'items'}) {
+			_renderMenuCodeRefs($menuItem->{'items'}, $depth + 1);
 		}
 	}
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs - $depth");	
 	return;
 }
 
@@ -2126,6 +2174,15 @@ sub _recentSearchesCLI {
 }
 
 
+sub _getHomeMenuItemDisplay {
+	my $item = shift;
+
+	my ($ref) = grep { $_->{item} eq $item} @$homeMenuItems;
+
+	return $ref->{display};
+}
+
+
 sub buttonBookmark {
 	my $request = shift;
 	my $client  = $request->client();
@@ -2247,6 +2304,38 @@ sub deleteActivityWrapper {
 	);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--deleteActivityWrapper");
+	return;
+}
+
+
+sub setMenuVisibility {
+	my ( $item, $visible ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++setMenuVisibility");
+
+	for my $menuItem (@$homeMenuItems) {
+		if ($item eq $menuItem->{item}) {
+			if ($visible) {
+				$menuItem->{display} = 1;
+			} else {
+				$menuItem->{display} = 0;
+			}
+			main::DEBUGLOG && $log->is_debug && $log->debug("--setMenuVisibility set");
+			return;
+		}
+	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--setMenuVisibility");
+	return;
+}
+
+
+sub persistHomeMenu {
+	main::DEBUGLOG && $log->is_debug && $log->debug("++persistHomeMenu");
+
+	$prefs->set('homeMenuItems', $homeMenuItems);
+	_removeCacheMenu('toplevel');
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--persistHomeMenu");
 	return;
 }
 

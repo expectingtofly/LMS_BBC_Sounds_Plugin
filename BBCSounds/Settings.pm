@@ -25,6 +25,8 @@ use Slim::Utils::Log;
 use Slim::Utils::DateTime;
 
 use Plugins::BBCSounds::SessionManagement;
+use Plugins::BBCSounds::BBCSoundsFeeder;	
+
 
 use Data::Dumper;
 
@@ -87,6 +89,7 @@ sub handler {
 
 			}
 		);
+		$params->{homeMenu} = $prefs->get('homeMenuItems');
 		$log->debug("--handler save sign out");
 		return;
 	}
@@ -142,7 +145,8 @@ sub handler {
 				$callback->( $client, $params, $body, @args );
 			}
 		);
-		$log->debug("--handler save sign in");
+		$params->{homeMenu} = $prefs->get('homeMenuItems');
+		$log->debug("--handler save sign in");		
 		return;
 	}
 
@@ -150,6 +154,14 @@ sub handler {
 		if ($params->{clearSearchHistory}) {
 			$prefs->set('sounds_recent_search', []);
 		}
+
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('unmissibleSounds', $params->{pref_menuitem_unmissibleSounds});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('editorial', $params->{pref_menuitem_editorial});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('recommendations', $params->{pref_menuitem_recommendations});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('localToMe', $params->{pref_menuitem_localToMe});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('continueListening', $params->{pref_menuitem_continueListening});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('SingleItemPromotion', $params->{pref_menuitem_SingleItemPromotion});
+		Plugins::BBCSounds::BBCSoundsFeeder::persistHomeMenu();
 	}
 
 	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
@@ -160,18 +172,17 @@ sub handler {
 	}
 	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
 	
-
+	$params->{homeMenu} = $prefs->get('homeMenuItems');
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
-
 
 sub prefs {
 	$log->debug("++prefs");
 
 
 	$log->debug("--prefs");
-	return ($prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind));
+	return ($prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind ));
 }
 
 
