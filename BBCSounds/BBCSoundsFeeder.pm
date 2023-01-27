@@ -98,7 +98,7 @@ sub init {
 		$isRadioFavourites = 1;
 	}
 
-	$homeMenuItems = $prefs->get('homeMenuItems');
+	$homeMenuItems = $prefs->get('homeMenu');
 
 	_removeCacheMenu('toplevel'); #force remove
 }
@@ -2175,7 +2175,7 @@ sub _recentSearchesCLI {
 
 
 sub _getHomeMenuItemDisplay {
-	my $item = shift;
+	my $item = shift;	
 
 	my ($ref) = grep { $_->{item} eq $item} @$homeMenuItems;
 
@@ -2332,7 +2332,7 @@ sub setMenuVisibility {
 sub persistHomeMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++persistHomeMenu");
 
-	$prefs->set('homeMenuItems', $homeMenuItems);
+	$prefs->set('homeMenu', $homeMenuItems);
 	_removeCacheMenu('toplevel');
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--persistHomeMenu");

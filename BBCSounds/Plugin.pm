@@ -87,8 +87,8 @@ sub initPlugin {
 			nowPlayingActivityButtons => 1,
 			throttleInterval => 1,
 			playableAsPlaylist => 0,
-			rewoundind => 1,
-			homeMenuItems => [
+			rewoundind => 1,	
+			homeMenu => [
 				{ item => 'search', title => 'Search',display=>1, disabled=>1 },
 				{ item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
 				{ item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },

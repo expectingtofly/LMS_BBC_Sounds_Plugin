@@ -89,7 +89,7 @@ sub handler {
 
 			}
 		);
-		$params->{homeMenu} = $prefs->get('homeMenuItems');
+		$params->{homeMenu} = $prefs->get('homeMenu');
 		$log->debug("--handler save sign out");
 		return;
 	}
@@ -145,7 +145,7 @@ sub handler {
 				$callback->( $client, $params, $body, @args );
 			}
 		);
-		$params->{homeMenu} = $prefs->get('homeMenuItems');
+		$params->{homeMenu} = $prefs->get('homeMenu');
 		$log->debug("--handler save sign in");		
 		return;
 	}
@@ -172,7 +172,8 @@ sub handler {
 	}
 	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
 	
-	$params->{homeMenu} = $prefs->get('homeMenuItems');
+	$params->{homeMenu} = $prefs->get('homeMenu');
+
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
