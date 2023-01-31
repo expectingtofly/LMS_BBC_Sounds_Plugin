@@ -1003,6 +1003,8 @@ sub sysread {
 								$props->{'isContinue'} = 1;
 								$song->pluginData( props   => $props );
 								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+							} else {
+								Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'ended',floor($props->{'duration'}));
 							}
 						}
 
