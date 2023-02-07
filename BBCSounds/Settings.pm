@@ -161,6 +161,7 @@ sub handler {
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('localToMe', $params->{pref_menuitem_localToMe});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('continueListening', $params->{pref_menuitem_continueListening});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('SingleItemPromotion', $params->{pref_menuitem_SingleItemPromotion});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('listenLive', $params->{pref_menuitem_listenLive});
 		Plugins::BBCSounds::BBCSoundsFeeder::persistHomeMenu();
 	}
 

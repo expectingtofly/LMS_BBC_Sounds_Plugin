@@ -141,7 +141,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
 				url  => '',
 				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
-				order => 3,
+				order => 4,
 			},
 			{
 				name => 'Browse Categories',
@@ -149,7 +149,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 11,
+				order => 12,
 			},
 			{
 				name        => 'Podcasts',
@@ -157,7 +157,7 @@ sub toplevel {
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 				passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
-				order       => 7,
+				order       => 8,
 			},
 		];
 
@@ -209,7 +209,7 @@ sub toplevel {
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_FEATURED,
 							items => $submenu,
-							order => 4,
+							order => 5,
 						  };
 					}
 				}
@@ -229,7 +229,7 @@ sub toplevel {
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
 							items => $submenu,
-							order => 5,
+							order => 6,
 						  };
 					}
 				}
@@ -249,7 +249,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 							items => $submenu,
-							order => 8,
+							order => 9,
 						  };
 					}
 				}
@@ -269,9 +269,27 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
 							items => $submenu,
-							order => 9,
+							order => 10,
 						  };
 					}
+				}
+
+				if (_getHomeMenuItemDisplay('listenLive')) {
+
+					#Live Stations Only
+					$module = _parseTopInlineMenu($JSON, 'listen_live');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					_parseItems( $module->{data}, $submenu );
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
+						items => $submenu,
+						order => 3,
+					  };
 				}
 
 				if (_getHomeMenuItemDisplay('continueListening')) {
@@ -289,7 +307,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
 							items => $submenu,
-							order => 10,
+							order => 11,
 						  };
 					}
 				}
@@ -1041,7 +1059,12 @@ sub _parseItems {
 	for my $item (@$jsonData) {
 
 		if ( $item->{type} eq 'playable_item' ) {
-			_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
+			if ( $item->{urn} =~ /:network:/ ) {
+				_parseNetworkPlayableItem( $item, $menu );
+			} else {
+				_parsePlayableItem( $item, $menu, $isPlayablePref, $isFromContainer );
+			}
+
 		}elsif ( $item->{type} eq 'container_item' ) {
 			_parseContainerItem( $item, $menu );
 		}elsif ( $item->{type} eq 'broadcast_summary' ) {
@@ -1173,6 +1196,36 @@ sub _parsePlayableItem {
 	push @$menu, $imenu;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parsePlayableItem");
+	return;
+
+}
+
+
+sub _parseNetworkPlayableItem {
+	my ($item, $menu) = @_;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseNetworkPlayableItem");
+
+	my $liveStation = {
+		name        	=> $item->{network}->{short_title},
+		type        	=> 'audio',
+		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url}),
+		url         	=> 'sounds://_LIVE_'. $item->{network}->{id},
+		favorites_url 	=> 'sounds://_LIVE_'. $item->{network}->{id},
+		favorites_title => 'BBC ' . $item->{network}->{short_title},
+		on_select   	=> 'play'
+	};
+
+	my $line2 = $item->{titles}->{secondary} . ' ' . $item->{titles}->{primary};
+	if ( $item->{synopses}->{short} ) {
+		$line2 .= ' - ' . $item->{synopses}->{short};
+	}
+
+	$liveStation->{line2} = $line2;
+
+	push @$menu, $liveStation;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseNetworkPlayableItem");
 	return;
 
 }
@@ -1769,7 +1822,7 @@ sub _isFavouritedActivity {
 sub _renderMenuCodeRefs {
 	my ($menu, $depth) = @_;
 	$depth //= 0;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs - $depth");	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_renderMenuCodeRefs - $depth");
 
 	my %subItems = (
 		'getPage' => \&getPage,
@@ -1789,7 +1842,7 @@ sub _renderMenuCodeRefs {
 		}
 	}
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs - $depth");	
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_renderMenuCodeRefs - $depth");
 	return;
 }
 
@@ -2175,7 +2228,7 @@ sub _recentSearchesCLI {
 
 
 sub _getHomeMenuItemDisplay {
-	my $item = shift;	
+	my $item = shift;
 
 	my ($ref) = grep { $_->{item} eq $item} @$homeMenuItems;
 
