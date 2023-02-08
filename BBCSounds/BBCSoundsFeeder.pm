@@ -1210,8 +1210,8 @@ sub _parseNetworkPlayableItem {
 		name        	=> $item->{network}->{short_title},
 		type        	=> 'audio',
 		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url}),
-		url         	=> 'sounds://_LIVE_'. $item->{network}->{id},
-		favorites_url 	=> 'sounds://_LIVE_'. $item->{network}->{id},
+		url         	=> 'sounds://_LIVE_'. $item->{id},
+		favorites_url 	=> 'sounds://_LIVE_'. $item->{id},
 		favorites_title => 'BBC ' . $item->{network}->{short_title},
 		on_select   	=> 'play'
 	};
