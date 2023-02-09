@@ -25,7 +25,7 @@ use Slim::Utils::Log;
 use Slim::Utils::DateTime;
 
 use Plugins::BBCSounds::SessionManagement;
-use Plugins::BBCSounds::BBCSoundsFeeder;	
+use Plugins::BBCSounds::BBCSoundsFeeder;
 
 
 use Data::Dumper;
@@ -89,7 +89,7 @@ sub handler {
 
 			}
 		);
-		$params->{homeMenu} = $prefs->get('homeMenu');
+		$params->{homeMenu} = getHomeMenu();
 		$log->debug("--handler save sign out");
 		return;
 	}
@@ -145,8 +145,8 @@ sub handler {
 				$callback->( $client, $params, $body, @args );
 			}
 		);
-		$params->{homeMenu} = $prefs->get('homeMenu');
-		$log->debug("--handler save sign in");		
+		$params->{homeMenu} = getHomeMenu();
+		$log->debug("--handler save sign in");
 		return;
 	}
 
@@ -161,6 +161,7 @@ sub handler {
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('localToMe', $params->{pref_menuitem_localToMe});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('continueListening', $params->{pref_menuitem_continueListening});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('SingleItemPromotion', $params->{pref_menuitem_SingleItemPromotion});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('listenLive', $params->{pref_menuitem_listenLive});
 		Plugins::BBCSounds::BBCSoundsFeeder::persistHomeMenu();
 	}
 
@@ -171,12 +172,13 @@ sub handler {
 		$params->{sylphExp} = 'None';
 	}
 	$params->{idExp} = Slim::Utils::DateTime::longDateF($currentIDStatus->{ID}) . ' ' . Slim::Utils::DateTime::timeF($currentIDStatus->{ID});
-	
-	$params->{homeMenu} = $prefs->get('homeMenu');
+
+	$params->{homeMenu} = getHomeMenu();
 
 	$log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
+
 
 sub prefs {
 	$log->debug("++prefs");
@@ -195,7 +197,7 @@ sub beforeRender {
 
 	$paramRef->{isSignedIn} = 1;
 	$paramRef->{isSignedOut} = 0;
-	
+
 	if ($currentIDStatus->{sylph}) {
 		if ($currentIDStatus->{sylph} < time()) {
 			$paramRef->{isSignedIn} = 0;
@@ -208,12 +210,47 @@ sub beforeRender {
 				$paramRef->{isSignedOut} = 1;
 			}
 		} else {
-				$paramRef->{isSignedIn} = 0;
-				$paramRef->{isSignedOut} = 1;
+			$paramRef->{isSignedIn} = 0;
+			$paramRef->{isSignedOut} = 1;
 		}
 	}
 
 	$log->debug("--beforeRender");
+}
+
+
+sub getHomeMenu {
+	my $homeMenu = $prefs->get('homeMenu');
+
+	my %displayItems = (
+		'search' => {title => 'Search', order =>0},
+		'mySounds' => {title => 'My Sounds', order =>1},
+		'listenLive' => {title => 'Listen Live (Live stations only)', order =>2},
+		'stations' => {title => 'Stations & Schedules (Live stations and catch-up)', order =>3},
+		'unmissibleSounds' => {title => 'Priority Brands (Unmissable Sounds)', order =>4},
+		'editorial' => {title => 'Promoted Editorial Content', order =>5},
+		'music' => {title => 'Music', order =>6},
+		'podcasts' => {title => 'Podcasts (Speech)', order =>7},
+		'recommendations' => {title => 'Recommended For You', order =>8},
+		'localToMe' => {title => 'Local To Me', order =>9},
+		'categories' => {title => 'Browse Categories', order =>10},
+		'continueListening' => {title => 'Continue Listening', order =>11},
+		'SingleItemPromotion' => {title => 'Promoted Single Item', order =>12},
+
+	);
+
+	my $ret = [];
+
+	for my $i (@$homeMenu)  {
+		my $new = $i;	
+
+		$new->{'title'} = $displayItems{$i->{'item'}}->{'title'};
+		$new->{'order'} = $displayItems{$i->{'item'}}->{'order'};
+		push @$ret, $new;
+	}
+	@$ret = sort { $a->{'order'} <=> $b->{'order'} } @$ret;
+
+	return $ret;
 }
 
 1;

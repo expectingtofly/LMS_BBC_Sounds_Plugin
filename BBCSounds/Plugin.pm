@@ -43,6 +43,17 @@ my $prefs = preferences('plugin.bbcsounds');
 
 
 $prefs->migrate(
+	8,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		push @$m, { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 };
+		$prefs->set('homeMenu', $m);
+		1;
+	}
+);
+
+
+$prefs->migrate(
 	7,
 	sub {
 		$prefs->set('forceHTTP', 0);

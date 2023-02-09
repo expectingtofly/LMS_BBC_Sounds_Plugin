@@ -63,6 +63,7 @@ use constant CHUNK_TIMEOUT => 4;
 use constant CHUNK_RETRYCOUNT => 2;
 use constant CHUNK_FAILURECOUNT => 5;
 use constant RESETMETA_THRESHHOLD => 1;
+use constant PROGRAMME_LATENCY => 38.4;
 
 use constant DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME => 1;
 use constant DISPLAYLINE_TRACKTITLEWHENPLAYING => 2;
@@ -146,8 +147,9 @@ sub canDoAction {
 
 			my $song = $client->playingSong();
 			my $props = $song->pluginData('props');
+			main::INFOLOG && $log->is_info && $log->info('Rewind Pressed song time : ' . $songTime);		
 
-			if ( ($songTime >= 5) || (!$props->{previousStartNumber}) ) {  # if we are greater than 5 seconds we go back to the start of the current programme
+			if ( ($songTime >= 8) || (!$props->{previousStartNumber}) ) {  # if we are greater than 5 seconds we go back to the start of the current programme
 				main::INFOLOG && $log->is_info && $log->info('Rewinding to start of programme');
 				$props->{comparisonTime} -= (($props->{startNumber} - $props->{virtualStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
 				$props->{startNumber} = $props->{virtualStartNumber};
@@ -745,6 +747,7 @@ sub aodMetaData {
 sub liveMetaData {
 	my $self = shift;
 	my $isLive = shift;
+	my $programmeOffset = shift;
 	my $client = ${*$self}{'client'};
 	my $v        = $self->vars;
 	my $song      = ${*$self}{'song'};
@@ -760,14 +763,14 @@ sub liveMetaData {
 		sub {
 			my $schedule = shift;
 			
-			my $resp = _getIDForBroadcast($schedule, $v->{'offset'}, ${*$self}{'props'});
+			my $resp = _getIDForBroadcast($schedule, $programmeOffset , ${*$self}{'props'});
 			my $id = '';
 			if ($resp){
 				$id = $resp->{id};
 			}
 			if (!($id eq $v->{'liveId'})) {
 				$v->{'liveId'} = $id;
-				main::INFOLOG && $log->is_info && $log->info('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $v->{'offset'} . ' end offset ' . $resp->{endOffset});
+				main::INFOLOG && $log->is_info && $log->info('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $programmeOffset . ' end offset ' . $resp->{endOffset});
 				_getLiveMeta(
 					$id,
 
@@ -834,7 +837,7 @@ sub liveMetaData {
 
 						#Finally, get the previous start number, if there is one and we haven't got one already
 						if ( !($props->{previousStartNumber}) ) {							
-							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 1, $props ) ) {
+							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 2, $props ) ) {
 
 								$props->{previousStartNumber} = $lastresp->{startOffset};
 								$song->pluginData( props   => $props );
@@ -975,8 +978,7 @@ sub sysread {
 			$url .= $suffix;
 
 			$v->{'offset'}++;
-
-
+			
 			my $request = HTTP::Request->new( GET => $url, $headers);
 			$request->protocol('HTTP/1.1');
 
@@ -1003,6 +1005,8 @@ sub sysread {
 								$props->{'isContinue'} = 1;
 								$song->pluginData( props   => $props );
 								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+							} else {
+								Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'ended',floor($props->{'duration'}));
 							}
 						}
 
@@ -1016,7 +1020,7 @@ sub sysread {
 
 							# get the meta data for this live track if we don't have it yet.
 
-							$self->liveMetaData($isNow) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset) if $isNow;
@@ -1652,7 +1656,9 @@ sub _getIDForBroadcast {
 	my $offset = shift;
 	my $props = shift;
 
-	my $offsetEpoch = floor($offset * ($props->{segmentDuration} / $props->{segmentTimescale}));
+	my $factor = ($props->{segmentDuration} / $props->{segmentTimescale});
+
+	my $offsetEpoch = (($offset * $factor) - PROGRAMME_LATENCY) + $factor ;
 
 	my $items = $schedule->{data};
 
@@ -1663,14 +1669,11 @@ sub _getIDForBroadcast {
 			my $id = $item->{id};
 			$id = $item->{pid} if !(defined $id); #sometimes it is the pid not the id.  I think this is an inconsistency in the API for previous broadcasts
 			main::DEBUGLOG && $log->is_debug && $log->debug("Found in schedule -  $id  ");
-			my $startOffset = floor((str2time($item->{start})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
-			my $endOffset = floor((str2time($item->{end})-1) / ($props->{segmentDuration} / $props->{segmentTimescale}));
-
-			#take one off it to make sure we end before we begin!
-
+			my $startOffset = floor(((str2time($item->{start})) + PROGRAMME_LATENCY) / $factor);
+			my $endOffset = floor(((str2time($item->{end})) + PROGRAMME_LATENCY) / $factor) - 1;
 			return {
 				id => $id,
-				secondsIn => ($offsetEpoch- str2time($item->{start})),
+				secondsIn => (($offset - $startOffset)  * $factor),
 				startOffset => $startOffset,
 				endOffset => $endOffset
 			};
@@ -1739,9 +1742,10 @@ sub _getAODMeta {
 
 			},
 			sub {
-				#cache for 3 minutes so that we don't flood their api
+				#cache for 60 minutes so that we don't flood their api
+				$log->warn("It looks like a player is asking for meta data that doesn't exist. Check that you have not got a player trying to get meta data for an old programme");
 				my $failedmeta ={title => $pid,};
-				$cache->set("bs:meta-$pid",$failedmeta,180);
+				$cache->set("bs:meta-$pid",$failedmeta,3600);
 				$cbN->();
 			}
 		);

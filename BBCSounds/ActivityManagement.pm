@@ -88,7 +88,7 @@ sub heartBeat {
 
 	my $body ='{"resource_type":"episode","pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';
 
-	$log->info( 'heartbeat  - ' . $body );
+	main::INFOLOG && $log->is_info && $log->info( 'heartbeat  - ' . $body );
 
 	Plugins::BBCSounds::SessionManagement::renewSession(
 		sub {
@@ -103,7 +103,7 @@ sub heartBeat {
 					onBody  => sub {
 						my ( $http, $self ) = @_;
 						my $res = $http->response;
-						$log->debug('heartbeat status - ' . $res->status_line );
+						main::DEBUGLOG && $log->is_debug && $log->debug('heartbeat status - ' . $res->status_line );
 					},
 					onError => sub {
 						my ( $http, $self ) = @_;
