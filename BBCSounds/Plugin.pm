@@ -41,13 +41,31 @@ my $log = Slim::Utils::Log->addLogCategory(
 
 my $prefs = preferences('plugin.bbcsounds');
 
+$prefs->migrate(
+	9,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		if ( $m ) {
+			my $found = 0;
+			for my $item (@$m) {
+				if ($item->{item} eq 'listenLive') {
+					$found = 1;
+				}
+			}
+			if (!$found) {
+				push @$m, { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 };
+				$prefs->set('homeMenu', $m);
+			}
+		}
+		1;
+	}
+);
+
 
 $prefs->migrate(
 	8,
 	sub {
-		my $m = $prefs->get('homeMenu');
-		push @$m, { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 };
-		$prefs->set('homeMenu', $m);
+		#removed from beta version
 		1;
 	}
 );
@@ -98,21 +116,21 @@ sub initPlugin {
 			nowPlayingActivityButtons => 1,
 			throttleInterval => 1,
 			playableAsPlaylist => 0,
-			rewoundind => 1,	
-			homeMenu => [
-				{ item => 'search', title => 'Search',display=>1, disabled=>1 },
-				{ item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
-				{ item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
-				{ item => 'unmissibleSounds', title => 'Priority Brands (Unmissable Sounds)',display=>1, disabled=>0 },
-				{ item => 'editorial', title => 'Promoted Editorial Content',display=>0, disabled=>0 },
-				{ item => 'music', title => 'Music', display=>1, disabled=>1 },
-				{ item => 'podcasts', title => 'Podcasts', display=>1, disabled=>1 },
-				{ item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
-				{ item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
-				{ item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
-				{ item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
-				{ item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
-			],
+			rewoundind => 1,
+			homeMenu => [{ item => 'search', title => 'Search',display=>1, disabled=>1 },
+						 { item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
+						 { item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
+						 { item => 'unmissibleSounds', title => 'Priority Brands (Unmissable Sounds)',display=>1, disabled=>0 },
+						 { item => 'editorial', title => 'Promoted Editorial Content',display=>0, disabled=>0 },
+						 { item => 'music', title => 'Music', display=>1, disabled=>1 },
+						 { item => 'podcasts', title => 'Podcasts', display=>1, disabled=>1 },
+						 { item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
+						 { item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
+						 { item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
+						 { item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
+						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
+						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 }
+						],
 		}
 	);
 
