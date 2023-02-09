@@ -837,7 +837,7 @@ sub liveMetaData {
 
 						#Finally, get the previous start number, if there is one and we haven't got one already
 						if ( !($props->{previousStartNumber}) ) {							
-							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 1, $props ) ) {
+							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 2, $props ) ) {
 
 								$props->{previousStartNumber} = $lastresp->{startOffset};
 								$song->pluginData( props   => $props );
@@ -1659,9 +1659,6 @@ sub _getIDForBroadcast {
 	my $factor = ($props->{segmentDuration} / $props->{segmentTimescale});
 
 	my $offsetEpoch = (($offset * $factor) - PROGRAMME_LATENCY) + $factor ;
-
-
-
 
 	my $items = $schedule->{data};
 
