@@ -1742,9 +1742,10 @@ sub _getAODMeta {
 
 			},
 			sub {
-				#cache for 3 minutes so that we don't flood their api
+				#cache for 60 minutes so that we don't flood their api
+				$log->warn("It looks like a player is asking for meta data that doesn't exist. Check that you have not got a player trying to get meta data for an old programme");
 				my $failedmeta ={title => $pid,};
-				$cache->set("bs:meta-$pid",$failedmeta,180);
+				$cache->set("bs:meta-$pid",$failedmeta,3600);
 				$cbN->();
 			}
 		);
