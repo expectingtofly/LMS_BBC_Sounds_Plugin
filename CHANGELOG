@@ -1,5 +1,5 @@
-2.28.2
-Fix for progress bar issues on live stream
+2.28.3
+Fix for Browse Categories API change
 
 2.28.1
 "Listen Live" menu available from preference.  Improve live rewind timings. Bugfixes.

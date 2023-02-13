@@ -449,7 +449,7 @@ sub getPage {
 	}elsif ( $menuType eq 'categories' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/categories/container?kind='. $passDict->{'categorytype'};
 	}elsif ( $menuType eq 'childcategories' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/categories/' . $passDict->{'category'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/categories?kind=' . $passDict->{'categorytype'} . '&dummycategory='.$passDict->{'category'};
 	}elsif ( $menuType eq 'stationsdayschedule' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
 	}elsif ( $menuType eq 'segments' ) {
@@ -979,14 +979,14 @@ sub _parse {
 		_createOffset( $JSON, $passthrough, $menu );
 	}elsif ( $optstr eq 'categories' )  {
 		my $JSON = decode_json ${ $http->contentRef };
-		_parseCategories( $JSON->{data}, $menu );
+		_parseCategories( $JSON->{data}, $menu, $passthrough->{'categorytype'} );
 	}elsif (( $optstr eq 'podcasts' )
 		|| ( $optstr eq 'music' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseInline( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'childcategories' ) {
 		my $JSON = decode_json ${ $http->contentRef };
-		_parseChildCategories( $JSON, $menu );
+		_parseChildCategories( $JSON, $menu, $passthrough->{'category'} );
 	}elsif ( $optstr eq 'stationlist' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		for ( my $i = 0 ; $i < scalar @{$JSON->{data}} ; $i++ ) {
@@ -1380,11 +1380,12 @@ sub _parseContainerItem {
 sub _parseCategories {
 	my $jsonData = shift;
 	my $menu     = shift;
+	my $categoryType = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseCategories");
 
 	my $size = scalar @$jsonData;
 
-	$log->info("Number of cats : $size ");
+	$log->info("Number of cats : $size for $categoryType ");
 
 	for my $cat (@$jsonData) {
 		my $title = $cat->{titles}->{primary};
@@ -1399,6 +1400,7 @@ sub _parseCategories {
 				{
 					type     => 'childcategories',
 					category => $cat->{id},
+					categorytype  => $categoryType,
 					offset   => 0,
 					codeRef  => 'getPage'
 				}
@@ -1466,47 +1468,61 @@ sub _InlineMenuCreator {
 
 
 sub _parseChildCategories {
-	my $json = shift;
+	my $fullJSON = shift;
 	my $menu = shift;
+	my $category = shift;
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseChildCategories");
 
-	my $catId    = $json->{id};
-	my $catTitle = $json->{title};
+	my $arr = $fullJSON->{data};
+	my $json;
+	for my $item (@$arr) {
+		if ($item->{id} eq $category) {
+			$json = $item;
+			last;
+		}
+	}
+	if ($json) {
 
-	my $children = $json->{child_categories};
+		my $catId    = $json->{id};
+		my $catTitle = $json->{title};
 
-	for my $cat (@$children) {
-		my $title = $cat->{title};
+		my $children = $json->{child_categories};
+
+		for my $cat (@$children) {
+			my $title = $cat->{title};
+			push @$menu,
+			  {
+				name        => $catTitle . ' - ' . $title,
+				type        => 'link',
+				url         => '',
+				passthrough => [
+					{
+						type     => 'container',
+						category => $cat->{id},
+						offset   => 0,
+						codeRef  => 'getPage'
+					}
+				],
+			  };
+		}
 		push @$menu,
 		  {
-			name        => $catTitle . ' - ' . $title,
+			name        => 'All ' . $catTitle,
 			type        => 'link',
 			url         => '',
 			passthrough => [
 				{
 					type     => 'container',
-					category => $cat->{id},
+					category => $catId,
 					offset   => 0,
 					codeRef  => 'getPage'
 				}
 			],
 		  };
+	} else {
+		$log->warn("Category $category not found");
 	}
-	push @$menu,
-	  {
-		name        => 'All ' . $catTitle,
-		type        => 'link',
-		url         => '',
-		passthrough => [
-			{
-				type     => 'container',
-				category => $catId,
-				offset   => 0,
-				codeRef  => 'getPage'
-			}
-		],
-	  };
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseChildCategories");
 	return;
