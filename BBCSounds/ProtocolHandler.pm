@@ -272,7 +272,6 @@ sub new {
 			'failureCount' => 0,  #Counting Chunk failures
 			'liveId'   => '',  # The ID of the live programme playing
 			'firstIn'  => 1,   # An indicator for the first data call
-			'audioOut' => 0,  # An indicator to show that audio has left the handler
 			'trackData' => {   # For managing showing live track data
 				'chunkCounter' => 0,   # for managing showing show title or track in a 4/2 regime
 				'isShowingTitle' => 1,   # indicates what cycle we are on
@@ -1021,7 +1020,7 @@ sub sysread {
 
 							# get the meta data for this live track if we don't have it yet.
 
-							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ($v->{'audioOut'} && ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD));
+							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset) if $isNow;
@@ -1064,8 +1063,7 @@ sub sysread {
 
 	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );
-		$v->{'audioOut'} = 1;
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );		
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('No bytes available' . Time::HiRes::time());
