@@ -49,7 +49,7 @@ sub explodePlaylist {
 
 		Plugins::BBCSounds::BBCSoundsFeeder::getSubMenu(undef, $cb, undef, {type => 'mysounds'});
 
-	} elsif ($type = 'CONTAINER') {
+	} elsif ($type eq 'CONTAINER') {
 
 		my $pid = _getpid($url);
 
