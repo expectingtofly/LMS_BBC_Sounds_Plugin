@@ -1156,7 +1156,7 @@ sub getNextTrack {
 		my $dashmpd = $url;
 		my $overrideEpoch;
 
-		$overrideEpoch = getRewindEpoch($masterUrl) if $class->isRewind($masterUrl);
+		$overrideEpoch = (getRewindEpoch($masterUrl) + PROGRAMME_LATENCY) if $class->isRewind($masterUrl);
 
 		getMPD(
 			$dashmpd,
