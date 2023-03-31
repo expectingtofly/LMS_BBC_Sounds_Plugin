@@ -4,14 +4,14 @@ Provides access to the BBC Sounds features as an LMS (Logitech Media Server) plu
 
 1. Search
 2. My Sounds (Subscriptions and Bookmarks)
-3. Live streams seekable within the current programme
+3. Live Radio with pause/rewind and fully seekable
 4. Daily Picks (BBC daily curated content) 
 5. Featured Podcasts (BBC Promoted content)
 6. Music Mixes
 7. 30 day Station Schedules for catch up listening
 8. Categories Browsing
 9. Subscribing and Bookmarking from within the plugin
-10. Integration with BBC Account for "Continue Listening".
+10. Integration with BBC Account for "Continue Listening"
 
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
