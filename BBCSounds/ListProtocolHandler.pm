@@ -22,6 +22,8 @@ use strict;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
+use Data::Dumper;
+
 use Plugins::BBCSounds::BBCSoundsFeeder;
 use Plugins::BBCSounds::SessionManagement;
 
@@ -37,19 +39,35 @@ sub isRemote { 1 }
 sub explodePlaylist {
 	my ( $class, $client, $url, $cb ) = @_;
 
-	if ($main::VERSION lt '8.2.0') {
-		$log->warn("BBC Sounds Favourites only supported in LMS 8.2.0 and greater");
-		$cb->(['BBC Sounds Favourites require LMS 8.2.0 or greater']);
-		return;
-	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("URL to explode : $url");
 
 	my $type = _gettype($url);
 
 	if ($type eq 'MYSOUNDS') {
 
-		Plugins::BBCSounds::BBCSoundsFeeder::getSubMenu(undef, $cb, undef, {type => 'mysounds'});
+		if ($main::VERSION lt '8.2.0') {
+			$log->warn("BBC Sounds Favourites only supported in LMS 8.2.0 and greater");
+			$cb->(['BBC Sounds Favourites require LMS 8.2.0 or greater']);
+			return;
+		}
+
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				Plugins::BBCSounds::BBCSoundsFeeder::getSubMenu(undef, $cb, undef, {type => 'mysounds'});
+			},
+			sub {
+				$log->warn("Failed to renew session to retreive series from favourites");
+			}
+		);
 
 	} elsif ($type eq 'CONTAINER') {
+
+		if ($main::VERSION lt '8.2.0') {
+			$log->warn("BBC Sounds Favourites only supported in LMS 8.2.0 and greater");
+			$cb->(['BBC Sounds Favourites require LMS 8.2.0 or greater']);
+			return;
+		}
 
 		my $pid = _getpid($url);
 
@@ -62,8 +80,36 @@ sub explodePlaylist {
 			}
 		);
 
+	} elsif ($type eq 'PLAYALL') {
+		my $urn = _getpid($url);
+
+		main::DEBUGLOG && $log->is_debug && $log->debug("In Play all");
+
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				Plugins::BBCSounds::BBCSoundsFeeder::getPage(
+					undef,
+					sub {
+						my $res = shift;
+						my $arr = $res->{items};
+						my $ret = [];
+						for my $item (@$arr) {
+							my $playMenu = $item->{items};
+							push @$ret, @$playMenu[0]->{url};
+						}					
+						$cb->($ret);
+					},
+					undef,
+					{type    => 'inlineURN',	urn  =>  $urn,	offset  => 0}
+				);
+			},
+			sub {
+				$log->warn("Failed to renew session to retreive list from favourites");
+			}
+		);
+
 	}
-	
+
 	return;
 }
 
