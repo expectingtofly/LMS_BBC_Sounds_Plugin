@@ -82,7 +82,7 @@ sub init {
 	#                                                               |  |  |  |Function to call
 	#                                                               C  Q  T  F
 	Slim::Control::Request::addDispatch(['sounds','recentsearches'],[0, 0, 1, \&_recentSearchesCLI]);
-	Slim::Control::Request::addDispatch(['sounds','subscribeUnsubscribe'],[0, 0, 1, \&_subscribeCLI]);
+	Slim::Control::Request::addDispatch(['sounds','containerMenu'],[0, 0, 1, \&_containerCLI]);
 
 	Slim::Control::Request::addDispatch(['sounds', 'bookmark', '_urn'],[0, 1, 1, \&buttonBookmark]);
 
@@ -1364,7 +1364,7 @@ sub _parseContainerItem {
 		playlist => $favouritesUrl,
 		itemActions => {
 			info => {
-				command     => ['sounds', 'subscribeUnsubscribe'],
+				command     => ['sounds', 'containerMenu'],
 				fixedParams => { urn => $urn, isSubscribed => $isFollowed },
 			},
 		},
@@ -2070,13 +2070,13 @@ sub soundsInfoIntegration {
 }
 
 
-sub _subscribeCLI {
+sub _containerCLI {
 	my $request = shift;
 	my $client = $request->client;
-	main::DEBUGLOG && $log->is_debug && $log->debug("++_subscribeCLI");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_containerCLI");
 
 	# check this is the correct command.
-	if ($request->isNotCommand([['sounds'], ['subscribeUnsubscribe']])) {
+	if ($request->isNotCommand([['sounds'], ['containerMenu']])) {
 		$request->setStatusBadDispatch();
 		return;
 	}
@@ -2095,7 +2095,7 @@ sub _subscribeCLI {
 				actions => {
 					go => {
 						player => 0,
-						cmd    => ['sounds', 'subscribeUnsubscribe' ],
+						cmd    => ['sounds', 'containerMenu' ],
 						params => {
 							urn => $urn,
 							act => 'unfollow'
@@ -2111,7 +2111,7 @@ sub _subscribeCLI {
 				actions => {
 					go => {
 						player => 0,
-						cmd    => ['sounds', 'subscribeUnsubscribe' ],
+						cmd    => ['sounds', 'containerMenu' ],
 						params => {
 							urn => $urn,
 							act => 'follow'
@@ -2122,6 +2122,19 @@ sub _subscribeCLI {
 			  };
 
 		}
+		my $playlistUrl = 'soundslist://_PLAYALL_' . $urn;
+		push @$items,
+		  {
+			text => 'Play all',
+			actions => {
+				go => {
+					player => 0,
+					cmd    => [ 'playlist', 'play', $playlistUrl ],
+				}
+			},
+			nextWindow => 'parent',
+		  };
+
 		$request->addResult('offset', 0);
 		$request->addResult('count', scalar @$items);
 		$request->addResult('item_loop', $items);
@@ -2171,7 +2184,7 @@ sub _subscribeCLI {
 		}
 	}
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("--_subscribeCLI");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_containerCLI");
 	return;
 }
 
@@ -2396,7 +2409,6 @@ sub setMenuVisibility {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--setMenuVisibility");
 	return;
 }
-
 
 sub persistHomeMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++persistHomeMenu");
