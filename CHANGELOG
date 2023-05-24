@@ -1,3 +1,6 @@
+2.29.1
+Added check for session/login when retrieving media selector
+
 2.29.0
 Added "Play all" for Curated playlists (Back to Back Sounds)
 
