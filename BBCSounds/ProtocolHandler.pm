@@ -49,6 +49,7 @@ use Plugins::BBCSounds::M4a;
 use Plugins::BBCSounds::BBCSoundsFeeder;
 use Plugins::BBCSounds::PlayManager;
 use Plugins::BBCSounds::Utilities;
+use Plugins::BBCSounds::SessionManagement;
 
 
 use constant MIN_OUT    => 8192;
@@ -836,7 +837,7 @@ sub liveMetaData {
 						);
 
 						#Finally, get the previous start number, if there is one and we haven't got one already
-						if ( !($props->{previousStartNumber}) ) {							
+						if ( !($props->{previousStartNumber}) ) {
 							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 2, $props ) ) {
 
 								$props->{previousStartNumber} = $lastresp->{startOffset};
@@ -1045,7 +1046,7 @@ sub sysread {
 							$v->{'inBuf'}    = '';
 							$v->{'fetching'} = 0;
 							$v->{'streaming'} = 0
-							  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) ;
+							  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT );
 						} else {
 							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again
@@ -1206,20 +1207,27 @@ sub getNextTrack {
 			}
 		);
 
-		_getMPDUrl(
-			$stationid,
+		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				$url = shift;
-				$processMPD->();
+				_getMPDUrl(
+					$stationid,
+					sub {
+						$url = shift;
+						$processMPD->();
+					},
+					sub {
+						$log->error('Failed to get live MPD');
+						$errorCb->("Not able to obtain live audio", $masterUrl);
+					}
+				);
 			},
 			sub {
-				$log->error('Failed to get live MPD');
-				$errorCb->("Not able to obtain live audio", $masterUrl);
+				$log->error('Not logged in, cannot get audio');
+				$errorCb->("Not able to obtain live audio, not logged in", $masterUrl);
 			}
 		);
 
-
-	}else{
+	} else {
 
 		my $id = $class->getId($masterUrl);
 
@@ -1230,15 +1238,23 @@ sub getNextTrack {
 			}
 		);
 
-		_getMPDUrl(
-			$id,
+		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				$url = shift;
-				$processMPD->();
+				_getMPDUrl(
+					$id,
+					sub {
+						$url = shift;
+						$processMPD->();
+					},
+					sub {
+						$log->error('Failed to get Audio information.  It may not be available in your location.');
+						$errorCb->("Not able to obtain audio", $masterUrl);
+					}
+				);
 			},
 			sub {
-				$log->error('Failed to get Audio information.  It may not be available in your location.');
-				$errorCb->("Not able to obtain audio", $masterUrl);
+				$log->error('Not logged in, cannot get audio');
+				$errorCb->("Not able to obtain audio, not logged in", $masterUrl);
 			}
 		);
 
@@ -1657,7 +1673,7 @@ sub _getIDForBroadcast {
 
 	my $factor = ($props->{segmentDuration} / $props->{segmentTimescale});
 
-	my $offsetEpoch = (($offset * $factor) - PROGRAMME_LATENCY) + $factor ;
+	my $offsetEpoch = (($offset * $factor) - PROGRAMME_LATENCY) + $factor;
 
 	my $items = $schedule->{data};
 
