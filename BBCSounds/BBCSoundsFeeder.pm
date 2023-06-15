@@ -2245,9 +2245,11 @@ sub _recentSearchesCLI {
 		$request->addResult('item_loop', $items);
 	}elsif ($request->getParam('deleteAll')) {
 		$prefs->set( 'sounds_recent_search', [] );
+		_removeCacheMenu('toplevel');
 	}elsif (defined $request->getParam('delete')) {
 		splice(@$list, $del, 1);
 		$prefs->set( 'sounds_recent_search', $list );
+		_removeCacheMenu('toplevel');
 	}
 
 	$request->setStatusDone;
