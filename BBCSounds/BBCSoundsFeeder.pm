@@ -294,7 +294,7 @@ sub toplevel {
 
 				if (_getHomeMenuItemDisplay('continueListening')) {
 
-					#Local To Me
+					#Continue Listening
 					$module = _parseTopInlineMenu($JSON, 'continue_listening');
 					$moduleTitle = $module->{title};
 					$submenu = [];
