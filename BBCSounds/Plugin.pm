@@ -171,6 +171,17 @@ sub postinitPlugin {
 		my $class = shift;
 
 		Plugins::BBCSounds::BBCSoundsFeeder::init();
+
+		# if user has the Don't Stop The Music plugin enabled, register ourselves
+		if ( Slim::Utils::PluginManager->isEnabled('Slim::Plugin::DontStopTheMusic::Plugin') ) {
+
+			Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+				'BBC Sounds Continue Listening',
+				sub {
+					$_[1]->($_[0], ['soundslist://_CONTINUELISTENING']);
+				}
+			);
+		}
 	}
 }
 

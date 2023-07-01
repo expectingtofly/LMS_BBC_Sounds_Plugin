@@ -1167,6 +1167,7 @@ sub getNextTrack {
 				return $errorCb->() unless $props;
 				$song->pluginData( props   => $props );
 				$song->pluginData( baseURL => $props->{'baseURL'} );
+				$song->duration( $props->{duration} ) if $props->{duration};
 				$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
 			},
 			$overrideEpoch
