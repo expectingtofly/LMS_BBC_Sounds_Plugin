@@ -104,38 +104,10 @@ sub explodePlaylist {
 				);
 			},
 			sub {
-				$log->warn("Failed to renew session to retreive list for play all");
+				$log->warn("Failed to renew session to retrieve list for play all");
 			}
 		);
-
-	} elsif ($type eq 'CONTINUELISTENING') {
-		my $urn = _getpid($url);
-
-		main::DEBUGLOG && $log->is_debug && $log->debug("In Continue Listening");
-
-		Plugins::BBCSounds::SessionManagement::renewSession(			
-			sub {
-				Plugins::BBCSounds::BBCSoundsFeeder::getPersonalisedPage(
-					undef,
-					sub {
-						my $res = shift;
-						my $arr = $res->{items};
-						my $ret = [];
-						for my $item (@$arr) {
-							my $playMenu = $item->{items};
-							push @$ret, @$playMenu[0]->{url};
-						}					
-						$cb->($ret);
-					},
-					undef,
-					{type    => 'continue',	urn  =>  $urn,	offset  => 0}
-				);
-			},
-			sub {
-				$log->warn("Failed to renew session to retreive continue listening");
-			}
-		);
-
+	
 	}
 
 	return;
