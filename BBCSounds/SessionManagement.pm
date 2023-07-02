@@ -300,5 +300,28 @@ sub _hasSession {
 		return;
 	}
 }
+
+
+sub getKey {
+	my ( $cbY, $cbN ) = @_;
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $content = ${ $http->contentRef };
+			if (my $r = index($content, '"clientApiKey": "')) {
+				my $key = substr($content, $r+17, 32);
+				$log->warn("key : $key");
+				$cbY->($key);
+			}
+
+		},
+		sub {
+			$log->warn("Failed to get key");
+			$cbN->();
+		}
+	)->get('https://www.bbc.co.uk/sounds');
+	return;
+}
 1;
 
