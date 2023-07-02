@@ -31,6 +31,8 @@ use Plugins::BBCSounds::BBCSoundsFeeder;
 use Plugins::BBCSounds::ProtocolHandler;
 use Plugins::BBCSounds::ListProtocolHandler;
 
+use Data::Dumper;
+
 my $log = Slim::Utils::Log->addLogCategory(
 	{
 		'category'     => 'plugin.bbcsounds',
@@ -171,6 +173,32 @@ sub postinitPlugin {
 		my $class = shift;
 
 		Plugins::BBCSounds::BBCSoundsFeeder::init();
+
+		# if user has the Don't Stop The Music plugin enabled, register ourselves
+		if ( Slim::Utils::PluginManager->isEnabled('Slim::Plugin::DontStopTheMusic::Plugin') ) {
+
+			Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+				'BBC Sounds Continue Listening',
+				sub {
+					my ($client, $cb) = @_;
+					dontStopTheMusicContinue($client,$cb);
+				}
+			);
+			Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+				'BBC Sounds Recommendations',
+				sub {
+					my ($client, $cb) = @_;
+					dontStopTheMusicRecommended($client, '', $cb);
+				}
+			);
+			Slim::Plugin::DontStopTheMusic::Plugin->registerHandler(
+				'BBC Sounds Recommendations Music Mixes only',
+				sub {
+					my ($client, $cb) = @_;
+					dontStopTheMusicRecommended($client, 'music', $cb);
+				}
+			);
+		}
 	}
 }
 
@@ -189,6 +217,46 @@ sub playerMenu {
 		$log->info('Placing in App Menu');
 		return;
 	}
+}
+
+sub dontStopTheMusicContinue {
+	my ($client, $cb) = @_;
+	Plugins::BBCSounds::BBCSoundsFeeder::getPersonalisedPage(
+		undef,
+		sub {
+			my $res = shift;
+			my $arr = $res->{items};
+			my $ret = [];
+			
+			for my $item (@$arr) {
+				my $playMenu = $item->{items};
+				push @$ret, @$playMenu[0]->{url};
+			}					
+						
+			$cb->($client, $ret);
+		},
+		undef,
+		{type    => 'continue',	offset  => 0}
+	);	
+}
+
+sub dontStopTheMusicRecommended {
+	my ($client, $type, $cb) = @_;
+	Plugins::BBCSounds::BBCSoundsFeeder::getPage(
+		undef,
+		sub {
+			my $res = shift;
+			my $arr = $res->{items};
+			my $ret = [];
+			for my $item (@$arr) {
+				my $playMenu = $item->{items};
+				push @$ret, @$playMenu[0]->{url};
+			}					
+			$cb->($client, $ret);
+		},
+		undef,
+		{type    => 'recommendations' . $type,	offset  => 0}
+	);
 }
 
 1;

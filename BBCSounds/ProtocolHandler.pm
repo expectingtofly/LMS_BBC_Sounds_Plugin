@@ -219,7 +219,7 @@ sub new {
 			if ((Time::HiRes::time() - $props->{comparisonTime}) > $maximumAge) {
 
 				#we need to end this track and let it rise again
-				$log->error('Live stream to old after pause, stopping the continuation.');
+				$log->error('Live stream too old after pause, stopping the continuation.');
 				$props->{isContinue} = 0;
 				$song->pluginData( props   => $props );
 				return;
@@ -1167,6 +1167,7 @@ sub getNextTrack {
 				return $errorCb->() unless $props;
 				$song->pluginData( props   => $props );
 				$song->pluginData( baseURL => $props->{'baseURL'} );
+				$song->duration( $props->{duration} ) if $props->{duration};
 				$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
 			},
 			$overrideEpoch

@@ -294,7 +294,7 @@ sub toplevel {
 
 				if (_getHomeMenuItemDisplay('continueListening')) {
 
-					#Local To Me
+					#Continue Listening
 					$module = _parseTopInlineMenu($JSON, 'continue_listening');
 					$moduleTitle = $module->{title};
 					$submenu = [];
@@ -460,6 +460,12 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/speech';
 	}elsif ( $menuType eq 'music' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/music';
+	}elsif ( $menuType eq 'recommendations' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
+		$cacheIt = 0;
+	}elsif ( $menuType eq 'recommendationsmusic' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/music-mixes/playable';
+		$cacheIt = 0;
 	}else {
 		$log->error("Invalid menu selection");
 	}
@@ -973,7 +979,9 @@ sub _parse {
 		|| ( $optstr eq 'continue' )
 		|| ( $optstr eq 'searchepisodes')
 		|| ( $optstr eq 'searchshows' )
-		|| ( $optstr eq 'stationfeatured' )) {
+		|| ( $optstr eq 'stationfeatured' )
+		|| ( $optstr eq 'recommendations' )
+		|| ( $optstr eq 'recommendationsmusic' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( $JSON->{data}, $menu );
 		_createOffset( $JSON, $passthrough, $menu );
@@ -2245,9 +2253,11 @@ sub _recentSearchesCLI {
 		$request->addResult('item_loop', $items);
 	}elsif ($request->getParam('deleteAll')) {
 		$prefs->set( 'sounds_recent_search', [] );
+		_removeCacheMenu('toplevel');
 	}elsif (defined $request->getParam('delete')) {
 		splice(@$list, $del, 1);
 		$prefs->set( 'sounds_recent_search', $list );
+		_removeCacheMenu('toplevel');
 	}
 
 	$request->setStatusDone;

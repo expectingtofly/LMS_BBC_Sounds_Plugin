@@ -104,10 +104,10 @@ sub explodePlaylist {
 				);
 			},
 			sub {
-				$log->warn("Failed to renew session to retreive list from favourites");
+				$log->warn("Failed to renew session to retrieve list for play all");
 			}
 		);
-
+	
 	}
 
 	return;
