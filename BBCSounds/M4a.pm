@@ -24,6 +24,7 @@ use Config;
 
 use Slim::Utils::Log;
 use Slim::Utils::Cache;
+use POSIX qw(floor);
 
 my $cache = Slim::Utils::Cache->new;
 my $log   = logger('plugin.bbcsounds');

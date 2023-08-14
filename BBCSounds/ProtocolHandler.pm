@@ -37,6 +37,7 @@ use File::Spec::Functions;
 use File::Basename;
 use FindBin qw($Bin);
 use XML::Simple;
+use POSIX qw(floor ceil);
 
 use Slim::Utils::Strings qw(string cstring);
 use Slim::Utils::Log;
