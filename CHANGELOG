@@ -1,3 +1,6 @@
+2.31.1
+Fix warning messages on Windows caused by full POSIX inclusion
+
 2.30.0
 Don't Stop The Music integration + minor bug fixes
 
