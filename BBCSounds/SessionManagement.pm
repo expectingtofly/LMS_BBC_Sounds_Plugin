@@ -236,6 +236,7 @@ sub renewSession {
 							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
 							return;
 						}else {
+							$log->warn("Failed to get session cookie");
 							$cbNo->();
 							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession failed to get cookie");
 							return;
@@ -244,6 +245,7 @@ sub renewSession {
 					onError => sub {
 						my ( $http, $self ) = @_;
 						my $res = $http->response;
+						$log->warn("Could not renew session error : " . $res->status_line);
 						main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
 						$cbNo->();
 						main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession renew session failed");
