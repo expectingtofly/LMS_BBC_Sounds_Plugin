@@ -1041,7 +1041,7 @@ sub sysread {
 
 							# get the meta data for this live track if we don't have it yet.
 
-							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ( $v->{'endOffset'} == 0 );
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset) if $isNow;
@@ -1762,22 +1762,23 @@ sub _getAODMeta {
 				}
 
 				my $meta = {
-					title    => $title,
-					realTitle => $title,
-					artist   => $syn,
-					description => $syn,
-					duration => $duration,
-					icon     => $image,
-					realIcon => $image,
-					cover    => $image,
-					realCover => $image,
-					trackImage => '',
-					track => '',
-					spotify => '',
-					buttons => undef,
-					urn => $urn,
-					containerUrn => $containerUrn,
-					station => $station,
+					title			=> $title,
+					realTitle 		=> $title,
+					artist  		=> $syn,
+					album 			=> $station,
+					description 	=> $syn,
+					duration 		=> $duration,
+					icon     		=> $image,
+					realIcon 		=> $image,
+					cover    		=> $image,
+					realCover 		=> $image,
+					trackImage 		=> '',
+					track 			=> '',
+					spotify 		=> '',
+					buttons 		=> undef,
+					urn 			=> $urn,
+					containerUrn 	=> $containerUrn,
+					station 		=> $station,
 				};
 				$cache->set("bs:meta-$pid",$meta,86400);
 				$cbY->($meta);
@@ -1937,22 +1938,23 @@ sub _getLiveMeta {
 				}
 
 				my $meta = {
-					title    => $title,
-					realTitle => $title,
-					artist   => $syn,
-					description => $syn,
-					duration => $duration,
-					icon     => $image,
-					realIcon => $image,
-					cover    => $image,
-					realCover    => $image,
-					trackImage => '',
-					track =>   '',
-					spotify => '',
-					buttons => undef,
-					urn => $urn,
-					containerUrn => '',
-					station => $stationName,
+					title    		=> $title,
+					realTitle 		=> $title,
+					artist   		=> $syn,
+					album			=> $stationName,
+					description 	=> $syn,
+					duration 		=> $duration,
+					icon     		=> $image,
+					realIcon 		=> $image,
+					cover    		=> $image,
+					realCover		=> $image,
+					trackImage 		=> '',
+					track 			=> '',
+					spotify 		=> '',
+					buttons 		=> undef,
+					urn 			=> $urn,
+					containerUrn 	=> '',
+					station 		=> $stationName,
 				};
 
 				$cache->set( "bs:meta-" . $id, $meta, 3600 );
