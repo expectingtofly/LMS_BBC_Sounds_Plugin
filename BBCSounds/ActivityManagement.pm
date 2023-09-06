@@ -32,7 +32,7 @@ my $log = logger('plugin.bbcsounds');
 
 sub createActivity {
 	my ( $callback,  $passDict ) = @_;
-	$log->debug("++createActivity");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++createActivity");
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
@@ -53,7 +53,7 @@ sub createActivity {
 					onBody  => sub {
 						my ( $http, $self ) = @_;
 						my $res = $http->response;
-						$log->debug( 'status - ' . $res->status_line );
+						main::DEBUGLOG && $log->is_debug && $log->debug( 'status - ' . $res->status_line );
 						my $result = '';
 						if (   ( $res->code eq '202' )
 							|| ( $res->code eq '200' ) ){
@@ -65,7 +65,7 @@ sub createActivity {
 						my ( $http, $self ) = @_;
 
 						my $res = $http->response;
-						$log->debug( 'Error status - ' . $res->status_line );
+						main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
 						$callback->( $result );
 					}
 				}
@@ -75,7 +75,7 @@ sub createActivity {
 			$callback->( $result);
 		}
 	);
-	$log->debug("--createActivity");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--createActivity");
 	return;
 }
 
@@ -124,7 +124,7 @@ sub heartBeat {
 
 sub deleteActivity {
 	my ( $callback, $passDict ) = @_;
-	$log->debug("++deleteActivity");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++deleteActivity");
 
 	my $urn          = $passDict->{'urn'};
 	my $activitytype = $passDict->{'activitytype'};
@@ -142,7 +142,7 @@ sub deleteActivity {
 					onBody  => sub {
 						my ( $http, $self ) = @_;
 						my $res = $http->response;
-						$log->debug( 'status - ' . $res->status_line );
+						main::DEBUGLOG && $log->is_debug && $log->debug( 'status - ' . $res->status_line );
 
 						if (   ( $res->code eq '202' )
 							|| ( $res->code eq '200' ) ) {
@@ -164,7 +164,7 @@ sub deleteActivity {
 			$callback->( $result );
 		}
 	);
-	$log->debug("--deleteActivity");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--deleteActivity");
 	return;
 }
 

@@ -313,7 +313,7 @@ sub new {
 		$props,
 		sub {
 			${*$self}{'vars'}->{offset} = shift;
-			$log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );
+			main::INFOLOG && $log->is_info && $log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );
 		}
 	) if !defined $offset;
 
@@ -370,7 +370,7 @@ sub onStop {
 
 	if ( $elapsed < $song->duration - 15 ) {
 		$cache->set( "bs:lastpos-$id", int($elapsed), '30days' );
-		$log->info("Last position for $id is $elapsed");
+		main::INFOLOG && $log->is_info && $log->info("Last position for $id is $elapsed");
 	}else {
 		$cache->remove("bs:lastpos-$id");
 	}

@@ -200,13 +200,13 @@ sub getDisplayName { return 'PLUGIN_BBCSOUNDS'; }
 sub playerMenu {
 	my $class =shift;
 
-	$log->info('Preference : ' . $prefs->get('is_radio'));
+	main::INFOLOG && $log->is_info && $log->info('Preference : ' . $prefs->get('is_radio'));
 
 	if ($prefs->get('is_radio')  || (!($class->can('nonSNApps')))) {
-		$log->info('Placing in Radio Menu');
+		main::INFOLOG && $log->is_info && $log->info('Placing in Radio Menu');
 		return 'RADIO';
 	}else{
-		$log->info('Placing in App Menu');
+		main::INFOLOG && $log->is_info && $log->info('Placing in App Menu');
 		return;
 	}
 }
