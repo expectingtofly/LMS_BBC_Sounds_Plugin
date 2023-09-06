@@ -62,7 +62,7 @@
 	<table>
         <tr><th>Item:</th><th>When programme playing:</th><th>When track playing:</th></tr>        
         <tr>
-            <td width="10%">Line 1</td>            
+            <td width="15%">Line 1 (title)</td>            
             <td width="25%"><select class="stdedit" name="pref_programmedisplayline1" id="pref_programmedisplayline1">			
 				<option [% IF prefs.pref_programmedisplayline1 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
 				<option [% IF prefs.pref_programmedisplayline1 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
@@ -81,7 +81,7 @@
 			</td>
         </tr>
 		<tr>
-            <td width="10%">Line 2</td>            
+            <td width="15%">Line 2 (artist)</td>            
             <td width="25%"><select class="stdedit" name="pref_programmedisplayline2" id="pref_programmedisplayline2">			
 				<option [% IF prefs.pref_programmedisplayline2 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
 				<option [% IF prefs.pref_programmedisplayline2 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
@@ -100,14 +100,14 @@
 			</td>
         </tr>
 		<tr>
-            <td width="10%">Line 3</td>            
+            <td width="15%">Line 3 (album)</td>            
             <td width="25%"><select class="stdedit" name="pref_programmedisplayline3" id="pref_programmedisplayline3">			
 				<option [% IF prefs.pref_programmedisplayline3 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
 				<option [% IF prefs.pref_programmedisplayline3 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
 				<option [% IF prefs.pref_programmedisplayline3 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
 				<option [% IF prefs.pref_programmedisplayline3 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
 			</select></td>
-			<td ><select class="stdedit" name="pref_trackdisplayline3" id="pref_trackdisplayline3">
+			<td width="25%"><select class="stdedit" name="pref_trackdisplayline3" id="pref_trackdisplayline3">
 				<option [% IF prefs.pref_trackdisplayline3 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKBYARTIST" | string %]</option>
 				<option [% IF prefs.pref_trackdisplayline3 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
 				<option [% IF prefs.pref_trackdisplayline3 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ARTIST" | string %]</option>		
