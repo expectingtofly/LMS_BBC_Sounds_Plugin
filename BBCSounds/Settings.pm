@@ -47,12 +47,12 @@ sub page {
 
 sub handler {
 	my ( $class, $client, $params, $callback, @args ) = @_;
-	$log->debug("++handler");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++handler");
 
 	if ($params->{signout}) {
 		Plugins::BBCSounds::SessionManagement::signOut(
 			sub {
-				$log->info("Sign out successful");
+				main::INFOLOG && $log->is_info && $log->info("Sign out successful");
 
 				my $msg ='<strong>There was a problem with sign out, please try again</strong>';
 				my $isValid = 0;
@@ -90,7 +90,7 @@ sub handler {
 			}
 		);
 		$params->{homeMenu} = getHomeMenu();
-		$log->debug("--handler save sign out");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--handler save sign out");
 		return;
 	}
 
@@ -146,7 +146,7 @@ sub handler {
 			}
 		);
 		$params->{homeMenu} = getHomeMenu();
-		$log->debug("--handler save sign in");
+		main::DEBUGLOG && $log->is_debug && $log->debug("--handler save sign in");
 		return;
 	}
 
@@ -175,23 +175,23 @@ sub handler {
 
 	$params->{homeMenu} = getHomeMenu();
 
-	$log->debug("--handler");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--handler");
 	return $class->SUPER::handler( $client, $params );
 }
 
 
 sub prefs {
-	$log->debug("++prefs");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++prefs");
 
 
-	$log->debug("--prefs");
-	return ($prefs, qw(username password is_radio hideSampleRate displayline1 displayline2 displayline3 displayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind ));
+	main::DEBUGLOG && $log->is_debug && $log->debug("--prefs");
+	return ($prefs, qw(username password is_radio hideSampleRate programmedisplayline1 programmedisplayline2 programmedisplayline3 programmedisplayimage trackdisplayline1 trackdisplayline2 trackdisplayline3 trackdisplayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind ));
 }
 
 
 sub beforeRender {
 	my ($class, $paramRef) = @_;
-	$log->debug("++beforeRender");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++beforeRender");
 
 	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
 
@@ -215,7 +215,7 @@ sub beforeRender {
 		}
 	}
 
-	$log->debug("--beforeRender");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--beforeRender");
 }
 
 

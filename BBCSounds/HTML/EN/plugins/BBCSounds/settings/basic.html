@@ -52,54 +52,86 @@
 
 	<br/>
 
-	[% WRAPPER setting title="Playing Information Display" desc="" %]
-		Amend the settings below to adjust the display when a programme is playing :
+	[% WRAPPER setting title="Programme Information Display" desc="" %]
+		Amend the settings below to adjust the display when a programme and track is playing :
 	[% END %]
 
-	[% WRAPPER setting title="" desc="" %]
-		<label for="pref_displayline1" >Line 1 Display </label>
-		<select class="stdedit" name="pref_displayline1" id="pref_displayline1">			
-			<option [% IF prefs.pref_displayline1 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME" | string %]</option>
-			<option [% IF prefs.pref_displayline1 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEWHENPLAYING" | string %]</option>
-			<option [% IF prefs.pref_displayline1 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEONLY" | string %]</option>
-			<option [% IF prefs.pref_displayline1 == 4 %]selected [% END %]value="4">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
-			<option [% IF prefs.pref_displayline1 == 5 %]selected [% END %]value="5">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
-			<option [% IF prefs.pref_displayline1 == 6 %]selected [% END %]value="6">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>
-		</select>		
-	[% END %]
+
 
 	[% WRAPPER setting title="" desc="" %]
-	<label for="pref_displayline2" >Line 2 Display </label>
-	<select class="stdedit" name="pref_displayline2" id="pref_displayline2">			
-		<option [% IF prefs.pref_displayline2 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME" | string %]</option>
-		<option [% IF prefs.pref_displayline2 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEWHENPLAYING" | string %]</option>
-		<option [% IF prefs.pref_displayline2 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEONLY" | string %]</option>
-		<option [% IF prefs.pref_displayline2 == 4 %]selected [% END %]value="4">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
-		<option [% IF prefs.pref_displayline2 == 5 %]selected [% END %]value="5">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
-		<option [% IF prefs.pref_displayline2 == 6 %]selected [% END %]value="6">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>
-	</select>	
+	<table>
+        <tr><th>Item:</th><th>When programme playing:</th><th>When track playing:</th></tr>        
+        <tr>
+            <td width="15%">Line 1 (title)</td>            
+            <td width="25%"><select class="stdedit" name="pref_programmedisplayline1" id="pref_programmedisplayline1">			
+				<option [% IF prefs.pref_programmedisplayline1 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline1 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline1 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline1 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select></td>
+			<td width="25%"><select class="stdedit" name="pref_trackdisplayline1" id="pref_trackdisplayline1">			
+				<option [% IF prefs.pref_trackdisplayline1 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKBYARTIST" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline1 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline1 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ARTIST" | string %]</option>		
+				<option [% IF prefs.pref_trackdisplayline1 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline1 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline1 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline1 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select>
+			</td>
+        </tr>
+		<tr>
+            <td width="15%">Line 2 (artist)</td>            
+            <td width="25%"><select class="stdedit" name="pref_programmedisplayline2" id="pref_programmedisplayline2">			
+				<option [% IF prefs.pref_programmedisplayline2 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline2 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline2 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline2 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select></td>
+			<td width="25%"><select class="stdedit" name="pref_trackdisplayline2" id="pref_trackdisplayline2">			
+				<option [% IF prefs.pref_trackdisplayline2 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKBYARTIST" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline2 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline2 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ARTIST" | string %]</option>		
+				<option [% IF prefs.pref_trackdisplayline2 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline2 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline2 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline2 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select>
+			</td>
+        </tr>
+		<tr>
+            <td width="15%">Line 3 (album)</td>            
+            <td width="25%"><select class="stdedit" name="pref_programmedisplayline3" id="pref_programmedisplayline3">			
+				<option [% IF prefs.pref_programmedisplayline3 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline3 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline3 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_programmedisplayline3 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select></td>
+			<td width="25%"><select class="stdedit" name="pref_trackdisplayline3" id="pref_trackdisplayline3">
+				<option [% IF prefs.pref_trackdisplayline3 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKBYARTIST" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline3 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline3 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ARTIST" | string %]</option>		
+				<option [% IF prefs.pref_trackdisplayline3 == 10 %]selected [% END %]value="10">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMME" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline3 == 11 %]selected [% END %]value="11">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline3 == 12 %]selected [% END %]value="12">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_STATION" | string %]</option>
+				<option [% IF prefs.pref_trackdisplayline3 == 13 %]selected [% END %]value="13">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>			
+			</select>
+			</td>
+        </tr>      
+		<tr>
+            <td width="10%">Image</td>            
+            <td width="25%"><select class="stdedit" name="pref_programmedisplayimage" id="pref_programmedisplayimage">					
+				<option [% IF prefs.pref_programmedisplayimage == 2 %]selected [% END %]value="2">Programme image</option>							
+				</select></td>
+			<td width="25%"><select class="stdedit" name="pref_trackdisplayimage" id="pref_trackdisplayimage">			
+				<option [% IF prefs.pref_trackdisplayimage == 1 %]selected [% END %]value="1">Track Image</option>
+				<option [% IF prefs.pref_trackdisplayimage == 2 %]selected [% END %]value="2">Programme image</option>						
+			</select>
+			</td>
+        </tr>      
+    </table>
 	[% END %]
 
-	[% WRAPPER setting title="" desc="" %]
-	<label for="pref_displayline3" >Line 3 Display </label>
-	<select class="stdedit" name="pref_displayline3" id="pref_displayline3">			
-		<option [% IF prefs.pref_displayline3 == 1 %]selected [% END %]value="1">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME" | string %]</option>
-		<option [% IF prefs.pref_displayline3 == 2 %]selected [% END %]value="2">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEWHENPLAYING" | string %]</option>
-		<option [% IF prefs.pref_displayline3 == 3 %]selected [% END %]value="3">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEONLY" | string %]</option>
-		<option [% IF prefs.pref_displayline3 == 4 %]selected [% END %]value="4">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_TRACKTITLEONLY" | string %]</option>
-		<option [% IF prefs.pref_displayline3 == 5 %]selected [% END %]value="5">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_PROGRAMMEDESCRIPTION" | string %]</option>
-		<option [% IF prefs.pref_displayline3 == 6 %]selected [% END %]value="6">[% "PLUGIN_BBCSOUNDS_DISPLAYLINE_BLANK" | string %]</option>
-	</select>	
-	[% END %]
-
-	[% WRAPPER setting title="" desc="" %]
-	<label for="pref_displayimage" >Image Display </label>
-	<select class="stdedit" name="pref_displayimage" id="pref_displayimage">			
-		<option [% IF prefs.pref_displayimage == 1 %]selected [% END %]value="1">Programme image only</option>
-		<option [% IF prefs.pref_displayimage == 2 %]selected [% END %]value="2">Programme image alternating with track image</option>
-		<option [% IF prefs.pref_displayimage == 3 %]selected [% END %]value="3">Programme image, track image when track playing</option>		
-	</select>	
-	[% END %]
 
 	[% WRAPPER setting title="" desc="" %]
 	<input name="pref_rewoundind" id="pref_rewoundind" type="checkbox" [% IF prefs.pref_rewoundind %] checked [% END %]>

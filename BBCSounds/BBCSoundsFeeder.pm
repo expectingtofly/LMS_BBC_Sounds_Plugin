@@ -1091,7 +1091,7 @@ sub _parseTracklist {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseTracklist");
 	my $size = scalar @$jsonData;
 
-	$log->info("Number of items : $size ");
+	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
 
 	for my $item (@$jsonData) {
 		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary};
@@ -1393,7 +1393,7 @@ sub _parseCategories {
 
 	my $size = scalar @$jsonData;
 
-	$log->info("Number of cats : $size for $categoryType ");
+	main::INFOLOG && $log->is_info && $log->info("Number of cats : $size for $categoryType ");
 
 	for my $cat (@$jsonData) {
 		my $title = $cat->{titles}->{primary};

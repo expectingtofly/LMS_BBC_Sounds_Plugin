@@ -241,7 +241,7 @@ sub process_atom {
 	my ( $type, $size, $data ) = @_;
 	my $result;
 
-	$log->debug("processing atom $type of $size bytes");
+	main::DEBUGLOG && $log->is_debug && $log->debug("processing atom $type of $size bytes");
 	$result = $atom_handler{$type}( $size, $data ) if ( $atom_handler{$type} );
 
 	return $result;

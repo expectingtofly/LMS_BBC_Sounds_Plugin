@@ -82,18 +82,6 @@ $prefs->migrate(
 );
 
 $prefs->migrate(
-	6,
-	sub {
-		#reset new display preferences
-		$prefs->set('displayline1', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACKTITLEWHENPLAYING);
-		$prefs->set('displayline2', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION);
-		$prefs->set('displayline3', Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY);
-		$prefs->set('displayimage', Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING);
-		1;
-	}
-);
-
-$prefs->migrate(
 	2,
 	sub {
 		$prefs->set('is_radio', 0);
@@ -110,10 +98,14 @@ sub initPlugin {
 		{
 			is_radio => 0,
 			hideSampleRate => 0,
-			displayline1 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACKTITLEWHENPLAYING,
-			displayline2 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION,
-			displayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEONLY,
-			displayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGEWHENPLAYING,
+			programmedisplayline1 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMETITLE,
+			programmedisplayline2 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMEDESCRIPTION,
+			programmedisplayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_STATIONNAME,
+			programmedisplayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_PROGRAMMEIMAGE,
+			trackdisplayline1 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_TRACK,
+			trackdisplayline2 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_ARTIST,
+			trackdisplayline3 => Plugins::BBCSounds::ProtocolHandler::DISPLAYLINE_PROGRAMMETITLE,
+			trackdisplayimage => Plugins::BBCSounds::ProtocolHandler::DISPLAYIMAGE_TRACKIMAGE,
 			forceHTTP => 0,
 			nowPlayingActivityButtons => 1,
 			throttleInterval => 1,
@@ -208,13 +200,13 @@ sub getDisplayName { return 'PLUGIN_BBCSOUNDS'; }
 sub playerMenu {
 	my $class =shift;
 
-	$log->info('Preference : ' . $prefs->get('is_radio'));
+	main::INFOLOG && $log->is_info && $log->info('Preference : ' . $prefs->get('is_radio'));
 
 	if ($prefs->get('is_radio')  || (!($class->can('nonSNApps')))) {
-		$log->info('Placing in Radio Menu');
+		main::INFOLOG && $log->is_info && $log->info('Placing in Radio Menu');
 		return 'RADIO';
 	}else{
-		$log->info('Placing in App Menu');
+		main::INFOLOG && $log->is_info && $log->info('Placing in App Menu');
 		return;
 	}
 }

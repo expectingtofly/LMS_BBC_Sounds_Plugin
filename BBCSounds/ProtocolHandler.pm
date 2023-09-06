@@ -66,16 +66,16 @@ use constant CHUNK_FAILURECOUNT => 5;
 use constant RESETMETA_THRESHHOLD => 1;
 use constant PROGRAMME_LATENCY => 38.4;
 
-use constant DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME => 1;
-use constant DISPLAYLINE_TRACKTITLEWHENPLAYING => 2;
-use constant DISPLAYLINE_PROGRAMMEONLY => 3;
-use constant DISPLAYLINE_TRACKTITLEONLY => 4;
-use constant DISPLAYLINE_PROGRAMMEDESCRIPTION => 5;
-use constant DISPLAYLINE_BLANK => 6;
+use constant DISPLAYLINE_TRACKBYARTIST => 1;
+use constant DISPLAYLINE_TRACK => 2;
+use constant DISPLAYLINE_ARTIST => 3;
+use constant DISPLAYLINE_PROGRAMMETITLE => 10;
+use constant DISPLAYLINE_PROGRAMMEDESCRIPTION => 11;
+use constant DISPLAYLINE_STATIONNAME => 12;
+use constant DISPLAYLINE_BLANK => 13;
 
-use constant DISPLAYIMAGE_PROGRAMMEIMAGEONLY => 1;
-use constant DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME => 2;
-use constant DISPLAYIMAGE_TRACKIMAGEWHENPLAYING => 3;
+use constant DISPLAYIMAGE_TRACKIMAGE => 1;
+use constant DISPLAYIMAGE_PROGRAMMEIMAGE => 2;
 
 
 my $log   = logger('plugin.bbcsounds');
@@ -250,8 +250,17 @@ sub new {
 
 	my $self = $class->SUPER::new;
 
-	#Throttle setup
+	#prefs setup
 	my $throttleInterval = $prefs->get('throttleInterval');
+	my $programmeimagePref = $prefs->get('programmedisplayimage');
+	my $trackimagePref = $prefs->get('trackdisplayimage');	
+	my $programmedisplayline1 = $prefs->get('programmedisplayline1');
+	my $programmedisplayline2 = $prefs->get('programmedisplayline2');
+	my $programmedisplayline3 = $prefs->get('programmedisplayline3');
+	my $trackdisplayline1 = $prefs->get('trackdisplayline1');
+	my $trackdisplayline2 = $prefs->get('trackdisplayline2');
+	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
+	
 	my $nextThrottle = time();
 
 	if ( defined($self) ) {
@@ -284,6 +293,16 @@ sub new {
 			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
 			'throttleInterval' => $throttleInterval,   #A value to delay making streaming data available to help the community firmware
 			'nextThrottle' => $nextThrottle,
+			'displayPrefs' => {
+				'programmeDisplayLine1' => $programmedisplayline1,
+				'programmeDisplayLine2' => $programmedisplayline2,
+				'programmeDisplayLine3' => $programmedisplayline3,
+				'trackDisplayLine1' => $trackdisplayline1,
+				'trackDisplayLine2' => $trackdisplayline2,
+				'trackDisplayLine3' => $trackdisplayline3,
+				'programmeImagePref' => $programmeimagePref,
+				'trackImagePref' => $trackimagePref,
+			}
 		};
 	}
 
@@ -294,7 +313,7 @@ sub new {
 		$props,
 		sub {
 			${*$self}{'vars'}->{offset} = shift;
-			$log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );
+			main::INFOLOG && $log->is_info && $log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );
 		}
 	) if !defined $offset;
 
@@ -351,7 +370,7 @@ sub onStop {
 
 	if ( $elapsed < $song->duration - 15 ) {
 		$cache->set( "bs:lastpos-$id", int($elapsed), '30days' );
-		$log->info("Last position for $id is $elapsed");
+		main::INFOLOG && $log->is_info && $log->info("Last position for $id is $elapsed");
 	}else {
 		$cache->remove("bs:lastpos-$id");
 	}
@@ -422,17 +441,10 @@ sub _getPlayingImage {
 	my $trackImage = shift;
 	my $v = $self->vars;
 
-	my $imagePref = $prefs->get('displayimage');
-
-	return $programmeImage if $imagePref == DISPLAYIMAGE_PROGRAMMEIMAGEONLY;
-
-	if ($imagePref == DISPLAYIMAGE_ALTERNATETRACKWITHPROGRAMME) {
-		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
+	if ($v->{'trackData'}->{trackPlaying} == 1) {
+		return $trackImage if  length($trackImage) && $v->{'displayPrefs'}->{'trackImagePref'} == DISPLAYIMAGE_TRACKIMAGE;
 		return $programmeImage;
-	}
-
-	if ($imagePref == DISPLAYIMAGE_TRACKIMAGEWHENPLAYING ) {
-		return $trackImage if ($trackImage ne '') && $v->{'trackData'}->{trackPlaying} == 1;
+	} else {
 		return $programmeImage;
 	}
 
@@ -447,33 +459,36 @@ sub _getPlayingDisplayLine {
 	my $line = shift;
 	my $programme = shift;
 	my $track = shift;
+	my $artist = shift;
 	my $description = shift;
+	my $station =shift;
 	my $v = $self->vars;
 
-	my $displaytype = 0;
-	$displaytype = $prefs->get('displayline1') if $line == 1;
-	$displaytype = $prefs->get('displayline2') if $line == 2;
-	$displaytype = $prefs->get('displayline3') if $line == 3;
+	my $programmedisplaytype = 0;
+	my $trackdisplaytype = 0;
+	$programmedisplaytype =  $v->{'displayPrefs'}->{'programmeDisplayLine'. $line};
+	$trackdisplaytype = $v->{'displayPrefs'}->{'trackDisplayLine'. $line};
+	
 
+	main::DEBUGLOG && $log->is_debug && $log->debug("Prefs for line $line is $programmedisplaytype & $trackdisplaytype input $track | $programme | $artist | $description | $station|");
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("Prefs for line $line is $displaytype input $track | $programme | $description");
-
-	return '' 			if $displaytype == DISPLAYLINE_BLANK;
-	return $track		if $displaytype == DISPLAYLINE_TRACKTITLEONLY;
-	return $programme   if $displaytype == DISPLAYLINE_PROGRAMMEONLY;
-	return $description if $displaytype == DISPLAYLINE_PROGRAMMEDESCRIPTION;
-
-	if ($displaytype == DISPLAYLINE_ALTERNATETRACKWITHPROGRAMME) {
-		return $track 	if $v->{'trackData'}->{trackPlaying} == 1 && $v->{'trackData'}->{isShowingTitle} == 1;
-		return $programme;
+	if ($v->{'trackData'}->{trackPlaying} == 1) {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Return display for track");
+		return $track . ' by ' . $artist if $trackdisplaytype == DISPLAYLINE_TRACKBYARTIST;
+		return $track if $trackdisplaytype == DISPLAYLINE_TRACK;
+		return $artist if $trackdisplaytype == DISPLAYLINE_ARTIST;
+		return $programme if $trackdisplaytype == DISPLAYLINE_PROGRAMMETITLE;
+		return $description if $trackdisplaytype == DISPLAYLINE_PROGRAMMEDESCRIPTION;
+		return $station if $trackdisplaytype == DISPLAYLINE_STATIONNAME;
+		return '';
+	} else {
+		main::DEBUGLOG && $log->is_debug && $log->debug("Return display for programme");
+		return $programme if $programmedisplaytype == DISPLAYLINE_PROGRAMMETITLE;
+		return $description if $programmedisplaytype == DISPLAYLINE_PROGRAMMEDESCRIPTION;
+		return $station if $programmedisplaytype == DISPLAYLINE_STATIONNAME;
+		return '';
 	}
-
-	if ($displaytype == DISPLAYLINE_TRACKTITLEWHENPLAYING) {
-		return $track	if $v->{'trackData'}->{trackPlaying} == 1;
-		return $programme;
-	}
-
-	#how did we get here?
+	
 	$log->error('Could not return display line ' . $line);
 	return;
 }
@@ -513,9 +528,9 @@ sub liveTrackData {
 		my $meta = $song->pluginData('meta');
 		my $oldmeta;
 		%$oldmeta = %$meta;
-		$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
-		$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
-		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+		$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+		$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 
@@ -587,10 +602,11 @@ sub liveTrackData {
 					#nothing there
 					$v->{'trackData'}->{trackPlaying} = 0;
 					$meta->{track} = '';
+					$meta->{artist} = '';
 
-					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
-					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
-					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 					$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 					$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					$meta->{spotify} = '';
@@ -621,11 +637,11 @@ sub liveTrackData {
 
 						$v->{'trackData'}->{trackPlaying} = 0;
 						$meta->{track} = '';
+						$meta->{artist} = '';
 
-
-						$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
-						$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
-						$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+						$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+						$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+						$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 						$meta->{icon} =	 $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
@@ -650,19 +666,23 @@ sub liveTrackData {
 						return;
 					}
 
-					$meta->{track} = $track->{data}[0]->{titles}->{secondary} . ' by ' . $track->{data}[0]->{titles}->{primary};
+					$meta->{track} = $track->{data}[0]->{titles}->{secondary};
+					$meta->{artist} = $track->{data}[0]->{titles}->{primary};
 					$v->{'trackData'}->{trackPlaying} = 1;
 
-					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{description});
-					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{description});
-					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{description});
+					$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist},  $meta->{description}, $meta->{station});
+					$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+					$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 
 					if ( my $image = $track->{data}[0]->{image_url} ) {
 						$image =~ s/{recipe}/320x320/;
 						$meta->{trackImage} = $image;
 						$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
+					} else {
+						$meta->{trackImage} = '';
 					}
+
 
 					#add a spotify id if there is one
 					my $spotifyId = '';
@@ -1021,7 +1041,7 @@ sub sysread {
 
 							# get the meta data for this live track if we don't have it yet.
 
-							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ($v->{'endOffset'} == 0  || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
+							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ( $v->{'endOffset'} == 0 );
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset) if $isNow;
@@ -1736,22 +1756,29 @@ sub _getAODMeta {
 					$containerUrn = $json->{'container'}->{'urn'};
 				}
 
+				my $station = '';
+				if (defined $json->{'network'}->{'short_title'}) {
+					$station = $json->{'network'}->{'short_title'};
+				}
+
 				my $meta = {
-					title    => $title,
-					realTitle => $title,
-					artist   => $syn,
-					description => $syn,
-					duration => $duration,
-					icon     => $image,
-					realIcon => $image,
-					cover    => $image,
-					realCover => $image,
-					trackImage => '',
-					track => '',
-					spotify => '',
-					buttons => undef,
-					urn => $urn,
-					containerUrn => $containerUrn
+					title			=> $title,
+					realTitle 		=> $title,
+					artist  		=> $syn,
+					album 			=> $station,
+					description 	=> $syn,
+					duration 		=> $duration,
+					icon     		=> $image,
+					realIcon 		=> $image,
+					cover    		=> $image,
+					realCover 		=> $image,
+					trackImage 		=> '',
+					track 			=> '',
+					spotify 		=> '',
+					buttons 		=> undef,
+					urn 			=> $urn,
+					containerUrn 	=> $containerUrn,
+					station 		=> $station,
 				};
 				$cache->set("bs:meta-$pid",$meta,86400);
 				$cbY->($meta);
@@ -1905,22 +1932,29 @@ sub _getLiveMeta {
 				}
 				my $urn = $json->{'urn'};
 
+				my $stationName = '';
+				if ( defined $json->{'network'}->{'long_title'} ) {
+					$stationName = $json->{'network'}->{'long_title'};
+				}
+
 				my $meta = {
-					title    => $title,
-					realTitle => $title,
-					artist   => $syn,
-					description => $syn,
-					duration => $duration,
-					icon     => $image,
-					realIcon => $image,
-					cover    => $image,
-					realCover    => $image,
-					trackImage => '',
-					track =>   '',
-					spotify => '',
-					buttons => undef,
-					urn => $urn,
-					containerUrn => '',
+					title    		=> $title,
+					realTitle 		=> $title,
+					artist   		=> $syn,
+					album			=> $stationName,
+					description 	=> $syn,
+					duration 		=> $duration,
+					icon     		=> $image,
+					realIcon 		=> $image,
+					cover    		=> $image,
+					realCover		=> $image,
+					trackImage 		=> '',
+					track 			=> '',
+					spotify 		=> '',
+					buttons 		=> undef,
+					urn 			=> $urn,
+					containerUrn 	=> '',
+					station 		=> $stationName,
 				};
 
 				$cache->set( "bs:meta-" . $id, $meta, 3600 );
