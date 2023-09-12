@@ -1041,7 +1041,7 @@ sub sysread {
 
 							# get the meta data for this live track if we don't have it yet.
 
-							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ( $v->{'endOffset'} == 0 );
+							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ( $v->{'endOffset'} == 0 || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD );
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset) if $isNow;
