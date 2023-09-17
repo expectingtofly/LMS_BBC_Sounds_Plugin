@@ -92,7 +92,7 @@ sub signIn {
 
 								#makes sure the cookies are persisted
 								$session->cookie_jar->save();
-								
+
 								$cbYes->();
 							},
 							onRedirect => sub {
@@ -104,8 +104,8 @@ sub signIn {
 								}
 
 								main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on Redirect : ' . Dumper($session->cookie_jar));
-								
-								
+
+
 							},
 							onError => sub {
 								my ( $http, $self ) = @_;
@@ -127,25 +127,26 @@ sub signIn {
 			}
 		);
 	};
-	
+
 	ensureCookiesAreCleared();
-	$fSignIn->();	
+	$fSignIn->();
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--signIn");
 	return;
 }
 
+
 sub ensureCookiesAreCleared {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++ensureCookiesAreCleared");
 	my $session   = Slim::Networking::Async::HTTP->new;
 	my $cookiejar = $session->cookie_jar;
-	
+
 	main::DEBUGLOG && $log->is_debug && $log->debug("++ensureCookiesAreCleared");
 	main::DEBUGLOG && $log->is_debug && $log->debug('Before Clear cookies : ' . Dumper($cookiejar));
 
-	$cookiejar->clear( '.bbc.co.uk' );
-	$cookiejar->clear( 'account.bbc.com' );
-	$cookiejar->clear( 'session.bbc.co.uk' );
+	$cookiejar->clear('.bbc.co.uk');
+	$cookiejar->clear('account.bbc.com');
+	$cookiejar->clear('session.bbc.co.uk');
 	$session->cookie_jar->save();
 	main::DEBUGLOG && $log->is_debug && $log->debug('After Clear cookies : ' . Dumper($cookiejar));
 
@@ -153,13 +154,14 @@ sub ensureCookiesAreCleared {
 	return;
 }
 
+
 sub isSignedIn {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++isSignedIn");
 	my $session   = Slim::Networking::Async::HTTP->new;
 	my $cookiejar = $session->cookie_jar;
 	my $key       = $cookiejar->{COOKIES}->{'.bbc.co.uk'}->{'/'}->{'ckns_id'};
 	if ( defined $key ) {
-		my $cookieepoch = @{$key}[5];		
+		my $cookieepoch = @{$key}[5];
 		if (defined $cookieepoch) {
 			my $epoch       = time();
 			if ( $epoch < $cookieepoch ) {
@@ -223,7 +225,7 @@ sub renewSession {
 		}else {
 
 			my $session = Slim::Networking::Async::HTTP->new;
-			
+
 			my $sessionrequest =HTTP::Request->new( GET =>'https://session.bbc.co.uk/session?context=iplayerradio&userOrigin=sounds');
 			$session->send_request(
 				{
@@ -300,6 +302,55 @@ sub _hasSession {
 	}else {
 		main::DEBUGLOG && $log->is_debug && $log->debug("--_hasSession - false");
 		return;
+	}
+}
+
+
+sub getLiveStreamJwt {
+	my $id = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getLiveStreamJwt");
+
+	if ( $prefs->get('liveJWT') ) {
+		
+		Slim::Networking::SimpleAsyncHTTP->new(
+			sub {
+				my $http = shift;
+				main::DEBUGLOG && $log->is_debug && $log->debug('Have JWT page');
+				my $res = ${ $http->contentRef };
+				
+				my $index = index($res, '"liveStreamJwt":"');
+				if ($index > -1) {
+					main::DEBUGLOG && $log->is_debug && $log->debug('JWT Found');
+					
+					my $jwt= substr($res, $index + 17, 450);					
+					$jwt = substr( $jwt, 0, index($jwt,'"') );
+
+					main::DEBUGLOG && $log->is_debug && $log->debug('JWT obtained ' . $jwt);
+
+					$cbY->($jwt);
+				} else {
+					$log->warn('JWT Not Found');
+					$cbN->();
+				}
+			},
+
+			# Called when no response was received or an error occurred.
+			sub {
+				$log->warn("error: $_[1]");
+				$log->warn("Could not get JWT token");
+				$cbN->();
+			}
+		)->get('https://www.bbc.co.uk/sounds/play/live:' . $id);
+		return;
+
+	} else {
+		
+		main::DEBUGLOG && $log->is_debug && $log->debug('No JWT required');		
+		$cbY->();
+
 	}
 }
 1;
