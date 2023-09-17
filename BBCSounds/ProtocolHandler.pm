@@ -148,7 +148,7 @@ sub canDoAction {
 
 			my $song = $client->playingSong();
 			my $props = $song->pluginData('props');
-			main::INFOLOG && $log->is_info && $log->info('Rewind Pressed song time : ' . $songTime);		
+			main::INFOLOG && $log->is_info && $log->info('Rewind Pressed song time : ' . $songTime);
 
 			if ( ($songTime >= 8) || (!$props->{previousStartNumber}) ) {  # if we are greater than 5 seconds we go back to the start of the current programme
 				main::INFOLOG && $log->is_info && $log->info('Rewinding to start of programme');
@@ -253,14 +253,14 @@ sub new {
 	#prefs setup
 	my $throttleInterval = $prefs->get('throttleInterval');
 	my $programmeimagePref = $prefs->get('programmedisplayimage');
-	my $trackimagePref = $prefs->get('trackdisplayimage');	
+	my $trackimagePref = $prefs->get('trackdisplayimage');
 	my $programmedisplayline1 = $prefs->get('programmedisplayline1');
 	my $programmedisplayline2 = $prefs->get('programmedisplayline2');
 	my $programmedisplayline3 = $prefs->get('programmedisplayline3');
 	my $trackdisplayline1 = $prefs->get('trackdisplayline1');
 	my $trackdisplayline2 = $prefs->get('trackdisplayline2');
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
-	
+
 	my $nextThrottle = time();
 
 	if ( defined($self) ) {
@@ -468,7 +468,7 @@ sub _getPlayingDisplayLine {
 	my $trackdisplaytype = 0;
 	$programmedisplaytype =  $v->{'displayPrefs'}->{'programmeDisplayLine'. $line};
 	$trackdisplaytype = $v->{'displayPrefs'}->{'trackDisplayLine'. $line};
-	
+
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Prefs for line $line is $programmedisplaytype & $trackdisplaytype input $track | $programme | $artist | $description | $station|");
 
@@ -488,7 +488,7 @@ sub _getPlayingDisplayLine {
 		return $station if $programmedisplaytype == DISPLAYLINE_STATIONNAME;
 		return '';
 	}
-	
+
 	$log->error('Could not return display line ' . $line);
 	return;
 }
@@ -783,8 +783,8 @@ sub liveMetaData {
 		#success schedule
 		sub {
 			my $schedule = shift;
-			
-			my $resp = _getIDForBroadcast($schedule, $programmeOffset , ${*$self}{'props'});
+
+			my $resp = _getIDForBroadcast($schedule, $programmeOffset, ${*$self}{'props'});
 			my $id = '';
 			if ($resp){
 				$id = $resp->{id};
@@ -878,7 +878,7 @@ sub liveMetaData {
 		sub {
 			$log->warn('Could not retrieve station schedule');
 		},
-		! $isLive
+		!$isLive
 	);
 }
 
@@ -999,7 +999,7 @@ sub sysread {
 			$url .= $suffix;
 
 			$v->{'offset'}++;
-			
+
 			my $request = HTTP::Request->new( GET => $url, $headers);
 			$request->protocol('HTTP/1.1');
 
@@ -1084,7 +1084,7 @@ sub sysread {
 
 	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
-		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );		
+		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
 		main::DEBUGLOG && $log->is_debug && $log->debug('No bytes available' . Time::HiRes::time());
@@ -1230,15 +1230,28 @@ sub getNextTrack {
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				_getMPDUrl(
+				Plugins::BBCSounds::SessionManagement::getLiveStreamJwt(
 					$stationid,
 					sub {
-						$url = shift;
-						$processMPD->();
+						my $jwt = shift;
+						_getMPDUrl(
+							$stationid,
+							sub {
+								$url = shift;
+								$processMPD->();
+							},
+							sub {
+								$log->error('Failed to get live MPD');
+								$errorCb->("Not able to obtain live audio", $masterUrl);
+							},
+							$jwt,
+						);
 					},
+
 					sub {
-						$log->error('Failed to get live MPD');
-						$errorCb->("Not able to obtain live audio", $masterUrl);
+						$log->error('Could not get Live stream JWT');
+						$errorCb->("Not able to obtain live audio, not logged in", $masterUrl);
+
 					}
 				);
 			},
@@ -1246,6 +1259,7 @@ sub getNextTrack {
 				$log->error('Not logged in, cannot get audio');
 				$errorCb->("Not able to obtain live audio, not logged in", $masterUrl);
 			}
+
 		);
 
 	} else {
@@ -1674,7 +1688,7 @@ sub _getLiveSchedule {
 				$cbY->($scheduleJSON);
 			},
 			sub {
-				
+
 				$log->error('Failed to get schedule for ' . $network);
 
 				#try again in 2 mins to prevent flooding
@@ -1995,6 +2009,15 @@ sub _getMPDUrl {
 	my $id  = shift;
 	my $cbY  = shift;
 	my $cbN  = shift;
+	my $jwt  = shift;
+
+	my $url = "https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json";
+
+	if ($jwt) {
+		$url .= "?jwt_auth=$jwt";
+	}
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("Media Selector URL  $url");
 
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
@@ -2039,7 +2062,7 @@ sub _getMPDUrl {
 		sub {
 			$cbN->();
 		}
-	)->get("https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json/");
+	)->get($url);
 	return;
 }
 

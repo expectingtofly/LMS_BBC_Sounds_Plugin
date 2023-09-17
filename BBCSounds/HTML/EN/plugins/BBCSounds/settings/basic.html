@@ -196,6 +196,12 @@
 		<option [% IF prefs.pref_throttleInterval == 3 %]selected [% END %]value="3">3 Seconds</option>				
 	</select>	
 	[% END %]
+
+	[% WRAPPER setting title="" desc="" %]
+	<input name="pref_liveJWT" id="pref_liveJWT" type="checkbox" [% IF prefs.pref_liveJWT %] checked [% END %]>
+	<label for="pref_liveJWT">Supply live stream security token</label>
+	[% END %]	
+
 	<hr/>	
 	[% WRAPPER setting title="About BBC Sounds LMS Plugin" desc="" %]
 	<i><p>The BBC Sounds LMS Plugin consumes BBC API's and every effort has been made to adhere to the BBC distribution policy.  However, the plugin itself is not endorsed or approved by the BBC.</p>
