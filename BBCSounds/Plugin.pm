@@ -125,7 +125,7 @@ sub initPlugin {
 						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
 						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 }
 						],
-			liveJWT => 0,
+			liveJWT => 1,
 		}
 	);
 
