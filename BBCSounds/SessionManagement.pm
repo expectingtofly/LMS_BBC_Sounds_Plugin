@@ -29,6 +29,7 @@ use Slim::Utils::Prefs;
 use HTTP::Request::Common;
 use HTML::Entities;
 use HTTP::Cookies;
+use JSON::XS::VersionOneAndTwo;
 
 use Data::Dumper;
 
@@ -318,15 +319,10 @@ sub getLiveStreamJwt {
 		Slim::Networking::SimpleAsyncHTTP->new(
 			sub {
 				my $http = shift;
-				main::DEBUGLOG && $log->is_debug && $log->debug('Have JWT page');
-				my $res = ${ $http->contentRef };
-				
-				my $index = index($res, '"liveStreamJwt":"');
-				if ($index > -1) {
-					main::DEBUGLOG && $log->is_debug && $log->debug('JWT Found');
-					
-					my $jwt= substr($res, $index + 17, 450);					
-					$jwt = substr( $jwt, 0, index($jwt,'"') );
+				main::DEBUGLOG && $log->is_debug && $log->debug('Have JWT');
+				my $JSON = decode_json ${ $http->contentRef };
+
+				if (my $jwt = $JSON->{token}) {
 
 					main::DEBUGLOG && $log->is_debug && $log->debug('JWT obtained ' . $jwt);
 
@@ -343,7 +339,7 @@ sub getLiveStreamJwt {
 				$log->warn("Could not get JWT token");
 				$cbN->();
 			}
-		)->get('https://www.bbc.co.uk/sounds/play/live:' . $id);
+		)->get('https://rms.api.bbc.co.uk/v2/sign/token/' . $id);
 		return;
 
 	} else {
