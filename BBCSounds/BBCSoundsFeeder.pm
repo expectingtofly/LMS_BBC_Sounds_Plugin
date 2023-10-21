@@ -1214,12 +1214,14 @@ sub _parseNetworkPlayableItem {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseNetworkPlayableItem");
 
+	my $url = 'sounds://_LIVE_'. $item->{id};
+
 	my $liveStation = {
 		name        	=> $item->{network}->{short_title},
 		type        	=> 'audio',
 		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url}),
-		url         	=> 'sounds://_LIVE_'. $item->{id},
-		favorites_url 	=> 'sounds://_LIVE_'. $item->{id},
+		url         	=> $url,
+		favorites_url 	=> $url,
 		favorites_title => 'BBC ' . $item->{network}->{short_title},
 		on_select   	=> 'play'
 	};
@@ -1230,6 +1232,10 @@ sub _parseNetworkPlayableItem {
 	}
 
 	$liveStation->{line2} = $line2;
+
+	if ($isRadioFavourites) {
+		$liveStation->{itemActions} = getLiveItemActions('BBC ' . $item->{network}->{short_title}, $item->{id}, $url);
+	}
 
 	push @$menu, $liveStation;
 
