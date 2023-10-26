@@ -48,11 +48,14 @@ sub signIn {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++signIn");
 
 	my $fSignIn = sub {
-		my %body = (
-			jsEnabled => 'true',
+		
+		my %body1 = (
+			username  => $username,
+		);
+		
+		my %body2 = (			
 			username  => $username,
 			password  => $password,
-			attempts  => 0
 		);
 
 		#get the session this gives us access to the cookies
@@ -74,49 +77,81 @@ sub signIn {
 					my $referUrl = $req->uri;
 					$signinurl = 'https://account.bbc.com' . $signinurl;
 
-					my $request =HTTP::Request::Common::POST( $signinurl, [%body] );
-					$request->protocol('HTTP/1.1');
-					$request->header( 'Referer' => $referUrl );
-					$request->header( 'Origin'  => 'https://account.bbc.com' );
-					$request->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
-					$request->header( 'Accept' =>'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
-					$request->header( 'Cache-Control' => 'max-age=0' );
+					my $requestUserName =HTTP::Request::Common::POST( $signinurl, [%body1] );
+					$requestUserName->protocol('HTTP/1.1');
+					$requestUserName->header( 'Referer' => $referUrl );
+					$requestUserName->header( 'Origin'  => 'https://account.bbc.com' );
+					$requestUserName->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
+					$requestUserName->header( 'Accept' =>'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
+					$requestUserName->header( 'Cache-Control' => 'max-age=0' );
 
 					$session->send_request(
 						{
-							request => $request,
+							request => $requestUserName,
 							onBody  => sub {
 								my ( $http, $self ) = @_;
 								my $res = $http->response;
 
-								main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on final body : ' . Dumper($session->cookie_jar));
+								main::DEBUGLOG && $log->is_debug && $log->debug('Initial UserName Request Succeed ');
+								my ($newSigninurl) =$res->content =~ /<form\s+(?:[^>]*?\s+)?action="([^"]*)"/;
 
-								#makes sure the cookies are persisted
-								$session->cookie_jar->save();
+								main::DEBUGLOG && $log->is_debug && $log->debug("New url $newSigninurl");
+								$newSigninurl = HTML::Entities::decode_entities($newSigninurl);
+								my $referUrl = $req->uri;
+								$newSigninurl = 'https://account.bbc.com' . $newSigninurl;
 
-								$cbYes->();
+								my $requestFull = HTTP::Request::Common::POST( $newSigninurl, [%body2] );
+								$requestFull->protocol('HTTP/1.1');
+								$requestFull->header( 'Referer' => $referUrl );
+								$requestFull->header( 'Origin'  => 'https://account.bbc.com' );
+								$requestFull->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
+								$requestFull->header( 'Accept' =>'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
+								$requestFull->header( 'Cache-Control' => 'max-age=0' );
+												
+								$session->send_request(
+									{
+										request => $requestFull,
+										onBody  => sub {
+											my ( $http, $self ) = @_;
+											my $res = $http->response;
+
+											main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on final body : ' . Dumper($session->cookie_jar));
+
+											#makes sure the cookies are persisted
+											$session->cookie_jar->save();
+
+											$cbYes->();
+										},
+										onRedirect => sub {
+											my ( $req, $self ) = @_;
+
+											#try and change the method to get, as it automatically keeps it as post
+											if ( $req->method eq 'POST' ) {
+												$req->method('GET');
+											}
+
+											main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on Redirect : ' . Dumper($session->cookie_jar));
+
+
+										},
+										onError => sub {
+											my ( $http, $self ) = @_;
+											my $res = $http->response;
+											main::DEBUGLOG && $log->is_debug && $log->debug('Error status - ' . $res->status_line );
+											$cbNo->();
+										}
+									}
+								);
+								
 							},
-							onRedirect => sub {
-								my ( $req, $self ) = @_;
-
-								#try and change the method to get, as it automatically keeps it as post
-								if ( $req->method eq 'POST' ) {
-									$req->method('GET');
-								}
-
-								main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on Redirect : ' . Dumper($session->cookie_jar));
-
-
-							},
-							onError => sub {
-								my ( $http, $self ) = @_;
-								my $res = $http->response;
-								main::DEBUGLOG && $log->is_debug && $log->debug('Error status - ' . $res->status_line );
+							onError =>
+				  			# Called when no response was received or an error occurred.
+				  			sub {
+								$log->warn("error: $_[1]");
 								$cbNo->();
 							}
 						}
 					);
-
 				},
 				onError =>
 
@@ -142,7 +177,6 @@ sub ensureCookiesAreCleared {
 	my $session   = Slim::Networking::Async::HTTP->new;
 	my $cookiejar = $session->cookie_jar;
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("++ensureCookiesAreCleared");
 	main::DEBUGLOG && $log->is_debug && $log->debug('Before Clear cookies : ' . Dumper($cookiejar));
 
 	$cookiejar->clear('.bbc.co.uk');
