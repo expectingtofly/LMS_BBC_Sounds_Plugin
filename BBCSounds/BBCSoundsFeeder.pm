@@ -117,12 +117,13 @@ sub toplevel {
 	$fetch = sub {
 		$menu = [
 			{
-				name        => 'Music',
+				name        => 'All Music',
 				type        => 'link',
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 				passthrough => [ { type => 'music', codeRef => 'getPage' } ],
-				order       => 6,
+				order       => 8
+				,
 			},
 			{
 				name => 'My Sounds',
@@ -149,15 +150,15 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 12,
+				order => 13,
 			},
 			{
-				name        => 'Podcasts',
+				name        => 'All Podcasts',
 				type        => 'link',
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 				passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
-				order       => 8,
+				order       => 9,
 			},
 		];
 
@@ -195,11 +196,11 @@ sub toplevel {
 				my $JSON = decode_json ${ $http->contentRef };
 
 				#Priority Brand menu (unmissable Sounds)
-				my $module = _parseTopInlineMenu($JSON, 'priority_brands');
+				my $module = _parseTopInlineMenu($JSON, 'unmissable_music');
 				my $moduleTitle = $module->{title};
 				my $submenu = [];
 
-				if (_getHomeMenuItemDisplay('unmissibleSounds')) {
+				if (_getHomeMenuItemDisplay('unmissableMusic')) {
 
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
@@ -207,9 +208,28 @@ sub toplevel {
 						  {
 							name  => $moduleTitle,
 							type  => 'link',
-							image  => Plugins::BBCSounds::Utilities::IMG_FEATURED,
+							image  => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 							items => $submenu,
 							order => 5,
+						  };
+					}
+				}
+				if (_getHomeMenuItemDisplay('unmissableSpeech')) {
+
+					#Editorial menu
+					$module = _parseTopInlineMenu($JSON, 'unmissable_speech');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image  => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+							items => $submenu,
+							order => 6,
 						  };
 					}
 				}
@@ -229,7 +249,7 @@ sub toplevel {
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
 							items => $submenu,
-							order => 6,
+							order => 7,
 						  };
 					}
 				}
@@ -249,7 +269,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 							items => $submenu,
-							order => 9,
+							order => 10,
 						  };
 					}
 				}
@@ -269,7 +289,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
 							items => $submenu,
-							order => 10,
+							order => 11,
 						  };
 					}
 				}
@@ -307,7 +327,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
 							items => $submenu,
-							order => 11,
+							order => 12,
 						  };
 					}
 				}
