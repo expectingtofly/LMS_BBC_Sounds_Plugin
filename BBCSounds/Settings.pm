@@ -128,6 +128,7 @@ sub handler {
 				$params->{pref_password} = '';
 
 				$callback->( $client, $params, $body, @args );
+				$prefs->set('password', '');  #Ensure password not stored in prefs
 			},
 			sub {
 				my $msg ='<strong>There was a problem with sign in, please try again</strong>';
@@ -155,7 +156,8 @@ sub handler {
 			$prefs->set('sounds_recent_search', []);
 		}
 
-		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('unmissibleSounds', $params->{pref_menuitem_unmissibleSounds});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('unmissableMusic', $params->{pref_menuitem_unmissableMusic});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('unmissableSpeech', $params->{pref_menuitem_unmissableSpeech});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('editorial', $params->{pref_menuitem_editorial});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('recommendations', $params->{pref_menuitem_recommendations});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('localToMe', $params->{pref_menuitem_localToMe});
@@ -227,15 +229,16 @@ sub getHomeMenu {
 		'mySounds' => {title => 'My Sounds', order =>1},
 		'listenLive' => {title => 'Listen Live (Live stations only)', order =>2},
 		'stations' => {title => 'Stations & Schedules (Live stations and catch-up)', order =>3},
-		'unmissibleSounds' => {title => 'Priority Brands (Unmissable Sounds)', order =>4},
-		'editorial' => {title => 'Promoted Editorial Content', order =>5},
-		'music' => {title => 'Music', order =>6},
-		'podcasts' => {title => 'Podcasts (Speech)', order =>7},
-		'recommendations' => {title => 'Recommended For You', order =>8},
-		'localToMe' => {title => 'Local To Me', order =>9},
-		'categories' => {title => 'Browse Categories', order =>10},
-		'continueListening' => {title => 'Continue Listening', order =>11},
-		'SingleItemPromotion' => {title => 'Promoted Single Item', order =>12},
+		'unmissableSpeech' => {title => 'Discover Podcasts (Unmissable Speech)', order =>4},
+		'unmissableMusic' => {title => 'Music You\'ll Love (Unmissable Music)', order =>5},
+		'editorial' => {title => 'Promoted Editorial Content', order =>6},
+		'music' => {title => 'Music', order =>7},
+		'podcasts' => {title => 'Podcasts (Speech)', order =>8},
+		'recommendations' => {title => 'Recommended For You', order =>9},
+		'localToMe' => {title => 'Local To Me', order =>10},
+		'categories' => {title => 'Browse Categories', order =>11},
+		'continueListening' => {title => 'Continue Listening', order =>12},
+		'SingleItemPromotion' => {title => 'Promoted Single Item', order =>13},
 
 	);
 

@@ -44,6 +44,40 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 $prefs->migrate(
+	10,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		if ( $m ) {
+			my $foundUnmissableSpeech = 0;
+			my $foundUnmissableMusic = 0;
+			for my $item (@$m) {
+				if ($item->{item} eq 'unmissableSpeech') {
+					$foundUnmissableSpeech = 1;
+				}
+				if ($item->{item} eq 'unmissableMusic') {
+					$foundUnmissableMusic = 1;
+				}
+			}			
+			push @$m, { item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 } if !$foundUnmissableSpeech;
+			push @$m, { item => 'unmissableMusic', title => 'Music You\'ll Love  (Unmissable Music)',display=>1, disabled=>0  } if !$foundUnmissableMusic;				
+	
+			
+			#remove unmissable sounds
+			my $index = 0;
+			$index++ until ${$m}[$index]->{item} eq 'unmissibleSounds'; #it had a typo
+			splice(@$m, $index, 1);
+			$prefs->set('homeMenu', $m);
+
+			#Ensure password is not stored in prefs
+			$prefs->set('password', '');
+		}
+		
+		1;
+	}
+);
+
+
+$prefs->migrate(
 	9,
 	sub {
 		my $m = $prefs->get('homeMenu');
@@ -114,10 +148,11 @@ sub initPlugin {
 			homeMenu => [{ item => 'search', title => 'Search',display=>1, disabled=>1 },
 						 { item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
 						 { item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
-						 { item => 'unmissibleSounds', title => 'Priority Brands (Unmissable Sounds)',display=>1, disabled=>0 },
-						 { item => 'editorial', title => 'Promoted Editorial Content',display=>0, disabled=>0 },
-						 { item => 'music', title => 'Music', display=>1, disabled=>1 },
-						 { item => 'podcasts', title => 'Podcasts', display=>1, disabled=>1 },
+						 { item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 },
+						 { item => 'unmissableMusic', title => 'Music You\'ll Love (Unmissable Music)',display=>1, disabled=>0 },						 
+						 { item => 'editorial', title => 'Promoted Editorial Content',display=>1, disabled=>0 },
+						 { item => 'music', title => 'All Music', display=>1, disabled=>1 },
+						 { item => 'podcasts', title => 'All Podcasts', display=>1, disabled=>1 },
 						 { item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
 						 { item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
 						 { item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
