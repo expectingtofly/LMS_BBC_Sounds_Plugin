@@ -128,6 +128,7 @@ sub handler {
 				$params->{pref_password} = '';
 
 				$callback->( $client, $params, $body, @args );
+				$prefs->set('password', '');  #Ensure password not stored in prefs
 			},
 			sub {
 				my $msg ='<strong>There was a problem with sign in, please try again</strong>';

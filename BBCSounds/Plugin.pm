@@ -68,6 +68,8 @@ $prefs->migrate(
 			splice(@$m, $index, 1);
 			$prefs->set('homeMenu', $m);
 
+			#Ensure password is not stored in prefs
+			$prefs->set('password', '');
 		}
 		
 		1;
