@@ -367,7 +367,7 @@ sub toplevel {
 						if (scalar @$submenu ) {
 
 							#fix up
-							@$submenu[0]->{order} = 12;
+							@$submenu[0]->{order} = 99; # at the bottom
 							@$submenu[0]->{name} = $moduleTitle;
 							push @$menu, @$submenu[0];
 						}
