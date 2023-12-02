@@ -59,7 +59,7 @@ $prefs->migrate(
 				}
 			}			
 			push @$m, { item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 } if !$foundUnmissableSpeech;
-			push @$m, { item => 'unmissableMusic', title => 'Music You\'ll  (Unmissable Music)',display=>1, disabled=>0  } if !$foundUnmissableMusic;				
+			push @$m, { item => 'unmissableMusic', title => 'Music You\'ll Love  (Unmissable Music)',display=>1, disabled=>0  } if !$foundUnmissableMusic;				
 	
 			
 			#remove unmissable sounds
@@ -149,7 +149,7 @@ sub initPlugin {
 						 { item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
 						 { item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
 						 { item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 },
-						 { item => 'unmissableMusic', title => 'Music You\'ll  (Unmissable Music)',display=>1, disabled=>0 },						 
+						 { item => 'unmissableMusic', title => 'Music You\'ll Love (Unmissable Music)',display=>1, disabled=>0 },						 
 						 { item => 'editorial', title => 'Promoted Editorial Content',display=>1, disabled=>0 },
 						 { item => 'music', title => 'All Music', display=>1, disabled=>1 },
 						 { item => 'podcasts', title => 'All Podcasts', display=>1, disabled=>1 },

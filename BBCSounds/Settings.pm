@@ -230,7 +230,7 @@ sub getHomeMenu {
 		'listenLive' => {title => 'Listen Live (Live stations only)', order =>2},
 		'stations' => {title => 'Stations & Schedules (Live stations and catch-up)', order =>3},
 		'unmissableSpeech' => {title => 'Discover Podcasts (Unmissable Speech)', order =>4},
-		'unmissableMusic' => {title => 'Music You\'ll  (Unmissable Music)', order =>5},
+		'unmissableMusic' => {title => 'Music You\'ll Love (Unmissable Music)', order =>5},
 		'editorial' => {title => 'Promoted Editorial Content', order =>6},
 		'music' => {title => 'Music', order =>7},
 		'podcasts' => {title => 'Podcasts (Speech)', order =>8},
