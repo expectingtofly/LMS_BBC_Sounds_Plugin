@@ -348,40 +348,33 @@ sub getLiveStreamJwt {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getLiveStreamJwt");
 
-	if ( $prefs->get('liveJWT') ) {
-		
-		Slim::Networking::SimpleAsyncHTTP->new(
-			sub {
-				my $http = shift;
-				main::DEBUGLOG && $log->is_debug && $log->debug('Have JWT');
-				my $JSON = decode_json ${ $http->contentRef };
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug('Have JWT');
+			my $JSON = decode_json ${ $http->contentRef };
 
-				if (my $jwt = $JSON->{token}) {
+			if (my $jwt = $JSON->{token}) {
 
-					main::DEBUGLOG && $log->is_debug && $log->debug('JWT obtained ' . $jwt);
+				main::DEBUGLOG && $log->is_debug && $log->debug('JWT obtained ' . $jwt);
 
-					$cbY->($jwt);
-				} else {
-					$log->warn('JWT Not Found');
-					$cbN->();
-				}
-			},
-
-			# Called when no response was received or an error occurred.
-			sub {
-				$log->warn("error: $_[1]");
-				$log->warn("Could not get JWT token");
+				$cbY->($jwt);
+			} else {
+				$log->warn('JWT Not Found');
 				$cbN->();
 			}
-		)->get('https://rms.api.bbc.co.uk/v2/sign/token/' . $id);
-		return;
+		},
 
-	} else {
-		
-		main::DEBUGLOG && $log->is_debug && $log->debug('No JWT required');		
-		$cbY->();
-
-	}
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$log->warn("Could not get JWT token");
+			$cbN->();
+		}
+	)->get('https://rms.api.bbc.co.uk/v2/sign/token/' . $id);
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getLiveStreamJwt");
+	return;
 }
 1;
 
