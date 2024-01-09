@@ -474,6 +474,9 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
 	}elsif ( $menuType eq 'segments' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
+	}elsif ( $menuType eq 'livesegments' ) {
+		$callurl = 'https://rms.api.bbc.co.uk/v2/services/' . $passDict->{'station'} . '/segments/latest?limit=10';
+		$cacheIt=0;
 	}elsif ( $menuType eq 'stationfeatured' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/networks/' . $passDict->{'stationid'} . '/promos/playable';
 	}elsif ( $menuType eq 'podcasts' ) {
@@ -1028,9 +1031,12 @@ sub _parse {
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
-	}elsif( $optstr eq 'segments' )  {
+	}elsif ( $optstr eq 'segments' )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseTracklist( $JSON->{data}, $passthrough, $menu );
+	}elsif ( $optstr eq 'livesegments' )  {
+		my $JSON = decode_json ${ $http->contentRef };
+		_parseLiveTracklist( $JSON->{data}, $passthrough, $menu );
 	}else {
 		$log->error("Invalid BBC API Parse option");
 	}
@@ -1103,6 +1109,37 @@ sub _parseItems {
 	return;
 }
 
+
+sub _parseLiveTracklist {
+	my $jsonData = shift;
+	my $passthrough = shift;
+	my $menu     = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++_parseLIveTracklist");
+	my $size = scalar @$jsonData;
+
+	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
+
+	for my $item (@$jsonData) {		
+		my $offsetStart = $item->{offset}->{start};
+		my $label = $item->{offset}->{label};
+		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary} . "($label)";
+		my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
+		if (!$offsetStart) {		
+			$offsetStart = 0;
+		}
+		push @$menu,
+		  {
+			name 	=>	$title,
+			line1	=>  $item->{titles}->{secondary},
+			line2  =>   $item->{titles}->{primary} . " ($label)",			
+			image 	=>  $image,
+			type        => 'audio',
+			url         => 'sounds://_REWIND_' . $passthrough->{station} . '_' . $offsetStart,
+		  };
+	}
+	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseLIveTracklist");
+	return;
+}
 
 sub _parseTracklist {
 	my $jsonData = shift;
@@ -2064,11 +2101,17 @@ sub soundsInfoIntegration {
 				],
 			  };
 
-		} elsif (Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url))  {
+		} elsif (Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef,$url))  {
+			
+			my $stationName = 'Station';
+			my $song = Slim::Player::Source::playingSong($client);
+			if (my $meta = $song->pluginData('meta')) {
+				$stationName = $meta->{station};
+			}
 
 			push @$items,
 			  {
-				name => 'Station Schedule',
+				name => "$stationName Schedule",
 				type        => 'link',
 				url         => \&getPage,
 				passthrough => [
@@ -2077,6 +2120,22 @@ sub soundsInfoIntegration {
 						stationid    => Plugins::BBCSounds::ProtocolHandler::_getStationID($url),
 						scheduledate => strftime( '%Y-%m-%d', localtime(time()) ),
 						codeRef      => 'getPage'
+					}
+				],
+			  };
+
+			my $station = Plugins::BBCSounds::ProtocolHandler::_getStationID($url);
+			push @$items,
+			  {
+				name => "$stationName Live Tracklist",
+				type        => 'link',
+				url         => \&getPage,
+				passthrough => [
+					{
+						type    => 'livesegments',
+						station => $station,						
+						offset  => 0,
+						codeRef => 'getPage'
 					}
 				],
 			  };
@@ -2090,7 +2149,7 @@ sub soundsInfoIntegration {
 			if (!($meta->{spotify} eq '')) {
 				push @$items,
 				  {
-					name => 'BBC Sounds Now Playing On Spotify',
+					name => 'Current Track On Spotify',
 					type => 'audio',
 					url  =>  $meta->{spotify},
 					on_select   => 'play'
