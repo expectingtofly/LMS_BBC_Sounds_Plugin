@@ -472,8 +472,9 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/categories?kind=' . $passDict->{'categorytype'} . '&dummycategory='.$passDict->{'category'};
 	}elsif ( $menuType eq 'stationsdayschedule' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/schedules/'. $passDict->{'stationid'} . '/'. $passDict->{'scheduledate'};
-	}elsif ( $menuType eq 'segments' ) {
+	}elsif ( $menuType eq 'segments' || $menuType eq 'segmentsplaying' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/versions/' . $passDict->{'id'} . '/segments';
+		$cacheIt = 0;
 	}elsif ( $menuType eq 'livesegments' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/services/' . $passDict->{'station'} . '/segments/latest?limit=10';
 		$cacheIt=0;
@@ -1034,7 +1035,8 @@ sub _parse {
 	}elsif ( $optstr eq 'segments' )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseTracklist( $JSON->{data}, $passthrough, $menu );
-	}elsif ( $optstr eq 'livesegments' )  {
+	}elsif ( $optstr eq 'livesegments'
+		|| $optstr eq 'segmentsplaying'  )  {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseLiveTracklist( $JSON->{data}, $passthrough, $menu );
 	}else {
@@ -1121,9 +1123,21 @@ sub _parseLiveTracklist {
 
 	for my $item (@$jsonData) {		
 		my $offsetStart = $item->{offset}->{start};
-		my $label = $item->{offset}->{label};
+
+		my $label = '';
+		if ($item->{offset}->{label}) {
+			$label = $item->{offset}->{label}
+		} else {
+			$label = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) );
+		}
+		
 		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary} . "($label)";
-		my $image =Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
+
+		my $image;
+		if ( $item->{image_url} ) {
+			$image = Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
+		}
+
 		if (!$offsetStart) {		
 			$offsetStart = 0;
 		}
@@ -1138,8 +1152,8 @@ sub _parseLiveTracklist {
 			nextWindow => 'parent',
 			passthrough => [
 				{
-					seekTime      => $offsetStart,
-					title		  => $item->{titles}->{secondary},			
+					seekTime  => $offsetStart,
+					title	  => $item->{titles}->{secondary}				
 				}
 			]
 		  };
@@ -2068,7 +2082,7 @@ sub soundsInfoIntegration {
 				url         => \&getPage,
 				passthrough => [
 					{
-						type    => 'segments',
+						type    => 'segmentsplaying',
 						id => $id,
 						pid => $pid,
 						offset  => 0,
