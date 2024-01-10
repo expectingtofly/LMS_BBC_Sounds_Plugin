@@ -1133,8 +1133,15 @@ sub _parseLiveTracklist {
 			line1	=>  $item->{titles}->{secondary},
 			line2  =>   $item->{titles}->{primary} . " ($label)",			
 			image 	=>  $image,
-			type        => 'audio',
-			url         => 'sounds://_REWIND_' . $passthrough->{station} . '_' . $offsetStart,
+			type        => 'link',
+			url         => \&seekToTime,
+			nextWindow => 'parent',
+			passthrough => [
+				{
+					seekTime      => $offsetStart,
+					title		  => $item->{titles}->{secondary},			
+				}
+			]
 		  };
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseLIveTracklist");
@@ -2515,5 +2522,26 @@ sub persistHomeMenu {
 	return;
 }
 
+sub seekToTime {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++seekToTime");
+
+	my $newPos =  $passDict->{'seekTime'};
+	my $title = 'Skipping to ' . $passDict->{'title'};
+
+
+
+	Slim::Player::Source::gototime($client, $newPos);
+
+	$callback->({
+		items => [{
+			name        => $title,
+			showBriefly => 1,
+			nowPlaying  => 1, # then return to Now Playing
+		}]
+	});
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--seekToTime");
+}
 
 1;
