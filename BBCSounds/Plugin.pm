@@ -160,7 +160,6 @@ sub initPlugin {
 						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
 						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 }
 						],
-			liveJWT => 1,
 		}
 	);
 
@@ -177,14 +176,6 @@ sub initPlugin {
 		},
 		'rewoundind'
 	);
-
-	$prefs->setChange(
-		sub {
-			$prefs->set($_[0], 0) unless defined $_[1];
-		},
-		'liveJWT'
-	);
-
 
 	$class->SUPER::initPlugin(
 		feed   => \&Plugins::BBCSounds::BBCSoundsFeeder::toplevel,

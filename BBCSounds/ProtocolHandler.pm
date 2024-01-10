@@ -1257,6 +1257,10 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Not logged in, cannot get audio');
+				if (Slim::Utils::PluginManager->isEnabled('Plugins::MaterialSkin::Plugin')) {
+					my $client = $song->master();
+					Slim::Control::Request::notifyFromArray(undef, ['material-skin', 'notification', 'error', 'Cannot Play ' . $masterUrl . '. Not Signed In or Sign In expired.  Please sign in to your BBC Account in your LMS Server Settings', undef, $client->id()]);
+				}
 				$errorCb->("Not able to obtain live audio, not logged in", $masterUrl);
 			}
 
@@ -1289,7 +1293,11 @@ sub getNextTrack {
 			},
 			sub {
 				$log->error('Not logged in, cannot get audio');
-				$errorCb->("Not able to obtain audio, not logged in", $masterUrl);
+				if (Slim::Utils::PluginManager->isEnabled('Plugins::MaterialSkin::Plugin')) {
+					my $client = $song->master();		
+					Slim::Control::Request::notifyFromArray(undef, ['material-skin', 'notification', 'error', 'Cannot Play ' . $masterUrl . '. Not Signed In or Sign In expired.  Please sign in to your BBC Account in your LMS Server Settings', undef, $client->id()]);
+				}
+				$errorCb->("Not able to obtain live audio, not logged in", $masterUrl);
 			}
 		);
 

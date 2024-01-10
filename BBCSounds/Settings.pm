@@ -187,7 +187,7 @@ sub prefs {
 
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--prefs");
-	return ($prefs, qw(username password is_radio hideSampleRate programmedisplayline1 programmedisplayline2 programmedisplayline3 programmedisplayimage trackdisplayline1 trackdisplayline2 trackdisplayline3 trackdisplayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind liveJWT));
+	return ($prefs, qw(username password is_radio hideSampleRate programmedisplayline1 programmedisplayline2 programmedisplayline3 programmedisplayimage trackdisplayline1 trackdisplayline2 trackdisplayline3 trackdisplayimage forceHTTP nowPlayingActivityButtons throttleInterval playableAsPlaylist rewoundind));
 }
 
 
