@@ -55,11 +55,11 @@ sub getStartOffset {
 	$index = floor($startTime  / ( $props->{segmentDuration} / $props->{segmentTimescale} ));
 
 	#add on start number
-	$index += $props->{virtualStartNumber};
+	$index += $props->{startNumber};
 
 	main::INFOLOG
 	  && $log->is_info
-	  && $log->info('Calculated start number ' . $index . ' from ' . $props->{virtualStartNumber} . ' from stream that started at ' . $streamStartTime . ' and needs to be offset at ' . $startTime);
+	  && $log->info('Calculated start number ' . $index . ' from ' . $props->{startNumber} . ' from stream that started at ' . $streamStartTime . ' and needs to be offset at ' . $startTime);	  
 
 	$cb->($index);
 

@@ -1965,7 +1965,7 @@ sub getNetworkSchedule {
 	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
 
 	if ($isPrevious) {
-		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=300';
+		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=300&sort=-start_at';
 	}
 
 
@@ -2073,7 +2073,7 @@ sub soundsInfoIntegration {
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
 			my $id  = Plugins::BBCSounds::ProtocolHandler::getId(undef,$url);
-			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid(undef, $url);
+			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid( $url );
 
 			push @$items,
 			  {
