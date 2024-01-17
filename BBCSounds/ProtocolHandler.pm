@@ -77,6 +77,8 @@ use constant DISPLAYLINE_BLANK => 13;
 use constant DISPLAYIMAGE_TRACKIMAGE => 1;
 use constant DISPLAYIMAGE_PROGRAMMEIMAGE => 2;
 
+use constant REWOUND_IND => '<Rewound> ';
+
 
 my $log   = logger('plugin.bbcsounds');
 my $cache = Slim::Utils::Cache->new;
@@ -101,7 +103,7 @@ sub canDoAction {
 
 	if (!( ($class->isLive($url) || $class->isRewind($url)) )) { #an AOD stream
 		if ( $action eq 'pause' ) {
-			Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($url),Plugins::BBCSounds::ProtocolHandler->getPid($url),'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
+			Plugins::BBCSounds::ActivityManagement::heartBeat( getId($url), getPid($url) ,'paused',floor($client->playingSong()->master->controller->playingSongElapsed));
 		}
 		if ($action eq 'rew') { #skip back to start of track
 			if ( $class->getLastPos($url) > 0) { #if this is a resume at last pos, we want to skip back to the start,not the resume point
@@ -117,7 +119,7 @@ sub canDoAction {
 		}
 	}elsif ($class->isLive($url)) {
 		if ($action eq 'stop') { #skip to next track
-			 #only allow skiping if we have an end number and it is in the past
+			 #only allow skipping if we have an end number and it is in the past
 			my $song = $client->playingSong();
 			my $props = $song->pluginData('props');
 
@@ -125,7 +127,7 @@ sub canDoAction {
 
 			#is the current endNumber in the past?
 			if ($props->{endNumber}) {
-				if (Time::HiRes::time() > ($class->_timeFromOffset($props->{endNumber},$props)+10)){
+				if (Time::HiRes::time() > (_timeFromOffset($props->{endNumber},$props)+10)){
 					main::INFOLOG && $log->is_info && $log->info('Skip initiated');
 					$props->{skip} = 1;
 					$song->pluginData( props   => $props );
@@ -143,7 +145,6 @@ sub canDoAction {
 			return 0; #not ready to know what to do.
 		}
 		if ($action eq 'rew') { #skip back to start of track
-			 # make sure start number is correct for the programme (if we have it)
 			my $songTime = Slim::Player::Source::songTime($client);
 
 			my $song = $client->playingSong();
@@ -152,19 +153,24 @@ sub canDoAction {
 
 			if ( ($songTime >= 8) || (!$props->{previousStartNumber}) ) {  # if we are greater than 5 seconds we go back to the start of the current programme
 				main::INFOLOG && $log->is_info && $log->info('Rewinding to start of programme');
-				$props->{comparisonTime} -= (($props->{startNumber} - $props->{virtualStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
-				$props->{startNumber} = $props->{virtualStartNumber};
+				$props->{comparisonTime} -= (($props->{comparisonStartNumber} - $props->{startNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
+				$props->{comparisonStartNumber} = $props->{startNumber};
+				$song->pluginData( props   => $props );
+
 			} else { # Go back to the previous programme
-
 				main::INFOLOG && $log->is_info && $log->info('Rewinding to previous programme');
-				$props->{comparisonTime}    -= (($props->{startNumber} - $props->{previousStartNumber})) * ($props->{segmentDuration} / $props->{segmentTimescale});
-				$props->{startNumber}        = $props->{previousStartNumber};
-				$props->{virtualStartNumber} = $props->{previousStartNumber};
-				$props->{previousStartNumber} = 0;
-				$props->{endNumber} = 0;
-			}
 
-			$song->pluginData( props   => $props );
+				$props->{comparisonTime} -= (($props->{comparisonStartNumber}) - $props->{previousStartNumber}) * ($props->{segmentDuration} / $props->{segmentTimescale});
+				$props->{endNumber} = $props->{startNumber} - 1;
+				$props->{startNumber} = $props->{previousStartNumber};
+				$props->{previousStartNumber} = 0;
+				$props->{comparisonStartNumber} = $props->{startNumber};
+				$props->{reverseSkip} = 1;
+				
+				$song->pluginData( props   => $props );
+				return 0;
+			}
+			
 
 			return 1;
 		}
@@ -185,14 +191,10 @@ sub new {
 
 	return undef if !defined $props;
 
-	# erase last position from cache
-	$cache->remove( "bs:lastpos-" . $class->getId($masterUrl) );
-
 	$args->{'url'} = $song->pluginData('baseURL');
 
 	my $seekdata =$song->can('seekdata') ? $song->seekdata : $song->{'seekdata'};
 	my $startTime = $seekdata->{'timeOffset'} || $class->getLastPos($masterUrl);
-	$song->pluginData( 'lastpos', 0 );
 
 	my $nowPlayingButtons = $prefs->get('nowPlayingActivityButtons');
 	$song->pluginData( nowPlayingButtons => $nowPlayingButtons );
@@ -205,7 +207,7 @@ sub new {
 
 			#we can't go into the future
 			my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
-			my $maxStartTime = $edge - ($props->{virtualStartNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
+			my $maxStartTime = $edge - ($props->{startNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
 
 			#Remove a chunk to provide safety margin and less wait time on restart
 			$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
@@ -260,7 +262,8 @@ sub new {
 	my $trackdisplayline1 = $prefs->get('trackdisplayline1');
 	my $trackdisplayline2 = $prefs->get('trackdisplayline2');
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
-
+	my $rewoundInd = $prefs->get('rewoundind');
+	
 	my $nextThrottle = time();
 
 	if ( defined($self) ) {
@@ -287,7 +290,7 @@ sub new {
 				'isShowingTitle' => 1,   # indicates what cycle we are on
 				'awaitingCb' => 0,      #flag for callback on track data
 				'trackPlaying' => 0,  #flag indicating meta data is showing track is playing
-				'pollTime' => 30,    #Track polling default every 30 seconds
+				'pollTime' => 1,    #Track polling default every 30 seconds
 				'lastPoll' => $nextThrottle  #last time we polled
 			},
 			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
@@ -302,9 +305,20 @@ sub new {
 				'trackDisplayLine3' => $trackdisplayline3,
 				'programmeImagePref' => $programmeimagePref,
 				'trackImagePref' => $trackimagePref,
+				'rewoundInd' => $rewoundInd,
 			}
 		};
 	}
+
+	if ( $props->{reverseSkip }) {
+		liveSongMetaData( $song, $masterUrl, $props, sub { 
+			my $updatedProps = shift;
+			$updatedProps->{reverseSkip} = 0;
+			${*$self}{'props'} = $props;
+			main::INFOLOG && $log->is_info && $log->info("updated Meta Data after reverse skip");			
+		});
+	}
+	
 
 	# set starting offset (bytes or index) if not defined yet
 	$getStartOffset->{ $props->{'format'} }(
@@ -317,10 +331,6 @@ sub new {
 		}
 	) if !defined $offset;
 
-	# set timer for updating the MPD if needed (dash)
-	${*$self}{'active'} = 1;    #SM Removed timer
-
-
 	return $self;
 }
 
@@ -328,7 +338,6 @@ sub new {
 sub close {
 	my $self = shift;
 
-	${*$self}{'active'} = 0;
 	${*$self}{'vars'}->{'session'}->disconnect;
 
 	main::INFOLOG && $log->is_info && $log->info('close called');
@@ -361,33 +370,26 @@ sub close {
 sub onStop {
 	my ( $class, $song ) = @_;
 	my $elapsed = $song->master->controller->playingSongElapsed;
-	my $id = Plugins::BBCSounds::ProtocolHandler->getId( $song->track->url );
+	my $id = getId( $song->track->url );
 
 
 	if	(!( ($class->isLive( $song->track->url ) || $class->isRewind( $song->track->url )) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,Plugins::BBCSounds::ProtocolHandler->getPid( $song->track->url ),'paused', floor($elapsed) );
+		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,( $song->track->url ),'paused', floor($elapsed) );
 	}
 
-	if ( $elapsed < $song->duration - 15 ) {
-		$cache->set( "bs:lastpos-$id", int($elapsed), '30days' );
-		main::INFOLOG && $log->is_info && $log->info("Last position for $id is $elapsed");
-	}else {
-		$cache->remove("bs:lastpos-$id");
-	}
 }
 
 
 sub onStream {
 	my ( $class, $client, $song ) = @_;
 	my $url  = $song->track->url;
-	my $id   = Plugins::BBCSounds::ProtocolHandler->getId($url);
+	my $id   = getId($url);
 	my $meta = $cache->get("bs:meta-$id") || {};
 
 	#perform starting heartbeat
 	if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat($id,       Plugins::BBCSounds::ProtocolHandler->getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
+		Plugins::BBCSounds::ActivityManagement::heartBeat($id, getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
 	}
-
 
 }
 
@@ -497,11 +499,10 @@ sub _getPlayingDisplayLine {
 sub liveTrackData {
 	my $self = shift;
 	my $currentOffset = shift;
+	my $isNow = shift;
+
 	my $client = ${*$self}{'client'};
 	my $v = $self->vars;
-
-	#if endoffset is still 0, leave as we don't have a meta data yet.
-	return if $v->{'endOffset'} == 0;
 
 	my $song  = ${*$self}{'song'};
 	my $masterUrl = $song->track()->url;
@@ -513,7 +514,7 @@ sub liveTrackData {
 	return if $v->{'trackData'}->{awaitingCb};
 	$v->{'trackData'}->{awaitingCb} = 1;
 
-	if ($v->{'trackData'}->{isShowingTitle}) {
+	if ($v->{'trackData'}->{isShowingTitle} || !$isNow ) {
 
 		#we only need to reset the title if we have gone forward 3
 		if ($v->{'trackData'}->{chunkCounter} < 4) {
@@ -528,7 +529,13 @@ sub liveTrackData {
 		my $meta = $song->pluginData('meta');
 		my $oldmeta;
 		%$oldmeta = %$meta;
-		$meta->{title} = $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
+
+		my $titlePrefix = '';
+		if ((!$isNow) && $v->{displayPrefs}->{rewoundInd} ) {
+			$titlePrefix = REWOUND_IND;
+			main::INFOLOG && $log->is_info && $log->info('Setting rewound indicator');
+		}
+		$meta->{title} = $titlePrefix . $self->_getPlayingDisplayLine(1, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{artist} = $self->_getPlayingDisplayLine(2, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
@@ -568,24 +575,51 @@ sub liveTrackData {
 		my $isLive;
 
 		if ($self->isLive($masterUrl) || $self->isRewind($masterUrl)) {
+			if ( $v->{'trackData'}->{'pollTime'} == 1 ) {
+				$v->{'trackData'}->{awaitingCb} = 1;
+				#Ensure polling is set up correctly
+				Plugins::BBCSounds::BBCSoundsFeeder::getNetworkTrackPollingInfo(
+					_getStationID($masterUrl),
+					sub {
+						my $poll = shift;
+						if ($poll) {
+							$v->{'trackData'}->{'pollTime'} = $poll;
+						} else {
+							$v->{'trackData'}->{'pollTime'} = 0; # never poll
+						}
+						main::INFOLOG && $log->is_info && $log->info("Track Polling set to " . $v->{'trackData'}->{'pollTime'});
+						$v->{'trackData'}->{awaitingCb} = 0;
+					},
+					sub {
+						#Failed to get poll time, set it to zero
+						$v->{'trackData'}->{'pollTime'} = 0;
+						$log->warn("Failed polling setting to  " . $v->{'trackData'}->{'pollTime'});
+						$v->{'trackData'}->{awaitingCb} = 0;
+					}
+				);
+				return;
+			}
+
 			$sub = sub {
 				my $cbY = shift;
 				my $cbN = shift;
-				_getLiveTrack(_getStationID($masterUrl), $self->_timeFromOffset( $currentOffset, $props) - $self->_timeFromOffset($props->{virtualStartNumber},$props),$cbY,$cbN);
+				_getLiveTrack(_getStationID($masterUrl), _timeFromOffset( $currentOffset, $props) - _timeFromOffset($props->{startNumber},$props),$cbY,$cbN);
 				$v->{'trackData'}->{lastPoll} = time();
 			};
+
 			$isLive = 1;
 		} else {
 			$sub = sub {
 				my $cbY = shift;
 				my $cbN = shift;
-				_getAODTrack($self->getId($masterUrl), $self->_timeFromOffset( $currentOffset, $props),$cbY,$cbN);
+				_getAODTrack(getId($masterUrl), _timeFromOffset( $currentOffset, $props),$cbY,$cbN);
 				$v->{'trackData'}->{lastPoll} = time();
 			};
 			$isLive = 0;
 		}
 
-		if ( $isLive && ((time() < ($v->{'trackData'}->{lastPoll} + $v->{'trackData'}->{pollTime})) || ($v->{'trackData'}->{pollTime} == 0)) ) {
+
+		if ( $isLive && ((time() < ($v->{'trackData'}->{lastPoll} + $v->{'trackData'}->{pollTime})) || ($v->{'trackData'}->{pollTime} < 2)) ) {
 			$v->{'trackData'}->{awaitingCb} = 0;
 			return;
 		}
@@ -631,7 +665,7 @@ sub liveTrackData {
 					return;
 				} else {
 
-					if (($self->isLive($masterUrl) || $self->isRewind($masterUrl)) && (($self->_timeFromOffset($props->{virtualStartNumber},$props) + $track->{data}[0]->{offset}->{start}) > $self->_timeFromOffset( $currentOffset, $props))) {
+					if (($self->isLive($masterUrl) || $self->isRewind($masterUrl)) && ((_timeFromOffset($props->{startNumber},$props) + $track->{data}[0]->{offset}->{start}) > _timeFromOffset( $currentOffset, $props))) {
 
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
@@ -730,159 +764,6 @@ sub liveTrackData {
 }
 
 
-sub aodMetaData {
-	my $self = shift;
-	my $client = ${*$self}{'client'};
-	my $v        = $self->vars;
-	my $song      = ${*$self}{'song'};
-	my $masterUrl = $song->track()->url;
-	my $pid =   $self->getPid($masterUrl);
-
-
-	_getAODMeta(
-		$pid,
-		sub {
-			my $retMeta = shift;
-
-			# the AOD meta is more accurate
-			my $props = ${*$self}{'props'};
-			$retMeta->{'duration'} = $props->{'duration'};
-
-			if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
-				$retMeta->{type} = $meta->{type};
-			}
-			$song->pluginData( meta  => $retMeta );
-			Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
-			$v->{'resetMeta'} = 0;
-			Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
-		},
-		sub {
-			$log->warn('Could not retrieve AOD meta data ' . $pid);
-		}
-
-	);
-	return;
-}
-
-
-sub liveMetaData {
-	my $self = shift;
-	my $isLive = shift;
-	my $programmeOffset = shift;
-	my $client = ${*$self}{'client'};
-	my $v        = $self->vars;
-	my $song      = ${*$self}{'song'};
-	my $masterUrl = $song->track()->url;
-	my $station = _getStationID($masterUrl);
-
-	main::INFOLOG && $log->is_info && $log->info('Checking for new live meta data');
-
-	_getLiveSchedule(
-		$station, ${*$self}{'props'},
-
-		#success schedule
-		sub {
-			my $schedule = shift;
-
-			my $resp = _getIDForBroadcast($schedule, $programmeOffset, ${*$self}{'props'});
-			my $id = '';
-			if ($resp){
-				$id = $resp->{id};
-			}
-			if (!($id eq $v->{'liveId'})) {
-				$v->{'liveId'} = $id;
-				main::INFOLOG && $log->is_info && $log->info('New meta required ' . $id . ' seconds ' . $resp->{secondsIn} .  ' now ' .  $programmeOffset . ' end offset ' . $resp->{endOffset});
-				_getLiveMeta(
-					$id,
-
-					#success meta
-					sub {
-						my $retMeta = shift;
-						main::DEBUGLOG && $log->is_debug && $log->debug('Setting Title to ' .$retMeta->{title});
-
-						#Ensure that it is known that we have rewound live
-						if ((!$isLive) && $prefs->get('rewoundind')) {
-							$retMeta->{title} = '<Rewound> ' . $retMeta->{title};
-						}
-
-						if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
-							$retMeta->{type} = $meta->{type};
-						}
-
-						$song->pluginData( meta  => $retMeta );
-
-						#fix progress bar
-						$client->playingSong()->can('startOffset')
-						  ? $client->playingSong()->startOffset($resp->{secondsIn})
-						  : ( $client->playingSong()->{startOffset} = $resp->{secondsIn} );
-						$client->master()->remoteStreamStartTime( Time::HiRes::time() - $resp->{secondsIn} );
-						$client->playingSong()->duration( $retMeta->{duration} );
-						$song->track->secs( $retMeta->{duration} );
-
-						#we can now set the end point for this
-						$v->{'endOffset'} = $resp->{endOffset};
-						$v->{'resetMeta'} = 0;
-
-						#update in the props
-						my $props      = ${*$self}{'props'};
-						$props->{endNumber} = $resp->{endOffset};
-						$props->{virtualStartNumber} = $resp->{startOffset};
-
-						#ensure plug in data up to date
-						$song->pluginData( props   => $props );
-
-						Slim::Music::Info::setCurrentTitle( $masterUrl, $retMeta->{title}, $client );
-						Slim::Music::Info::setDelayedCallback( $client, sub { Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] ); }, 'output-only' );
-
-						main::INFOLOG && $log->is_info && $log->info('Set Offsets '  . $props->{'virtualStartNumber'} . ' ' . $v->{'endOffset'} . ' for '. $id);
-
-
-						#Ensure polling is set up correctly
-						Plugins::BBCSounds::BBCSoundsFeeder::getNetworkTrackPollingInfo(
-							$station,
-							sub {
-								my $poll = shift;
-								if ($poll) {
-									$v->{'trackData'}->{'pollTime'} = $poll;
-								} else {
-									$v->{'trackData'}->{'pollTime'} = 0; # never poll
-								}
-								main::INFOLOG && $log->is_info && $log->info("Track Polling set to " . $v->{'trackData'}->{'pollTime'});
-							},
-							sub {
-								#Failed to get poll time, set it to zero
-								$v->{'trackData'}->{'pollTime'} = 0;
-								$log->warn("Failed polling setting to  " . $v->{'trackData'}->{'pollTime'});
-							}
-						);
-
-						#Finally, get the previous start number, if there is one and we haven't got one already
-						if ( !($props->{previousStartNumber}) ) {
-							if (my $lastresp = _getIDForBroadcast($schedule, $props->{virtualStartNumber} - 2, $props ) ) {
-
-								$props->{previousStartNumber} = $lastresp->{startOffset};
-								$song->pluginData( props   => $props );
-							}
-						}
-
-					},
-
-					#failed
-					sub {
-						$log->warn('Could not retrieve live meta data ' . $masterUrl);
-						$v->{'resetMeta'} = 0;
-					}
-				);
-			}
-		},
-		sub {
-			$log->warn('Could not retrieve station schedule');
-		},
-		!$isLive
-	);
-}
-
-
 sub explodePlaylist {
 	my ( $class, $client, $uri, $cb ) = @_;
 
@@ -917,28 +798,32 @@ sub explodePlaylist {
 sub _calculateEdge {
 	my ( $class, $currentOffset, $props) = @_;
 
+	my ( $class, $currentOffset, $props) = @_;
+
 	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
-	my $edge = ($currentOffset - $props->{startNumber}) * $seglength;
+	my $edge = ($currentOffset - $props->{comparisonStartNumber}) * $seglength;
 	$edge += ($props->{comparisonTime} - $seglength);
 
 	return $edge;
-
 }
 
 
 sub _timeFromOffset {
-	my ( $class, $currentOffset, $props) = @_;
+	my ($currentOffset, $props) = @_;
 	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
 	return ($currentOffset * $seglength);
 }
 
 
 sub _calculateEdgeFromTime {
-	my ( $class, $currentTime, $props) = @_;
+	my ( $class, $currentTime, $props) = @_;	
 
 	my $seglength = ($props->{segmentDuration} / $props->{segmentTimescale});
+	my $currentOffset = $currentTime / $seglength;
+	my $edge = ($currentOffset - $props->{comparisonStartNumber}) * $seglength;
+	$edge += $props->{comparisonTime};
 
-	return $class->_calculateEdge(floor($currentTime / $seglength),$props);
+	return $edge;
 
 }
 
@@ -1027,7 +912,7 @@ sub sysread {
 								$song->pluginData( props   => $props );
 								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
 							} else {
-								Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'ended',floor($props->{'duration'}));
+								Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
 							}
 						}
 
@@ -1037,18 +922,14 @@ sub sysread {
 						if ($props->{'isDynamic'}) {
 
 							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-							my $isNow = (Time::HiRes::time()-$edge) < 30;
-
-							# get the meta data for this live track if we don't have it yet.
-
-							$self->liveMetaData($isNow, $v->{'offset'} - 1 ) if ( $v->{'endOffset'} == 0 || $v->{'resetMeta'} >= RESETMETA_THRESHHOLD );
+							my $isNow = (Time::HiRes::time()-$edge) < 40;
 
 							# check for live track if we are within striking distance of the live edge
-							$self->liveTrackData($replOffset) if $isNow;
+							$self->liveTrackData($replOffset, $isNow);
 
 						} else {
-							$self->aodMetaData() if ($v->{'resetMeta'} >= RESETMETA_THRESHHOLD);
-							$self->liveTrackData($replOffset);
+							
+							$self->liveTrackData($replOffset, 1);
 						}
 
 						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
@@ -1092,7 +973,7 @@ sub sysread {
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
-				Plugins::BBCSounds::ActivityManagement::heartBeat(Plugins::BBCSounds::ProtocolHandler->getId($masterUrl),Plugins::BBCSounds::ProtocolHandler->getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
+				Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
 				$v->{nextHeartbeat} = time() + 30;
 			}
 		}
@@ -1100,7 +981,7 @@ sub sysread {
 		return undef;
 	}
 
-	# end of streaming and make sure timer is not running
+	# end of streaming
 	main::INFOLOG && $log->is_info && $log->info("end streaming");
 	$props->{'updatePeriod'} = 0;
 
@@ -1109,7 +990,7 @@ sub sysread {
 
 
 sub getId {
-	my ( $class, $url ) = @_;
+	my ( $url ) = @_;
 
 	my @pid  = split /_/x, $url;
 	my $vpid =  @pid[1];
@@ -1123,7 +1004,7 @@ sub getId {
 
 
 sub getPid {
-	my ( $class, $url ) = @_;
+	my ( $url ) = @_;
 
 	my @pid = split /_/x, $url;
 	my $pid  = @pid[2];
@@ -1153,8 +1034,6 @@ sub getNextTrack {
 	my $masterUrl = $song->track()->url;
 	main::INFOLOG && $log->is_info && $log->info("Request for next track " . $masterUrl);
 
-
-	$song->pluginData( lastpos => ( $masterUrl =~ /&lastpos=([\d]+)/ )[0]|| 0 );
 	$masterUrl =~ s/&.*//;
 
 	my $url ='';
@@ -1187,8 +1066,18 @@ sub getNextTrack {
 				return $errorCb->() unless $props;
 				$song->pluginData( props   => $props );
 				$song->pluginData( baseURL => $props->{'baseURL'} );
-				$song->duration( $props->{duration} ) if $props->{duration};
-				$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
+				if ( $props->{duration} ) {
+					$song->duration( $props->{duration} );
+					aodSongMetaData ($song, $masterUrl, $props, sub {
+						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
+					});
+				} else {
+					liveSongMetaData( $song, $masterUrl, $props, sub {
+						my $updatedProps = shift;
+						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
+					});
+				}
+				
 			},
 			$overrideEpoch
 		);
@@ -1204,19 +1093,24 @@ sub getNextTrack {
 		if (my $existingProps = $song->pluginData('props')) {
 			if ( $existingProps->{isContinue} && $existingProps->{isDynamic} ) {
 				return $errorCb->() unless ($existingProps->{endNumber} > 0);
-				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{startNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
-				$existingProps->{previousStartNumber} = $existingProps->{virtualStartNumber};
+				
+				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{comparisonStartNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+				$existingProps->{previousStartNumber} = $existingProps->{startNumber};
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
-				$existingProps->{virtualStartNumber} = $existingProps->{startNumber};
-				$existingProps->{endNumber} = 0;
-				$existingProps->{skip} = 0;
-				$song->pluginData( props   => $existingProps );
+				$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+				
 
-				# reset the meta
-				$song->pluginData(meta => undef);
+				liveSongMetaData( $song, $masterUrl, $existingProps, sub { 
+					my $updatedProps = shift;
 
-				main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
-				$successCb->();
+					$updatedProps->{skip} = 0;
+					$song->pluginData( props   => $updatedProps );
+
+					main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
+					$successCb->();
+					
+				});
+			
 				return;
 			}
 		}
@@ -1268,7 +1162,7 @@ sub getNextTrack {
 
 	} else {
 
-		my $id = $class->getId($masterUrl);
+		my $id = getId($masterUrl);
 
 		$song->pluginData(
 			meta => {
@@ -1302,6 +1196,112 @@ sub getNextTrack {
 		);
 
 	}
+}
+
+sub aodSongMetaData {
+	my ( $song, $masterUrl, $props, $cb ) = @_;
+	
+	my $pid =  getPid($masterUrl);
+
+
+	_getAODMeta(
+		$pid,
+		sub {
+			my $retMeta = shift;
+			# the AOD meta is more accurate			
+			$retMeta->{'duration'} = $props->{'duration'};
+
+			if ( my $meta = $song->pluginData('meta') ) {  #Ensure the type is propagated through
+				$retMeta->{type} = $meta->{type};
+			}
+			$song->pluginData( meta  => $retMeta );
+			$cb->();		
+			
+		},
+		sub {
+			$log->warn('Could not retrieve AOD meta data ' . $pid);
+		}
+
+	);
+	return
+
+}
+sub liveSongMetaData {
+	my ( $song, $masterUrl, $props, $cb ) = @_;
+
+	my $station = _getStationID($masterUrl);
+
+	main::INFOLOG && $log->is_info && $log->info('Getting the meta data for new track');
+
+	_getLiveSchedule(
+		$station, $props,
+		sub { #success shedule
+			my $schedule = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug('Have schedule for new track');
+			
+			my $resp = _getIDForBroadcast($schedule, $props->{startNumber}, $props);			
+			if ($resp) {								
+				_getLiveMeta(
+					$resp->{id},
+					sub {
+						my $retMeta = shift;
+						main::DEBUGLOG && $log->is_debug && $log->debug('Have new meta data for track');
+						#set up chunk range						
+						my $currentStartNumber = $props->{startNumber};
+						$props->{startNumber} = $resp->{startOffset};
+						$props->{endNumber} = $resp->{endOffset};
+						my $duration = calculateDurationFromChunks($props);
+						$retMeta->{duration} = $duration;
+						$props->{duration} = $duration;
+						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);						
+						$song->seekdata($song->getSeekData($startTime));
+						$song->pluginData( meta  => $retMeta );
+						
+						#Finally, get the previous start number, if there is one and we haven't got one already						
+						$props->{previousStartNumber} = 0;
+					
+						if ( my $lastresp = _getIDForBroadcast($schedule, $props->{startNumber} - 2, $props) ) {
+							#We can only go back 6 hours
+							if ( (time() - calculateTimeFromOffset($lastresp->{startOffset},$props)) < 21600 ) { 
+								$props->{previousStartNumber} = $lastresp->{startOffset};
+							}
+							
+						}
+						$song->pluginData( props   => $props );
+						$cb->($props);
+					},					
+
+					#failed
+					sub {
+						$log->warn('Could not retrieve live meta data ' . $masterUrl);						
+					}
+				);
+			}
+		},
+		sub {
+		$log->warn('Could not retrieve station schedule');
+		},
+		1
+	);
+}
+
+
+sub calculateDurationFromChunks {
+	my ( $props ) = @_;
+
+	my $duration =  (($props->{endNumber} - $props->{startNumber}) + 1) * ($props->{segmentDuration} / $props->{segmentTimescale});
+
+	return $duration;
+
+}
+
+sub calculateTimeFromOffset { 
+	my ( $offsetNumber, $props ) = @_;
+
+	my $offsetTime =  $offsetNumber * ($props->{segmentDuration} / $props->{segmentTimescale});
+
+	return $offsetTime;
+
 }
 
 
@@ -1450,7 +1450,7 @@ sub getMPD {
 
 							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index;
-							$props->{virtualStartNumber} = $index;
+							$props->{comparisonStartNumber} = $index;
 
 							main::DEBUGLOG && $log->is_debug && $log->debug('Start Number ' . $props->{startNumber});
 							$cb->($props);
@@ -1478,25 +1478,23 @@ sub getMPD {
 
 
 sub getMetadataFor {
-	my ( $class, $client, $full_url ) = @_;
+	my ( $class, $client, $full_url, $forceCurrent ) = @_;
 	my $icon = $class->getIcon();
 
 	my ($url) = $full_url =~ /([^&]*)/;
-	my $id = $class->getId($url) || return {};
+	my $id = getId($url) || return {};
 	my $pid = '';
-	my $song = $client->playingSong();
+	my $song = $forceCurrent ? $client->streamingSong() : $client->playingSong();
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url");
+	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url  $forceCurrent");
 
 
 	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
 		if (my $meta = $song->pluginData('meta')) {
-
-			if (!($class->isLive($url) || $class->isRewind($url))) {
-				$song->track->secs( $meta->{duration} );
-			}
-
+			
+			$song->track->secs( $meta->{duration} );
+			
 			if ($song->pluginData('nowPlayingButtons')) {
 				if ($meta->{containerUrn} ne '') {
 
@@ -1527,7 +1525,7 @@ sub getMetadataFor {
 						},
 					};
 				}
-			}
+			}			
 			return $meta;
 		}
 	}
@@ -1544,7 +1542,7 @@ sub getMetadataFor {
 
 
 	#aod PID
-	$pid = $class->getPid($url);
+	$pid = getPid($url);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("Getting Meta for $id");
 
@@ -1601,6 +1599,7 @@ sub getMetadataFor {
 		);
 
 	}
+	
 	return {
 		title => $url,
 		icon  => $icon,
