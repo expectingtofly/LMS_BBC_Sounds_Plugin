@@ -1702,8 +1702,6 @@ sub _getLiveSchedule {
 				my $scheduleJSON = shift;
 				main::DEBUGLOG && $log->is_debug && $log->debug("Fetched schedule for : $isRewind-$network");
 
-				#cache only if rewound
-				$cache->set("bs:schedule-$isRewind-$network",$scheduleJSON, 120) if $isRewind;
 				$cbY->($scheduleJSON);
 			},
 			sub {

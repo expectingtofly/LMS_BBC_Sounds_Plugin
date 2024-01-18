@@ -1,3 +1,6 @@
+2.35.3
+Remove caching for schedule.
+
 2.35.2
 Bugfix, ensure meta data change can't overwrite new track meta.
 
