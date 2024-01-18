@@ -1,3 +1,6 @@
+2.35.2
+Bugfix, ensure meta data change can't overwrite new track meta.
+
 2.35.1
 Refactor of streaming to better support UPNP Bridge.
 
