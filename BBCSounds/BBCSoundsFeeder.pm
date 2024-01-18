@@ -2072,7 +2072,7 @@ sub soundsInfoIntegration {
 	my $items = [];
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
-			my $id  = Plugins::BBCSounds::ProtocolHandler::getId(undef,$url);
+			my $id  = Plugins::BBCSounds::ProtocolHandler::getId($url);
 			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid( $url );
 
 			push @$items,
