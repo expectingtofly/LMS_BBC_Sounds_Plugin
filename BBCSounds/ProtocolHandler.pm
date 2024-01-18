@@ -370,11 +370,11 @@ sub close {
 sub onStop {
 	my ( $class, $song ) = @_;
 	my $elapsed = $song->master->controller->playingSongElapsed;
-	my $id = getId( $song->track->url );
-
 
 	if	(!( ($class->isLive( $song->track->url ) || $class->isRewind( $song->track->url )) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,( $song->track->url ),'paused', floor($elapsed) );
+		my $id = getId( $song->track->url );
+		my $pid = getPid( $song->track->url );
+		Plugins::BBCSounds::ActivityManagement::heartBeat( $id, $pid,'paused', floor($elapsed) );
 	}
 
 }
@@ -382,13 +382,14 @@ sub onStop {
 
 sub onStream {
 	my ( $class, $client, $song ) = @_;
-	my $url  = $song->track->url;
-	my $id   = getId($url);
-	my $meta = $cache->get("bs:meta-$id") || {};
+	my $url  = $song->track->url;		
 
 	#perform starting heartbeat
 	if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat($id, getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
+		my $id   = getId($url);
+		my $id = getId( $song->track->url );
+		my $pid = getPid( $song->track->url );
+		Plugins::BBCSounds::ActivityManagement::heartBeat($id, $pid,'started', floor( $song->master->controller->playingSongElapsed ));
 	}
 
 }
@@ -649,9 +650,14 @@ sub liveTrackData {
 
 						my $cb = sub {
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
-							$song->pluginData( meta  => $meta );
-							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
-							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+							
+							my $currentMeta = $song->pluginData('meta');							
+							if ( $currentMeta->{urn} eq $meta->{urn} ) {
+								#only update if the meta has been updated by the next track
+								$song->pluginData( meta  => $meta );
+								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
+								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+							}
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
@@ -683,10 +689,14 @@ sub liveTrackData {
 						if ( _isMetaDiff($meta, $oldmeta) ) {
 
 							my $cb = sub {
-								main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
-								$song->pluginData( meta  => $meta );
-								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
-								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+
+								my $currentMeta = $song->pluginData('meta');								
+								if ( $currentMeta->{urn} eq $meta->{urn} ) {
+									main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
+									$song->pluginData( meta  => $meta );
+									Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
+									Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+								}
 								$v->{'trackData'}->{awaitingCb} = 0;
 							};
 
@@ -737,9 +747,13 @@ sub liveTrackData {
 						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
 						my $cb = sub {
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
-							$song->pluginData( meta  => $meta );
-							Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
-							Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+
+							my $currentMeta = $song->pluginData('meta');							
+							if ( $currentMeta->{urn} eq $meta->{urn} ) {
+								$song->pluginData( meta  => $meta );
+								Slim::Music::Info::setCurrentTitle( $masterUrl, $meta->{title}, $client );
+								Slim::Control::Request::notifyFromArray( $client, ['newmetadata'] );
+							}
 							$v->{'trackData'}->{awaitingCb} = 0;
 						};
 
@@ -1099,7 +1113,6 @@ sub getNextTrack {
 				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
 				$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
 				
-
 				liveSongMetaData( $song, $masterUrl, $existingProps, sub { 
 					my $updatedProps = shift;
 
@@ -1487,8 +1500,7 @@ sub getMetadataFor {
 	my $song = $forceCurrent ? $client->streamingSong() : $client->playingSong();
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("getmetadata: $url  $forceCurrent");
-
-
+	
 	if ( $song && $song->currentTrack()->url eq $full_url ) {
 
 		if (my $meta = $song->pluginData('meta')) {
