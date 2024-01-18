@@ -370,11 +370,11 @@ sub close {
 sub onStop {
 	my ( $class, $song ) = @_;
 	my $elapsed = $song->master->controller->playingSongElapsed;
-	my $id = getId( $song->track->url );
-
 
 	if	(!( ($class->isLive( $song->track->url ) || $class->isRewind( $song->track->url )) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat( $id,( $song->track->url ),'paused', floor($elapsed) );
+		my $id = getId( $song->track->url );
+		my $pid = getPid( $song->track->url );
+		Plugins::BBCSounds::ActivityManagement::heartBeat( $id, $pid,'paused', floor($elapsed) );
 	}
 
 }
@@ -382,13 +382,14 @@ sub onStop {
 
 sub onStream {
 	my ( $class, $client, $song ) = @_;
-	my $url  = $song->track->url;
-	my $id   = getId($url);
-	my $meta = $cache->get("bs:meta-$id") || {};
+	my $url  = $song->track->url;		
 
 	#perform starting heartbeat
 	if (!( ($class->isLive($url) || $class->isRewind($url)) )) {
-		Plugins::BBCSounds::ActivityManagement::heartBeat($id, getPid($url),'started', floor( $song->master->controller->playingSongElapsed ));
+		my $id   = getId($url);
+		my $id = getId( $song->track->url );
+		my $pid = getPid( $song->track->url );
+		Plugins::BBCSounds::ActivityManagement::heartBeat($id, $pid,'started', floor( $song->master->controller->playingSongElapsed ));
 	}
 
 }
