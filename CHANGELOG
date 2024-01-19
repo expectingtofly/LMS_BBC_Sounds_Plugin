@@ -1,3 +1,6 @@
+2.35.4
+Bugfix, remove possible duplicate track seconds set.
+
 2.35.3
 Remove caching for schedule.
 

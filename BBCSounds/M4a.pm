@@ -78,7 +78,6 @@ sub setProperties {
 		main::INFOLOG
 		  && $log->is_info
 		  && $log->info("using initialize url $url");
-		$song->track->secs( $props->{'duration'} );
 	}
 	my $request = HTTP::Request->new( GET => $url );
 	$http->send_request(
