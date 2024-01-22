@@ -1,3 +1,6 @@
+2.35.5
+Bugfix : Improve skip back.  Set startOffset before track start.
+
 2.35.4
 Bugfix, remove possible duplicate track seconds set.
 
