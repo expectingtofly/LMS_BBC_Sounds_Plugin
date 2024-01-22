@@ -123,6 +123,14 @@ sub canDoAction {
 			my $song = $client->playingSong();
 			my $props = $song->pluginData('props');
 
+			if ( $props->{reverseSkip} ) {
+				main::INFOLOG && $log->is_info && $log->info('Skipping back');
+				$props->{skip} = 1;
+				$props->{isContinue} = 0;
+				$song->pluginData( props   => $props );
+				return 1;
+			}
+
 			main::INFOLOG && $log->is_info && $log->info('Skipping forward when end number is ' . $props->{endNumber});
 
 			#is the current endNumber in the past?
@@ -159,19 +167,17 @@ sub canDoAction {
 
 			} else { # Go back to the previous programme
 				main::INFOLOG && $log->is_info && $log->info('Rewinding to previous programme');
-
-				$props->{comparisonTime} -= (($props->{comparisonStartNumber}) - $props->{previousStartNumber}) * ($props->{segmentDuration} / $props->{segmentTimescale});
-				$props->{endNumber} = $props->{startNumber} - 1;
-				$props->{startNumber} = $props->{previousStartNumber};
-				$props->{previousStartNumber} = 0;
-				$props->{comparisonStartNumber} = $props->{startNumber};
-				$props->{reverseSkip} = 1;
 				
+				$props->{reverseSkip} = 1;
 				$song->pluginData( props   => $props );
-				return 0;
+				# Trigger the ski after the callback
+				Slim::Utils::Timers::setTimer(
+					undef,
+					time(),
+					sub {
+						$client->controller()->skip();
+				} );
 			}
-			
-
 			return 1;
 		}
 	}
@@ -308,15 +314,6 @@ sub new {
 				'rewoundInd' => $rewoundInd,
 			}
 		};
-	}
-
-	if ( $props->{reverseSkip }) {
-		liveSongMetaData( $song, $masterUrl, $props, sub { 
-			my $updatedProps = shift;
-			$updatedProps->{reverseSkip} = 0;
-			${*$self}{'props'} = $props;
-			main::INFOLOG && $log->is_info && $log->info("updated Meta Data after reverse skip");			
-		});
 	}
 	
 
@@ -1107,16 +1104,28 @@ sub getNextTrack {
 		if (my $existingProps = $song->pluginData('props')) {
 			if ( $existingProps->{isContinue} && $existingProps->{isDynamic} ) {
 				return $errorCb->() unless ($existingProps->{endNumber} > 0);
+
+				if ( $existingProps->{reverseSkip} ) {
+					$existingProps->{comparisonTime} -= (($existingProps->{comparisonStartNumber} - $existingProps->{previousStartNumber})) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+					$existingProps->{endNumber} = $existingProps->{startNumber} - 1;
+					$existingProps->{startNumber} = $existingProps->{previousStartNumber};					
+					$existingProps->{previousStartNumber} = 0;					
+					$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+
+				} else {
 				
-				$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{comparisonStartNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
-				$existingProps->{previousStartNumber} = $existingProps->{startNumber};
-				$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
-				$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+					$existingProps->{comparisonTime} += (($existingProps->{endNumber} - $existingProps->{comparisonStartNumber}) + 1) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+					$existingProps->{previousStartNumber} = $existingProps->{startNumber};
+					$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
+					$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+
+				}
 				
 				liveSongMetaData( $song, $masterUrl, $existingProps, sub { 
 					my $updatedProps = shift;
 
 					$updatedProps->{skip} = 0;
+					$updatedProps->{reverseSkip} = 0;
 					$song->pluginData( props   => $updatedProps );
 
 					main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
