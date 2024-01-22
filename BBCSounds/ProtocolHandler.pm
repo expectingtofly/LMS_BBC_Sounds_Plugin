@@ -1267,7 +1267,11 @@ sub liveSongMetaData {
 						$retMeta->{duration} = $duration;
 						$props->{duration} = $duration;
 						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);						
+						$song->duration( $props->{duration} );
 						$song->seekdata($song->getSeekData($startTime));
+						$song->startOffset( $startTime );
+						main::DEBUGLOG && $log->is_debug && $log->debug('StartNumber: ' . $props->{startNumber} . ' EndNumber : ' . $props->{endNumber} . ' Duration : ' . $props->{duration} . " Seektime : $startTime Calculated From : $currentStartNumber ");
+
 						$song->pluginData( meta  => $retMeta );
 						
 						#Finally, get the previous start number, if there is one and we haven't got one already						
