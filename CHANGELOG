@@ -1,3 +1,6 @@
+2.35.6
+Bugfix : Ensure first audio chunk after programme transition isn't before live edge.
+
 2.35.5
 Bugfix : Improve skip back.  Set startOffset before track start.
 

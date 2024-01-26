@@ -869,7 +869,7 @@ sub sysread {
 			#check if we can get more if not leave
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});
-			if ((!$v->{'firstIn'} ) && $edge > Time::HiRes::time()) {
+			if ( $edge > Time::HiRes::time() ) {
 
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
 				$bail = 1;
