@@ -269,6 +269,7 @@ sub new {
 	my $trackdisplayline2 = $prefs->get('trackdisplayline2');
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
 	my $rewoundInd = $prefs->get('rewoundind');
+	my $noBlankTrackImage = $prefs->get('noBlankTrackImage');
 	
 	my $nextThrottle = time();
 
@@ -312,6 +313,7 @@ sub new {
 				'programmeImagePref' => $programmeimagePref,
 				'trackImagePref' => $trackimagePref,
 				'rewoundInd' => $rewoundInd,
+				'noBlankTrackImage' => $noBlankTrackImage,
 			}
 		};
 	}
@@ -442,7 +444,8 @@ sub _getPlayingImage {
 	my $v = $self->vars;
 
 	if ($v->{'trackData'}->{trackPlaying} == 1) {
-		return $trackImage if  length($trackImage) && $v->{'displayPrefs'}->{'trackImagePref'} == DISPLAYIMAGE_TRACKIMAGE;
+		return $trackImage if  length($trackImage) && $v->{'displayPrefs'}->{'trackImagePref'} == DISPLAYIMAGE_TRACKIMAGE  
+								&& ((!$v->{'displayPrefs'}->{'noBlankTrackImage'}) || ($v->{'displayPrefs'}->{'noBlankTrackImage'} && $trackImage !~ /p0bqcdzf/));
 		return $programmeImage;
 	} else {
 		return $programmeImage;
