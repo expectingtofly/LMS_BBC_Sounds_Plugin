@@ -494,6 +494,25 @@ sub _getPlayingDisplayLine {
 }
 
 
+sub updateLiveEdge {
+	my $self = shift;
+	my $edge = shift;
+	
+	my $song  = ${*$self}{'song'};
+	my $props  = ${*$self}{'props'};
+
+	my $durEdge = $edge - calculateTimeFromOffset($props->{startNumber}, $props);
+	my $meta = $song->pluginData('meta');
+	$meta->{live_edge} = $meta->{duration} < $durEdge ? $meta->{duration} : $durEdge;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug('Updating Live Edge to ' . $meta->{live_edge});
+
+	$song->pluginData( meta  => $meta );
+
+	return;	
+}
+
+
 sub liveTrackData {
 	my $self = shift;
 	my $currentOffset = shift;
@@ -869,6 +888,7 @@ sub sysread {
 			#check if we can get more if not leave
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});
+			
 			if ( $edge > Time::HiRes::time() ) {
 
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
@@ -937,6 +957,9 @@ sub sysread {
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset, $isNow);
+
+							#update live edge 
+							$self->updateLiveEdge($edge);							
 
 						} else {
 							
@@ -1275,10 +1298,11 @@ sub liveSongMetaData {
 						my $duration = calculateDurationFromChunks($props);
 						$retMeta->{duration} = $duration;
 						$props->{duration} = $duration;
-						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);						
+						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);
 						$song->duration( $props->{duration} );
 						$song->seekdata($song->getSeekData($startTime));
 						$song->startOffset( $startTime );
+						$retMeta->{live_edge} = $startTime;
 						main::DEBUGLOG && $log->is_debug && $log->debug('StartNumber: ' . $props->{startNumber} . ' EndNumber : ' . $props->{endNumber} . ' Duration : ' . $props->{duration} . " Seektime : $startTime Calculated From : $currentStartNumber ");
 
 						$song->pluginData( meta  => $retMeta );
