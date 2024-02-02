@@ -1965,7 +1965,7 @@ sub getNetworkSchedule {
 	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
 
 	if ($isPrevious) {
-		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=300&sort=-start_at';
+		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=420&sort=-start_at';
 	}
 
 

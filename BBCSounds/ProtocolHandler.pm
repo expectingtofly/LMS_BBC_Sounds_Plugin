@@ -269,6 +269,7 @@ sub new {
 	my $trackdisplayline2 = $prefs->get('trackdisplayline2');
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
 	my $rewoundInd = $prefs->get('rewoundind');
+	my $noBlankTrackImage = $prefs->get('noBlankTrackImage');
 	
 	my $nextThrottle = time();
 
@@ -312,6 +313,7 @@ sub new {
 				'programmeImagePref' => $programmeimagePref,
 				'trackImagePref' => $trackimagePref,
 				'rewoundInd' => $rewoundInd,
+				'noBlankTrackImage' => $noBlankTrackImage,
 			}
 		};
 	}
@@ -442,7 +444,8 @@ sub _getPlayingImage {
 	my $v = $self->vars;
 
 	if ($v->{'trackData'}->{trackPlaying} == 1) {
-		return $trackImage if  length($trackImage) && $v->{'displayPrefs'}->{'trackImagePref'} == DISPLAYIMAGE_TRACKIMAGE;
+		return $trackImage if  length($trackImage) && $v->{'displayPrefs'}->{'trackImagePref'} == DISPLAYIMAGE_TRACKIMAGE  
+								&& ((!$v->{'displayPrefs'}->{'noBlankTrackImage'}) || ($v->{'displayPrefs'}->{'noBlankTrackImage'} && $trackImage !~ /p0bqcdzf/));
 		return $programmeImage;
 	} else {
 		return $programmeImage;
@@ -491,6 +494,25 @@ sub _getPlayingDisplayLine {
 
 	$log->error('Could not return display line ' . $line);
 	return;
+}
+
+
+sub updateLiveEdge {
+	my $self = shift;
+	my $edge = shift;
+	
+	my $song  = ${*$self}{'song'};
+	my $props  = ${*$self}{'props'};
+
+	my $durEdge = $edge - calculateTimeFromOffset($props->{startNumber}, $props);
+	my $meta = $song->pluginData('meta');
+	$meta->{live_edge} = $meta->{duration} < $durEdge ? $meta->{duration} : $durEdge;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug('Updating Live Edge to ' . $meta->{live_edge});
+
+	$song->pluginData( meta  => $meta );
+
+	return;	
 }
 
 
@@ -869,6 +891,7 @@ sub sysread {
 			#check if we can get more if not leave
 			my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 			main::DEBUGLOG && $log->is_debug && $log->debug('Edge = ' . $edge . ' Now : '. Time::HiRes::time() . ' First In : ' .$v->{'firstIn'});
+			
 			if ( $edge > Time::HiRes::time() ) {
 
 				main::INFOLOG && $log->is_info && $log->info('Data not yet available for '  . $v->{'offset'} . ' now ' . Time::HiRes::time() . ' edge ' . $edge );
@@ -937,6 +960,9 @@ sub sysread {
 
 							# check for live track if we are within striking distance of the live edge
 							$self->liveTrackData($replOffset, $isNow);
+
+							#update live edge 
+							$self->updateLiveEdge($edge);							
 
 						} else {
 							
@@ -1083,7 +1109,7 @@ sub getNextTrack {
 						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
 					});
 				} else {
-					liveSongMetaData( $song, $masterUrl, $props, sub {
+					liveSongMetaData( $song, $masterUrl, $props, 0, sub {
 						my $updatedProps = shift;
 						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
 					});
@@ -1121,7 +1147,7 @@ sub getNextTrack {
 
 				}
 				
-				liveSongMetaData( $song, $masterUrl, $existingProps, sub { 
+				liveSongMetaData( $song, $masterUrl, $existingProps, 0, sub { 
 					my $updatedProps = shift;
 
 					$updatedProps->{skip} = 0;
@@ -1249,7 +1275,7 @@ sub aodSongMetaData {
 
 }
 sub liveSongMetaData {
-	my ( $song, $masterUrl, $props, $cb ) = @_;
+	my ( $song, $masterUrl, $props, $retry, $cb) = @_;
 
 	my $station = _getStationID($masterUrl);
 
@@ -1260,6 +1286,18 @@ sub liveSongMetaData {
 		sub { #success shedule
 			my $schedule = shift;
 			main::DEBUGLOG && $log->is_debug && $log->debug('Have schedule for new track');
+			#Check it is not empty
+			my $items = $schedule->{data};			
+			if (scalar(@$items) == 0 ) {
+				if (!$retry) {
+					$log->warn('Schedule empty cannot start audio, attempting workround....');
+					liveSongMetaData( $song, $masterUrl, $props, 1, $cb );
+					return;
+				} else {
+					$log->warn('Schedule still empty cannot start audio');
+					return;
+				}
+			}
 			
 			my $resp = _getIDForBroadcast($schedule, $props->{startNumber}, $props);			
 			if ($resp) {								
@@ -1275,10 +1313,11 @@ sub liveSongMetaData {
 						my $duration = calculateDurationFromChunks($props);
 						$retMeta->{duration} = $duration;
 						$props->{duration} = $duration;
-						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);						
+						my $startTime = _timeFromOffset($currentStartNumber-$props->{startNumber}, $props);
 						$song->duration( $props->{duration} );
 						$song->seekdata($song->getSeekData($startTime));
 						$song->startOffset( $startTime );
+						$retMeta->{live_edge} = $startTime;
 						main::DEBUGLOG && $log->is_debug && $log->debug('StartNumber: ' . $props->{startNumber} . ' EndNumber : ' . $props->{endNumber} . ' Duration : ' . $props->{duration} . " Seektime : $startTime Calculated From : $currentStartNumber ");
 
 						$song->pluginData( meta  => $retMeta );
@@ -1307,7 +1346,7 @@ sub liveSongMetaData {
 		sub {
 		$log->warn('Could not retrieve station schedule');
 		},
-		1
+		!$retry
 	);
 }
 

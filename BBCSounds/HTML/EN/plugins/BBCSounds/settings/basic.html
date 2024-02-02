@@ -134,8 +134,17 @@
 
 
 	[% WRAPPER setting title="" desc="" %]
-	<input name="pref_rewoundind" id="pref_rewoundind" type="checkbox" [% IF prefs.pref_rewoundind %] checked [% END %]>
-	<label for="pref_forceHTTP">Show a "Rewound" indicator in the title for paused/rewound live radio</label>
+	<table>
+	<tr><td>
+		<input name="pref_rewoundind" id="pref_rewoundind" type="checkbox" [% IF prefs.pref_rewoundind %] checked [% END %]>
+		<label for="pref_rewoundind">Show a "Rewound" indicator in the title for paused/rewound live radio</label>
+	</td></tr>
+	<tr><td>
+		<input name="pref_noBlankTrackImage" id="pref_noBlankTrackImage" type="checkbox" [% IF prefs.pref_noBlankTrackImage %] checked [% END %]>
+		<label for="pref_noBlankTrackImage">Do not display blank (grey) track image (if possible)</label>	
+	</td></tr>
+	</table>
+
 	[% END %]	
 
 	<br/>
