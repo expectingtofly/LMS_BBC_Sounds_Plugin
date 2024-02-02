@@ -1109,7 +1109,7 @@ sub getNextTrack {
 						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
 					});
 				} else {
-					liveSongMetaData( $song, $masterUrl, $props, sub {
+					liveSongMetaData( $song, $masterUrl, $props, 0, sub {
 						my $updatedProps = shift;
 						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
 					});
@@ -1147,7 +1147,7 @@ sub getNextTrack {
 
 				}
 				
-				liveSongMetaData( $song, $masterUrl, $existingProps, sub { 
+				liveSongMetaData( $song, $masterUrl, $existingProps, 0, sub { 
 					my $updatedProps = shift;
 
 					$updatedProps->{skip} = 0;
@@ -1275,7 +1275,7 @@ sub aodSongMetaData {
 
 }
 sub liveSongMetaData {
-	my ( $song, $masterUrl, $props, $cb ) = @_;
+	my ( $song, $masterUrl, $props, $retry, $cb) = @_;
 
 	my $station = _getStationID($masterUrl);
 
@@ -1286,6 +1286,18 @@ sub liveSongMetaData {
 		sub { #success shedule
 			my $schedule = shift;
 			main::DEBUGLOG && $log->is_debug && $log->debug('Have schedule for new track');
+			#Check it is not empty
+			my $items = $schedule->{data};			
+			if (scalar(@$items) == 0 ) {
+				if (!$retry) {
+					$log->warn('Schedule empty cannot start audio, attempting workround....');
+					liveSongMetaData( $song, $masterUrl, $props, 1, $cb );
+					return;
+				} else {
+					$log->warn('Schedule still empty cannot start audio');
+					return;
+				}
+			}
 			
 			my $resp = _getIDForBroadcast($schedule, $props->{startNumber}, $props);			
 			if ($resp) {								
@@ -1334,7 +1346,7 @@ sub liveSongMetaData {
 		sub {
 		$log->warn('Could not retrieve station schedule');
 		},
-		1
+		!$retry
 	);
 }
 
