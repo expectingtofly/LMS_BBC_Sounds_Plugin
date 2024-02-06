@@ -1,3 +1,6 @@
+2.35.8
+Add support for live_edge for LMS 8.4 feature.
+
 2.35.7
 Add option to try not to display blank track image.  Bugfix for failing to get schedule when long programme.
 
