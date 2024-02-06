@@ -498,17 +498,17 @@ sub _getPlayingDisplayLine {
 
 
 sub updateLiveEdge {
-	my $self = shift;
-	my $edge = shift;
+	my $self = shift;	
 	
 	my $song  = ${*$self}{'song'};
 	my $props  = ${*$self}{'props'};
 
-	my $durEdge = $edge - calculateTimeFromOffset($props->{startNumber}, $props);
-	my $meta = $song->pluginData('meta');
-	$meta->{live_edge} = $meta->{duration} < $durEdge ? $meta->{duration} : $durEdge;
+	my $current = Time::HiRes::time() - $props->{metaEpoch};	
 
-	main::DEBUGLOG && $log->is_debug && $log->debug('Updating Live Edge to ' . $meta->{live_edge});
+	my $durEdge = $current - calculateTimeFromOffset($props->{startNumber}, $props);
+	my $meta = $song->pluginData('meta');
+	$meta->{live_edge} = ($meta->{duration} < $durEdge ? $meta->{duration} : $durEdge) - $song->master->controller->playingSongElapsed;	
+	main::DEBUGLOG && $log->is_debug && $log->debug('Updated live edge to ' . $meta->{live_edge} );
 
 	$song->pluginData( meta  => $meta );
 
@@ -962,7 +962,7 @@ sub sysread {
 							$self->liveTrackData($replOffset, $isNow);
 
 							#update live edge 
-							$self->updateLiveEdge($edge);							
+							$self->updateLiveEdge();							
 
 						} else {
 							
@@ -1105,12 +1105,14 @@ sub getNextTrack {
 				$song->pluginData( baseURL => $props->{'baseURL'} );
 				if ( $props->{duration} ) {
 					$song->duration( $props->{duration} );
+					$song->isLive(0);
 					aodSongMetaData ($song, $masterUrl, $props, sub {
 						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
 					});
 				} else {
 					liveSongMetaData( $song, $masterUrl, $props, 0, sub {
 						my $updatedProps = shift;
+						$song->isLive(1);
 						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
 					});
 				}
@@ -1317,7 +1319,7 @@ sub liveSongMetaData {
 						$song->duration( $props->{duration} );
 						$song->seekdata($song->getSeekData($startTime));
 						$song->startOffset( $startTime );
-						$retMeta->{live_edge} = $startTime;
+						$retMeta->{live_edge} = 0;
 						main::DEBUGLOG && $log->is_debug && $log->debug('StartNumber: ' . $props->{startNumber} . ' EndNumber : ' . $props->{endNumber} . ' Duration : ' . $props->{duration} . " Seektime : $startTime Calculated From : $currentStartNumber ");
 
 						$song->pluginData( meta  => $retMeta );
@@ -1509,7 +1511,7 @@ sub getMPD {
 								$epochTime = $overrideEpoch;
 							}
 
-							$props->{metaEpoch} = $epochTime;
+							$props->{metaEpoch} = $props->{comparisonTime} - $epochTime;
 
 							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime} . ' Segment duration : ' . $props->{segmentDuration} . ' Segment timescale : ' . $props->{segmentTimescale} );
 
