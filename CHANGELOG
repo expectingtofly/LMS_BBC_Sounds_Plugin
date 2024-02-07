@@ -1,3 +1,6 @@
+2.35.9
+Simplify live edge calculation.
+
 2.35.8
 Add support for live_edge for LMS 8.4 feature.
 

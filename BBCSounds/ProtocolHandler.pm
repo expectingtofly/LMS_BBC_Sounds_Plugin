@@ -193,6 +193,8 @@ sub new {
 	my $offset;
 	my $props = $song->pluginData('props');
 
+	my $liveEdge = 1;
+
 	my $masterUrl = $song->track()->url;
 
 	return undef if !defined $props;
@@ -220,7 +222,9 @@ sub new {
 
 			$startTime = $maxStartTime if ($startTime > $maxStartTime);
 
-			main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge  maximum start time $maxStartTime");
+			$liveEdge = $maxStartTime - $startTime;
+			
+			main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
 
 			#This "song" has a maximum age
 			my $maximumAge = 18000;  # 5 hours
@@ -232,6 +236,7 @@ sub new {
 				$song->pluginData( props   => $props );
 				return;
 			}
+			
 		}else {
 			if ($props->{_ignoreResumePoint}) {
 
@@ -303,6 +308,7 @@ sub new {
 			'nextHeartbeat' =>  time() + 30,  #AOD data sends a heartbeat to the BBC
 			'throttleInterval' => $throttleInterval,   #A value to delay making streaming data available to help the community firmware
 			'nextThrottle' => $nextThrottle,
+			'edge'		=> $liveEdge,
 			'displayPrefs' => {
 				'programmeDisplayLine1' => $programmedisplayline1,
 				'programmeDisplayLine2' => $programmedisplayline2,
@@ -497,25 +503,6 @@ sub _getPlayingDisplayLine {
 }
 
 
-sub updateLiveEdge {
-	my $self = shift;	
-	
-	my $song  = ${*$self}{'song'};
-	my $props  = ${*$self}{'props'};
-
-	my $current = Time::HiRes::time() - $props->{metaEpoch};	
-
-	my $durEdge = $current - calculateTimeFromOffset($props->{startNumber}, $props);
-	my $meta = $song->pluginData('meta');
-	$meta->{live_edge} = ($meta->{duration} < $durEdge ? $meta->{duration} : $durEdge) - $song->master->controller->playingSongElapsed;	
-	main::DEBUGLOG && $log->is_debug && $log->debug('Updated live edge to ' . $meta->{live_edge} );
-
-	$song->pluginData( meta  => $meta );
-
-	return;	
-}
-
-
 sub liveTrackData {
 	my $self = shift;
 	my $currentOffset = shift;
@@ -527,6 +514,9 @@ sub liveTrackData {
 	my $song  = ${*$self}{'song'};
 	my $masterUrl = $song->track()->url;
 	my $station = _getStationID($masterUrl);
+
+	my $isLive = $self->isLive($masterUrl);
+	my $isRewind = $self->isRewind($masterUrl);
 
 	$v->{'trackData'}->{chunkCounter}++;
 
@@ -560,8 +550,9 @@ sub liveTrackData {
 		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
+		$meta->{live_edge} = $v->{'edge'} if $isLive;
 
-		if ( _isMetaDiff($meta, $oldmeta) ) {
+		if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
@@ -594,7 +585,7 @@ sub liveTrackData {
 		my $sub;
 		my $isLive;
 
-		if ($self->isLive($masterUrl) || $self->isRewind($masterUrl)) {
+		if ( $isLive || $isRewind ) {
 			if ( $v->{'trackData'}->{'pollTime'} == 1 ) {
 				$v->{'trackData'}->{awaitingCb} = 1;
 				#Ensure polling is set up correctly
@@ -665,7 +656,7 @@ sub liveTrackData {
 					$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					$meta->{spotify} = '';
 
-					if ( _isMetaDiff($meta, $oldmeta) ) {
+					if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
 
 						my $cb = sub {
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
@@ -705,7 +696,7 @@ sub liveTrackData {
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
 
-						if ( _isMetaDiff($meta, $oldmeta) ) {
+						if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
 
 							my $cb = sub {
 
@@ -760,7 +751,7 @@ sub liveTrackData {
 					}
 					$meta->{spotify} = $spotifyId;
 
-					if ( _isMetaDiff($meta, $oldmeta) ) {
+					if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
 
 
 						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
@@ -959,10 +950,7 @@ sub sysread {
 							my $isNow = (Time::HiRes::time()-$edge) < 40;
 
 							# check for live track if we are within striking distance of the live edge
-							$self->liveTrackData($replOffset, $isNow);
-
-							#update live edge 
-							$self->updateLiveEdge();							
+							$self->liveTrackData($replOffset, $isNow);							
 
 						} else {
 							
@@ -1319,7 +1307,7 @@ sub liveSongMetaData {
 						$song->duration( $props->{duration} );
 						$song->seekdata($song->getSeekData($startTime));
 						$song->startOffset( $startTime );
-						$retMeta->{live_edge} = 0;
+						$retMeta->{live_edge} = 1;
 						main::DEBUGLOG && $log->is_debug && $log->debug('StartNumber: ' . $props->{startNumber} . ' EndNumber : ' . $props->{endNumber} . ' Duration : ' . $props->{duration} . " Seektime : $startTime Calculated From : $currentStartNumber ");
 
 						$song->pluginData( meta  => $retMeta );
@@ -2149,12 +2137,14 @@ sub _getStationID {
 sub _isMetaDiff {
 	my $meta1 = shift;
 	my $meta2 = shift;
+	my $isLive = shift;
 
 	if (   ($meta1->{title} eq $meta2->{title})
 		&& ($meta1->{artist} eq $meta2->{artist})
 		&& ($meta1->{album} eq $meta2->{album})
 		&& ($meta1->{cover} eq $meta2->{cover})
-		&& ($meta1->{track} eq $meta2->{track})) {
+		&& ($meta1->{track} eq $meta2->{track})
+		&& (!$isLive || ($meta1->{live_edge} == $meta2->{live_edge})) ) {
 
 		return;
 
