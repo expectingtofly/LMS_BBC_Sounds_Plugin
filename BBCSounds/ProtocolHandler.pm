@@ -515,8 +515,8 @@ sub liveTrackData {
 	my $masterUrl = $song->track()->url;
 	my $station = _getStationID($masterUrl);
 
-	my $isLive = $self->isLive($masterUrl);
-	my $isRewind = $self->isRewind($masterUrl);
+	my $isUrlLive = $self->isLive($masterUrl);
+	my $isUrlRewind = $self->isRewind($masterUrl);
 
 	$v->{'trackData'}->{chunkCounter}++;
 
@@ -550,9 +550,9 @@ sub liveTrackData {
 		$meta->{album} = $self->_getPlayingDisplayLine(3, $meta->{realTitle}, $meta->{track}, $meta->{artist}, $meta->{description}, $meta->{station});
 		$meta->{icon} = $self->_getPlayingImage($meta->{realIcon}, $meta->{trackImage});
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
-		$meta->{live_edge} = $v->{'edge'} if $isLive;
+		$meta->{live_edge} = $v->{'edge'} if $isUrlLive;
 
-		if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
+		if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
@@ -585,7 +585,7 @@ sub liveTrackData {
 		my $sub;
 		my $isLive;
 
-		if ( $isLive || $isRewind ) {
+		if ( $isUrlLive || $isUrlRewind ) {
 			if ( $v->{'trackData'}->{'pollTime'} == 1 ) {
 				$v->{'trackData'}->{awaitingCb} = 1;
 				#Ensure polling is set up correctly
@@ -656,7 +656,7 @@ sub liveTrackData {
 					$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 					$meta->{spotify} = '';
 
-					if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
+					if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 						my $cb = sub {
 							main::INFOLOG && $log->is_info && $log->info("Setting new live title after callback");
@@ -681,7 +681,7 @@ sub liveTrackData {
 					return;
 				} else {
 
-					if (($self->isLive($masterUrl) || $self->isRewind($masterUrl)) && ((_timeFromOffset($props->{startNumber},$props) + $track->{data}[0]->{offset}->{start}) > _timeFromOffset( $currentOffset, $props))) {
+					if (($isUrlLive || $isUrlRewind) && ((_timeFromOffset($props->{startNumber},$props) + $track->{data}[0]->{offset}->{start}) > _timeFromOffset( $currentOffset, $props))) {
 
 						main::INFOLOG && $log->is_info && $log->info("Have new title but not playing yet");
 
@@ -696,7 +696,7 @@ sub liveTrackData {
 						$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 						$meta->{spotify} = '';
 
-						if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
+						if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 							my $cb = sub {
 
@@ -751,7 +751,7 @@ sub liveTrackData {
 					}
 					$meta->{spotify} = $spotifyId;
 
-					if ( _isMetaDiff($meta, $oldmeta, $isLive) ) {
+					if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 
 						main::INFOLOG && $log->is_info && $log->info("Setting new live title $meta->{track}");
