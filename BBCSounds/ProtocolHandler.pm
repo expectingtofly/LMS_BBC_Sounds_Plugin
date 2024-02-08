@@ -523,6 +523,7 @@ sub liveTrackData {
 	my $self = shift;
 	my $currentOffset = shift;
 	my $isNow = shift;
+	my $firstIn = shift;
 
 	my $client = ${*$self}{'client'};
 	my $v = $self->vars;
@@ -543,7 +544,7 @@ sub liveTrackData {
 	if ($v->{'trackData'}->{isShowingTitle} || !$isNow ) {
 
 		#we only need to reset the title if we have gone forward 3
-		if ($v->{'trackData'}->{chunkCounter} < 4) {
+		if (!$firstIn && $v->{'trackData'}->{chunkCounter} < 4) {
 			$v->{'trackData'}->{awaitingCb} = 0;
 			return;
 		}
@@ -579,7 +580,12 @@ sub liveTrackData {
 			};
 
 			#the title will be set when the current buffer is done
-			Slim::Music::Info::setDelayedCallback( $client, $cb );
+			if ( $firstIn ) {
+				main::INFOLOG && $log->is_info && $log->info("Setting meta immediatly");
+				$cb->();
+			} else {
+				Slim::Music::Info::setDelayedCallback( $client, $cb );
+			}
 		} else {
 			$v->{'trackData'}->{awaitingCb} = 0;
 		}
@@ -914,7 +920,6 @@ sub sysread {
 
 
 		if (!$bail) {
-			$v->{'firstIn'} = 0;
 			main::INFOLOG && $log->is_info && $log->info("Fetching " . $v->{'offset'} . ' towards the end of '. $v->{'endOffset'} . 'base url :' . $url);
 			my $headers = [ 'Connection', 'keep-alive' ];
 			my $suffix;
@@ -965,13 +970,14 @@ sub sysread {
 							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
 							my $isNow = (Time::HiRes::time()-$edge) < 40;
 
-							# check for live track if we are within striking distance of the live edge
-							$self->liveTrackData($replOffset, $isNow);							
+							# check for live track if we are within striking distance of the live edge							
+							$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});							
 
 						} else {
-							
-							$self->liveTrackData($replOffset, 1);
+
+							$self->liveTrackData($replOffset, 1, 0 );
 						}
+						$v->{'firstIn'} = 0;
 
 						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
 						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
