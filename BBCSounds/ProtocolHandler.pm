@@ -180,6 +180,14 @@ sub canDoAction {
 			}
 			return 1;
 		}
+		if ( $action eq 'pause' ) {
+			my $song = $client->playingSong();
+			my $meta = $song->pluginData('meta');
+			$meta->{pausePoint} = time();
+			$song->pluginData( meta   => $meta );
+			main::INFOLOG && $log->is_info && $log->info('Setting pause point to ' . $meta->{pausePoint});
+			return 1;
+		}
 	}
 
 	return 1;
@@ -192,6 +200,7 @@ sub new {
 	my $song  = $args->{'song'};
 	my $offset;
 	my $props = $song->pluginData('props');
+	my $meta = $song->pluginData('meta');
 
 	my $liveEdge = 1;
 
@@ -207,46 +216,53 @@ sub new {
 	my $nowPlayingButtons = $prefs->get('nowPlayingActivityButtons');
 	$song->pluginData( nowPlayingButtons => $nowPlayingButtons );
 
+	if ($meta->{pausePoint}) {
+		$meta->{pausePoint} = 0;
+		$song>pluginData( props   => $meta );
+		main::DEBUGLOG && $log->is_debug && $log->debug('Pause point set to zero');
+	}
+
 	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  NowPlayingButtons $nowPlayingButtons ");
 
-	if ($startTime) {
+	
 
-		if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
+	if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
 
-			#we can't go into the future
-			my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
-			my $maxStartTime = $edge - ($props->{startNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
+		#we can't go into the future
+		my $edge = $class->_calculateEdgeFromTime(Time::HiRes::time(),$props);
+		my $maxStartTime = $edge - ($props->{startNumber} * ($props->{segmentDuration} / $props->{segmentTimescale}));
 
-			#Remove a chunk to provide safety margin and less wait time on restart
-			$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
+		#Remove a chunk to provide safety margin and less wait time on restart
+		$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
 
-			$startTime = $maxStartTime if ($startTime > $maxStartTime);
+		$startTime = $maxStartTime if ($startTime > $maxStartTime);
 
-			$liveEdge = $maxStartTime - $startTime;
-			
-			main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
+		$liveEdge = $maxStartTime - $startTime;
+		
+		main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
 
-			#This "song" has a maximum age
-			my $maximumAge = 18000;  # 5 hours
-			if ((Time::HiRes::time() - $props->{comparisonTime}) > $maximumAge) {
+		#This "song" has a maximum age
+		my $maximumAge = 18000;  # 5 hours
+		if ((Time::HiRes::time() - $props->{comparisonTime}) > $maximumAge) {
 
-				#we need to end this track and let it rise again
-				$log->error('Live stream too old after pause, stopping the continuation.');
-				$props->{isContinue} = 0;
-				$song->pluginData( props   => $props );
-				return;
-			}
-			
-		}else {
-			if ($props->{_ignoreResumePoint}) {
-
-				# we have skipped back when there is a resume point. clear it and set start time to zero
-				$startTime = 0;
-				$props->{_ignoreResumePoint} = 0;
-				$song->pluginData( props   => $props );
-			}
+			#we need to end this track and let it rise again
+			$log->error('Live stream too old after pause, stopping the continuation.');
+			$props->{isContinue} = 0;
+			$song->pluginData( props   => $props );
+			return;
 		}
+		
+	}else {
+		if ($props->{_ignoreResumePoint}) {
 
+			# we have skipped back when there is a resume point. clear it and set start time to zero
+			$startTime = 0;
+			$props->{_ignoreResumePoint} = 0;
+			$song->pluginData( props   => $props );
+		}
+	}
+
+	if ($startTime) {
 		$song->can('startOffset')
 		  ? $song->startOffset($startTime)
 		  : ( $song->{startOffset} = $startTime );
@@ -1548,12 +1564,11 @@ sub getMetadataFor {
 		if (my $meta = $song->pluginData('meta')) {
 			
 			$song->track->secs( $meta->{duration} );
+			my $buttons;
 			
 			if ($song->pluginData('nowPlayingButtons')) {
 				if ($meta->{containerUrn} ne '') {
-
-					$meta->{buttons} = {
-
+					$buttons = {
 						repeat  => {
 							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
 							jiveStyle => 'thumbsUp',
@@ -1569,8 +1584,7 @@ sub getMetadataFor {
 						},
 					};
 				} else {
-					$meta->{buttons} = {
-
+					$buttons = {
 						repeat  => {
 							icon    => Plugins::BBCSounds::Utilities::IMG_NOWPLAYING_BOOKMARK,
 							jiveStyle => 'thumbsUp',
@@ -1579,12 +1593,24 @@ sub getMetadataFor {
 						},
 					};
 				}
-			}			
-			return $meta;
+			}
+			my $liveEdge = -1;
+			if ($class->isLive($url)) {
+				$liveEdge = $meta->{pausePoint} ? $meta->{live_edge} + (time() - $meta->{pausePoint}) : $meta->{live_edge};
+			}
+			return {
+				artist => $meta->{artist},
+				album  => $meta->{album},
+				title  => $meta->{title},				
+				duration => $meta->{duration},
+				secs   => $meta->{duration},
+				cover  => $meta->{cover},								
+				buttons   => $buttons,
+				live_edge => $liveEdge,
+			}
 		}
+
 	}
-
-
 	if ($class->isLive($url) || $class->isRewind($url)) {
 
 		#leave before we try and attempt to get meta for the PID
