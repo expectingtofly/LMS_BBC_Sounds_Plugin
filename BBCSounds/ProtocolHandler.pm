@@ -235,9 +235,9 @@ sub new {
 		#Remove a chunk to provide safety margin and less wait time on restart
 		$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
 
-		$startTime = $maxStartTime if ($startTime > $maxStartTime);
+		$startTime = $maxStartTime if $startTime && ($startTime > $maxStartTime);
 
-		$liveEdge = $maxStartTime - $startTime;
+		$liveEdge =  $maxStartTime - $startTime if ($maxStartTime > $startTime);
 		
 		main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
 
@@ -1165,7 +1165,7 @@ sub getNextTrack {
 					$updatedProps->{skip} = 0;
 					$updatedProps->{reverseSkip} = 0;
 					$song->pluginData( props   => $updatedProps );
-
+					$song->isLive(1);
 					main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
 					$successCb->();
 					
