@@ -235,9 +235,9 @@ sub new {
 		#Remove a chunk to provide safety margin and less wait time on restart
 		$maxStartTime -= ($props->{segmentDuration} / $props->{segmentTimescale});
 
-		$startTime = $maxStartTime if ($startTime > $maxStartTime);
+		$startTime = $maxStartTime if $startTime && ($startTime > $maxStartTime);
 
-		$liveEdge = $maxStartTime - $startTime;
+		$liveEdge =  $maxStartTime - $startTime if ($maxStartTime > $startTime);
 		
 		main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
 
@@ -262,17 +262,7 @@ sub new {
 		}
 	}
 
-	if ($startTime) {
-		$song->can('startOffset')
-		  ? $song->startOffset($startTime)
-		  : ( $song->{startOffset} = $startTime );
-
-		my $remote = Time::HiRes::time() - $startTime;
-		main::INFOLOG && $log->is_info && $log->info( "Remote Stream Start Time = " . $remote );
-		$args->{'client'}->master->remoteStreamStartTime($remote);
-		$offset = undef;
-	}
-
+	
 	main::INFOLOG
 	  && $log->is_info
 	  && $log->info( "url: $args->{url} master: $masterUrl offset: ",$startTime|| 0 );
@@ -348,7 +338,18 @@ sub new {
 		$props,
 		sub {
 			${*$self}{'vars'}->{offset} = shift;
-			main::INFOLOG && $log->is_info && $log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );
+			main::INFOLOG && $log->is_info && $log->info( "starting from offset " .  ${*$self}{'vars'}->{offset} );			
+			if ($startTime) {
+				my $realStart = (${*$self}{'vars'}->{offset} - $props->{startNumber}) * ($props->{segmentDuration} / $props->{segmentTimescale});
+			
+				$song->can('startOffset')
+			  	? $song->startOffset($realStart)
+			  	: ( $song->{startOffset} = $realStart );
+
+				my $remote = Time::HiRes::time() - $realStart;
+				main::INFOLOG && $log->is_info && $log->info( "Remote Stream Start Time =  $remote  Proposed start time $startTime Real start time $realStart ");
+				$args->{'client'}->master->remoteStreamStartTime($remote);
+			}
 		}
 	) if !defined $offset;
 
@@ -371,11 +372,11 @@ sub close {
 		my $v        = $self->vars;
 
 		#make sure we don't try and continue if we were streaming when it is started again.
-		if ($v->{streaming} && (!$props->{skip})) {
+		if ($v->{streaming} && (!( $props->{skip} || $props->{reverseSkip}))) {
 			$props->{isContinue} = 0;
 			$song->pluginData( props   => $props );
 			main::INFOLOG && $log->info("Ensuring live stream closed");
-		} elsif ( $props->{skip} ) {
+		} elsif ( $props->{skip} || $props->{reverseSkip} ) {
 			main::INFOLOG && $log->info("Force next track");
 			$props->{isContinue} = 1;
 			$song->pluginData( props   => $props );
@@ -1010,8 +1011,8 @@ sub sysread {
 	# process all available data
 	$getAudio->{ $props->{'format'} }( $v, $props ) if length $v->{'inBuf'};
 
-	if (my $bytes = min( length $v->{'outBuf'}, $maxBytes ) ) {
-		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length $v->{'outBuf'});
+	if (my $bytes = min( length($v->{'outBuf'}), $maxBytes ) ) {
+		main::DEBUGLOG && $log->is_debug && $log->debug('Bytes . ' . $maxBytes . ' . ' . length($v->{'outBuf'}) . ' . In Buf ' . length($v->{'inBuf'}));
 		$_[1] = substr( $v->{'outBuf'}, 0, $bytes, '' );
 		return $bytes;
 	} elsif ( $v->{'streaming'} || $props->{'updatePeriod'} ) {
@@ -1029,7 +1030,7 @@ sub sysread {
 	}
 
 	# end of streaming
-	main::INFOLOG && $log->is_info && $log->info("end streaming");
+	main::INFOLOG && $log->is_info && $log->info("end streaming " . length($v->{'inBuf'}));
 	$props->{'updatePeriod'} = 0;
 
 	return 0;
@@ -1156,6 +1157,7 @@ sub getNextTrack {
 					$existingProps->{previousStartNumber} = $existingProps->{startNumber};
 					$existingProps->{startNumber} = $existingProps->{endNumber} + 1;
 					$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+					$existingProps->{endNumber} = 0;
 
 				}
 				
@@ -1165,7 +1167,7 @@ sub getNextTrack {
 					$updatedProps->{skip} = 0;
 					$updatedProps->{reverseSkip} = 0;
 					$song->pluginData( props   => $updatedProps );
-
+					$song->isLive(1);
 					main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
 					$successCb->();
 					
@@ -1321,7 +1323,7 @@ sub liveSongMetaData {
 						#set up chunk range						
 						my $currentStartNumber = $props->{startNumber};
 						$props->{startNumber} = $resp->{startOffset};
-						$props->{endNumber} = $resp->{endOffset};
+						$props->{endNumber} = $resp->{endOffset} if !$props->{endNumber};
 						my $duration = calculateDurationFromChunks($props);
 						$retMeta->{duration} = $duration;
 						$props->{duration} = $duration;

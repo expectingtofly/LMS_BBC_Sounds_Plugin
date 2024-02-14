@@ -1,3 +1,6 @@
+2.35.13
+Fix occasional repeated audio on live stream programme transition.
+
 2.35.12
 Further improve live edge meta data.
 
