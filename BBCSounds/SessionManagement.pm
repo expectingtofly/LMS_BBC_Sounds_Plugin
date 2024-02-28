@@ -77,8 +77,7 @@ sub signIn {
 					my $referUrl = $req->uri;
 					$signinurl = 'https://account.bbc.com' . $signinurl;
 
-					my $requestUserName =HTTP::Request::Common::POST( $signinurl, [%body1] );
-					$requestUserName->protocol('HTTP/1.1');
+					my $requestUserName =HTTP::Request::Common::POST( $signinurl, [%body1] );					
 					$requestUserName->header( 'Referer' => $referUrl );
 					$requestUserName->header( 'Origin'  => 'https://account.bbc.com' );
 					$requestUserName->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
@@ -100,8 +99,7 @@ sub signIn {
 								my $referUrl = $req->uri;
 								$newSigninurl = 'https://account.bbc.com' . $newSigninurl;
 
-								my $requestFull = HTTP::Request::Common::POST( $newSigninurl, [%body2] );
-								$requestFull->protocol('HTTP/1.1');
+								my $requestFull = HTTP::Request::Common::POST( $newSigninurl, [%body2] );								
 								$requestFull->header( 'Referer' => $referUrl );
 								$requestFull->header( 'Origin'  => 'https://account.bbc.com' );
 								$requestFull->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
@@ -137,7 +135,7 @@ sub signIn {
 										onError => sub {
 											my ( $http, $self ) = @_;
 											my $res = $http->response;
-											main::DEBUGLOG && $log->is_debug && $log->debug('Error status - ' . $res->status_line );
+											$log->warn('Error status - ' . $res->status_line );
 											$cbNo->();
 										}
 									}
