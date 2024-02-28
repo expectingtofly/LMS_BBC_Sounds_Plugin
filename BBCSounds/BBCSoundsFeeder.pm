@@ -122,8 +122,7 @@ sub toplevel {
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 				passthrough => [ { type => 'music', codeRef => 'getPage' } ],
-				order       => 8
-				,
+				order       => 8,
 			},
 			{
 				name => 'My Sounds',
@@ -270,6 +269,24 @@ sub toplevel {
 							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 							items => $submenu,
 							order => 10,
+						  };
+					}
+				}
+
+				if (_getHomeMenuItemDisplay('news')) {
+
+					#Recommended
+					$module = _parseTopInlineMenu($JSON, 'latest_playables_for_curation-m001bm45');
+					$moduleTitle = 'All News';					
+					push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',				
+							url         => '',
+							image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+							passthrough => [ { type => 'inlineURN', codeRef => 'getPage', offset =>0, urn=>'urn:bbc:radio:category:news' } ],
+							order       => 9,
+							},
 						  };
 					}
 				}
