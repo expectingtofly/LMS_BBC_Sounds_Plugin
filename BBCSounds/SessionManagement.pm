@@ -77,7 +77,7 @@ sub signIn {
 					my $referUrl = $req->uri;
 					$signinurl = 'https://account.bbc.com' . $signinurl;
 
-					my $requestUserName =HTTP::Request::Common::POST( $signinurl, [%body1] );					
+					my $requestUserName =HTTP::Request::Common::POST( $signinurl, [%body1] );
 					$requestUserName->header( 'Referer' => $referUrl );
 					$requestUserName->header( 'Origin'  => 'https://account.bbc.com' );
 					$requestUserName->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
@@ -99,7 +99,7 @@ sub signIn {
 								my $referUrl = $req->uri;
 								$newSigninurl = 'https://account.bbc.com' . $newSigninurl;
 
-								my $requestFull = HTTP::Request::Common::POST( $newSigninurl, [%body2] );								
+								my $requestFull = HTTP::Request::Common::POST( $newSigninurl, [%body2] );
 								$requestFull->header( 'Referer' => $referUrl );
 								$requestFull->header( 'Origin'  => 'https://account.bbc.com' );
 								$requestFull->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
