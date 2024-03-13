@@ -48,6 +48,7 @@ use constant IMG_RECOMMENDATIONS => 'plugins/BBCSounds/html/images/Personalised_
 use constant IMG_EDITORIAL => 'plugins/BBCSounds/html/images/Editorial_MTL_icon_star.png';
 use constant IMG_FEATURED => 'plugins/BBCSounds/html/images/Featured_MTL_icon_new_releases.png';
 use constant IMG_LOCATION => 'plugins/BBCSounds/html/images/Location_MTL_icon_my_location.png';
+use constant IMG_NEWS => 'plugins/BBCSounds/html/images/News_MTL_icon_trending_up.png';
 
 use constant IMG_NOWPLAYING_SUBSCRIBE => 'plugins/BBCSounds/html/images/btn_heart_subscribe.gif';
 use constant IMG_NOWPLAYING_BOOKMARK => 'plugins/BBCSounds/html/images/btn_thumbsup_bookmark.gif';

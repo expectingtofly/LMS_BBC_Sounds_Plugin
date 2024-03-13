@@ -122,8 +122,7 @@ sub toplevel {
 				url         => '',
 				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 				passthrough => [ { type => 'music', codeRef => 'getPage' } ],
-				order       => 8
-				,
+				order       => 8,
 			},
 			{
 				name => 'My Sounds',
@@ -150,7 +149,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 13,
+				order => 14,
 			},
 			{
 				name        => 'All Podcasts',
@@ -269,9 +268,25 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 							items => $submenu,
-							order => 10,
+							order => 11,
 						  };
 					}
+				}
+
+				if (_getHomeMenuItemDisplay('news')) {
+
+					#Recommended
+					$module = _parseTopInlineMenu($JSON, 'latest_playables_for_curation-m001bm45');
+					$moduleTitle = 'All News';
+					push @$menu,
+					  {
+						name  => $moduleTitle,
+						type  => 'link',
+						url         => '',
+						image => Plugins::BBCSounds::Utilities::IMG_NEWS,
+						passthrough => [ { type => 'news', codeRef => 'getPage' } ],
+						order       => 10,
+					  };
 				}
 
 				if (_getHomeMenuItemDisplay('localToMe')) {
@@ -289,7 +304,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
 							items => $submenu,
-							order => 11,
+							order => 12,
 						  };
 					}
 				}
@@ -327,7 +342,7 @@ sub toplevel {
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
 							items => $submenu,
-							order => 12,
+							order => 13,
 						  };
 					}
 				}
@@ -484,6 +499,8 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/speech';
 	}elsif ( $menuType eq 'music' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/music';
+	}elsif ( $menuType eq 'news' ) {
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/urn:bbc:radio:category:news'
 	}elsif ( $menuType eq 'recommendations' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/recommendations/playable';
 		$cacheIt = 0;
@@ -1013,7 +1030,8 @@ sub _parse {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseCategories( $JSON->{data}, $menu, $passthrough->{'categorytype'} );
 	}elsif (( $optstr eq 'podcasts' )
-		|| ( $optstr eq 'music' )) {
+		|| ( $optstr eq 'music' )
+		|| ( $optstr eq 'news' )) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseInline( $JSON->{data}, $menu );
 	}elsif ( $optstr eq 'childcategories' ) {
@@ -1121,16 +1139,16 @@ sub _parseLiveTracklist {
 
 	main::INFOLOG && $log->is_info && $log->info("Number of items : $size ");
 
-	for my $item (@$jsonData) {		
+	for my $item (@$jsonData) {
 		my $offsetStart = $item->{offset}->{start};
 
 		my $label = '';
 		if ($item->{offset}->{label}) {
-			$label = $item->{offset}->{label}
+			$label = $item->{offset}->{label};
 		} else {
 			$label = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) );
 		}
-		
+
 		my $title = $item->{titles}->{secondary} . ' - ' . $item->{titles}->{primary} . "($label)";
 
 		my $image;
@@ -1138,14 +1156,14 @@ sub _parseLiveTracklist {
 			$image = Plugins::BBCSounds::PlayManager::createIcon($item->{image_url});
 		}
 
-		if (!$offsetStart) {		
+		if (!$offsetStart) {
 			$offsetStart = 0;
 		}
 		push @$menu,
 		  {
 			name 	=>	$title,
 			line1	=>  $item->{titles}->{secondary},
-			line2  =>   $item->{titles}->{primary} . " ($label)",			
+			line2  =>   $item->{titles}->{primary} . " ($label)",
 			image 	=>  $image,
 			type        => 'link',
 			url         => \&seekToTime,
@@ -1153,7 +1171,7 @@ sub _parseLiveTracklist {
 			passthrough => [
 				{
 					seekTime  => $offsetStart,
-					title	  => $item->{titles}->{secondary}				
+					title	  => $item->{titles}->{secondary}
 				}
 			]
 		  };
@@ -1161,6 +1179,7 @@ sub _parseLiveTracklist {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseLIveTracklist");
 	return;
 }
+
 
 sub _parseTracklist {
 	my $jsonData = shift;
@@ -2073,7 +2092,7 @@ sub soundsInfoIntegration {
 	if (Plugins::BBCSounds::Utilities::isSoundsURL($url)) {
 		if (!(Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef, $url))) {
 			my $id  = Plugins::BBCSounds::ProtocolHandler::getId($url);
-			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid( $url );
+			my $pid = Plugins::BBCSounds::ProtocolHandler::getPid($url);
 
 			push @$items,
 			  {
@@ -2123,7 +2142,7 @@ sub soundsInfoIntegration {
 			  };
 
 		} elsif (Plugins::BBCSounds::ProtocolHandler::isLive(undef,$url) || Plugins::BBCSounds::ProtocolHandler::isRewind(undef,$url))  {
-			
+
 			my $stationName = 'Station';
 			my $song = Slim::Player::Source::playingSong($client);
 			if (my $meta = $song->pluginData('meta')) {
@@ -2154,7 +2173,7 @@ sub soundsInfoIntegration {
 				passthrough => [
 					{
 						type    => 'livesegments',
-						station => $station,						
+						station => $station,
 						offset  => 0,
 						codeRef => 'getPage'
 					}
@@ -2526,6 +2545,7 @@ sub setMenuVisibility {
 	return;
 }
 
+
 sub persistHomeMenu {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++persistHomeMenu");
 
@@ -2536,6 +2556,7 @@ sub persistHomeMenu {
 	return;
 }
 
+
 sub seekToTime {
 	my ( $client, $callback, $args, $passDict ) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++seekToTime");
@@ -2544,16 +2565,19 @@ sub seekToTime {
 	my $title = 'Skipping to ' . $passDict->{'title'};
 
 
-
 	Slim::Player::Source::gototime($client, $newPos);
 
-	$callback->({
-		items => [{
-			name        => $title,
-			showBriefly => 1,
-			nowPlaying  => 1, # then return to Now Playing
-		}]
-	});
+	$callback->(
+		{
+			items => [
+				{
+					name        => $title,
+					showBriefly => 1,
+					nowPlaying  => 1, # then return to Now Playing
+				}
+			]
+		}
+	);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--seekToTime");
 }
