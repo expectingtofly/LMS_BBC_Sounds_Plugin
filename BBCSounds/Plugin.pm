@@ -50,9 +50,10 @@ $prefs->migrate(
 		my $m = $prefs->get('homeMenu');
 		if ( $m ) {
 			my @newsonly = grep { $_->{item} eq 'news'} @$m;
-			push @$m, { item => 'news', title => 'All News', display=>0, disabled=>0 } if !(scalar @newsonly);
-			
-			$prefs->set('homeMenu', $m);			
+			if ( !(scalar @newsonly) ) {
+				push @$m, { item => 'news', title => 'All News', display=>0, disabled=>0 } ;
+				$prefs->set('homeMenu', $m);
+			}
 		}
 		
 		1;
@@ -175,8 +176,8 @@ sub initPlugin {
 						 { item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
 						 { item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
 						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
-						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 }
-						 { item => 'news', title => 'All News',display=>0, disabled=>0 }
+						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 },
+						 { item => 'news', title => 'All News',display=>0, disabled=>0 },
 						],
 			noBlankTrackImage => 0,
 		}
