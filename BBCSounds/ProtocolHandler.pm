@@ -224,8 +224,6 @@ sub new {
 
 	main::INFOLOG && $log->is_info && $log->info("Proposed Seek $startTime  -  offset $seekdata->{'timeOffset'}  NowPlayingButtons $nowPlayingButtons ");
 
-	
-
 	if ($class->isLive($masterUrl) || $class->isRewind($masterUrl)) {
 
 		#we can't go into the future
