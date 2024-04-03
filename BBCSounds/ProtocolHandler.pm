@@ -218,7 +218,7 @@ sub new {
 
 	if ($meta->{pausePoint}) {
 		$meta->{pausePoint} = 0;
-		$song>pluginData( props   => $meta );
+		$song->pluginData( props   => $meta );
 		main::DEBUGLOG && $log->is_debug && $log->debug('Pause point set to zero');
 	}
 
