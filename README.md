@@ -13,6 +13,8 @@ Provides access to the BBC Sounds features as an LMS (Lyrion Music Server) plugi
 9. Subscribing and Bookmarking from within the plugin
 10. Integration with BBC Account for "Continue Listening"
 
+Plus more, with the aim of a full implementation of the all the BBC Sounds Features.
+
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
 
 Full details can be found <a href="https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/wiki">in the Wiki.</a> 
