@@ -15,7 +15,7 @@ Provides access to the BBC Sounds features as a Lyrion Music Server (LMS, former
 
 Plus more, with the aim of a full implementation of the all the BBC Sounds Features.
 
-<img src="blob:chrome-untrusted://media-app/91f6a0c9-023d-4d67-9e96-6fca7feb0a94" alt="Screenshot 2024-04-14 19.30.29.png"/>![image](https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/assets/73394021/b25bb19b-a5e5-4da3-b413-34c7a00ffd7b)
+![image](https://github.com/expectingtofly/LMS_BBC_Sounds_Plugin/assets/73394021/b25bb19b-a5e5-4da3-b413-34c7a00ffd7b)
 
 
 The plugin is available to be installed from "3rd Party Plugins" of your LMS installation.
