@@ -1299,6 +1299,7 @@ sub _parsePlayableItem {
 
 	my $imenu =   {
 		name => $title,
+		line1 => $title,
 		type => $type,
 		favorites_url => $favUrl,
 		image => $image,
@@ -1337,6 +1338,7 @@ sub _parseNetworkPlayableItem {
 
 	my $liveStation = {
 		name        	=> $item->{network}->{short_title},
+		line1        	=> $item->{network}->{short_title},
 		type        	=> 'audio',
 		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url}),
 		url         	=> $url,
@@ -1489,6 +1491,8 @@ sub _parseContainerItem {
 	push @$menu,
 	  {
 		name        => $title,
+		line1       => $JSON->{titles}->{primary},
+		line2       => $desc,
 		type        => 'link',
 		image        => $image,
 		url         => '',
