@@ -165,6 +165,7 @@ sub handler {
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('SingleItemPromotion', $params->{pref_menuitem_SingleItemPromotion});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('listenLive', $params->{pref_menuitem_listenLive});
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('news', $params->{pref_menuitem_news});
+		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('collections', $params->{pref_menuitem_collections});
 
 		Plugins::BBCSounds::BBCSoundsFeeder::persistHomeMenu();
 	}
@@ -239,9 +240,10 @@ sub getHomeMenu {
 		'news' => {title => 'All News', order =>8},		
 		'recommendations' => {title => 'Recommended For You', order =>9},
 		'localToMe' => {title => 'Local To Me', order =>10},
-		'categories' => {title => 'Browse Categories', order =>11},
-		'continueListening' => {title => 'Continue Listening', order =>12},
-		'SingleItemPromotion' => {title => 'Promoted Single Item', order =>13},
+		'collections' => {title => 'Collections', order =>11},
+		'categories' => {title => 'Browse Categories', order =>12},
+		'continueListening' => {title => 'Continue Listening', order =>13},
+		'SingleItemPromotion' => {title => 'Promoted Single Item', order =>14},
 
 	);
 

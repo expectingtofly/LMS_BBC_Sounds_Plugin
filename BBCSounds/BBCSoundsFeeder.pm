@@ -149,7 +149,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 14,
+				order => 15,
 			},
 			{
 				name        => 'All Podcasts',
@@ -346,6 +346,28 @@ sub toplevel {
 						  };
 					}
 				}
+
+
+				if (_getHomeMenuItemDisplay('collections')) {
+
+					#Continue Listening
+					$module = _parseTopInlineMenu($JSON, 'collections');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image => Plugins::BBCSounds::Utilities::IMG_COLLECTIONS,
+							items => $submenu,
+							order => 14,
+						  };
+					}
+				}
+
 
 				if (_getHomeMenuItemDisplay('SingleItemPromotion')) {
 
@@ -1044,7 +1066,7 @@ sub _parse {
 		}
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
-		my $node = _getNode( $JSON->{data}, 'container_list' );
+		my $node = _getNode( $JSON->{data}, 'container_list|collection_shows' );
 		_parseItems($node->{data},$menu );
 		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
@@ -1091,7 +1113,7 @@ sub _getNode {
 	my $item = [];
 
 	for my $top (@$json) {
-		if ( $top->{id} eq $id ) {
+		if ( $top->{id} =~ /$id/ ) {
 			return $top;
 		}
 	}
@@ -1277,6 +1299,7 @@ sub _parsePlayableItem {
 
 	my $imenu =   {
 		name => $title,
+		line1 => $title,
 		type => $type,
 		favorites_url => $favUrl,
 		image => $image,
@@ -1315,6 +1338,7 @@ sub _parseNetworkPlayableItem {
 
 	my $liveStation = {
 		name        	=> $item->{network}->{short_title},
+		line1        	=> $item->{network}->{short_title},
 		type        	=> 'audio',
 		image        	=>  Plugins::BBCSounds::Utilities::createNetworkLogoUrl($item->{network}->{logo_url}),
 		url         	=> $url,
@@ -1451,7 +1475,7 @@ sub _parseContainerItem {
 	my $favouritesUrl = 'soundslist://_CONTAINER_' . $pid;
 
 	#check that the item is a normal container not a tag
-	if ( $urn =~ /:tag:|:category:|:curation:/) {
+	if ( $urn =~ /:tag:|:category:|:curation:|:collection:/) {
 
 		$passthrough = [
 			{
@@ -1467,6 +1491,8 @@ sub _parseContainerItem {
 	push @$menu,
 	  {
 		name        => $title,
+		line1       => $JSON->{titles}->{primary},
+		line2       => $desc,
 		type        => 'link',
 		image        => $image,
 		url         => '',
