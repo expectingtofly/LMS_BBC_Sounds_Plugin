@@ -44,6 +44,24 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 
+
+$prefs->migrate(
+	12,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		if ( $m ) {
+			my @collectionsonly = grep { $_->{item} eq 'collections'} @$m;
+			if ( !(scalar @collectionsonly) ) {
+				push @$m, { item => 'collections', title => 'Collections', display=>1, disabled=>0 } ;
+				$prefs->set('homeMenu', $m);
+			}
+		}
+		
+		1;
+	}
+);
+
+
 $prefs->migrate(
 	11,
 	sub {
@@ -178,6 +196,7 @@ sub initPlugin {
 						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
 						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 },
 						 { item => 'news', title => 'All News',display=>0, disabled=>0 },
+						 { item => 'collections', title => 'Collections',display=>1, disabled=>0 },
 						],
 			noBlankTrackImage => 0,
 		}

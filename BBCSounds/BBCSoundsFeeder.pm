@@ -149,7 +149,7 @@ sub toplevel {
 				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
 				url  => '',
 				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 14,
+				order => 15,
 			},
 			{
 				name        => 'All Podcasts',
@@ -346,6 +346,28 @@ sub toplevel {
 						  };
 					}
 				}
+
+
+				if (_getHomeMenuItemDisplay('collections')) {
+
+					#Continue Listening
+					$module = _parseTopInlineMenu($JSON, 'collections');
+					$moduleTitle = $module->{title};
+					$submenu = [];
+
+					if ($module->{total}) {
+						_parseItems( $module->{data}, $submenu );
+						push @$menu,
+						  {
+							name  => $moduleTitle,
+							type  => 'link',
+							image => Plugins::BBCSounds::Utilities::IMG_COLLECTIONS,
+							items => $submenu,
+							order => 14,
+						  };
+					}
+				}
+
 
 				if (_getHomeMenuItemDisplay('SingleItemPromotion')) {
 
@@ -1044,7 +1066,7 @@ sub _parse {
 		}
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
-		my $node = _getNode( $JSON->{data}, 'container_list' );
+		my $node = _getNode( $JSON->{data}, 'container_list|collection_shows' );
 		_parseItems($node->{data},$menu );
 		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
@@ -1091,7 +1113,7 @@ sub _getNode {
 	my $item = [];
 
 	for my $top (@$json) {
-		if ( $top->{id} eq $id ) {
+		if ( $top->{id} =~ /$id/ ) {
 			return $top;
 		}
 	}
@@ -1451,7 +1473,7 @@ sub _parseContainerItem {
 	my $favouritesUrl = 'soundslist://_CONTAINER_' . $pid;
 
 	#check that the item is a normal container not a tag
-	if ( $urn =~ /:tag:|:category:|:curation:/) {
+	if ( $urn =~ /:tag:|:category:|:curation:|:collection:/) {
 
 		$passthrough = [
 			{
