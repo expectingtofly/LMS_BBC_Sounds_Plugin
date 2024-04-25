@@ -470,7 +470,7 @@ sub getPage {
 	if ( $menuType eq 'stationlist' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/experience/inline/stations';
 	}elsif ( $menuType eq 'tleo' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=-release_date&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=sequential&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'inlineURN' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/'.  $passDict->{'urn'}. '?&offset='. $passDict->{'offset'};
