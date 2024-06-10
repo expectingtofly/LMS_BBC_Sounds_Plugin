@@ -945,41 +945,65 @@ sub sysread {
 						$v->{'nextThrottle'} += $v->{'throttleInterval'};
 						main::DEBUGLOG && $log->is_debug && $log->debug('Next Throttle  will be : ' . $v->{'nextThrottle'} . ' Time Now  : ' . time());
 
-						$v->{'inBuf'} .= $response->content;
-						$v->{'fetching'} = 0;
-						$v->{'retryCount'} = 0;
-						$v->{'failureCount'} = 0;
+						#check if we have all the data, if not retry
+						my $respLength = $response->headers->{'content-length'};
 
-						if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
-							$v->{'streaming'} = 0;
-							if ($props->{'isDynamic'}) {
-								$props->{'isContinue'} = 1;
-								$song->pluginData( props   => $props );
-								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+						if ( $respLength != length($response->content) ) {
+							$v->{'retryCount'}++;
+
+							$log->warn("Audio chunk did not match expected response, retrying...");
+
+							if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+
+								$log->error("Failed to get $url");
+								$v->{'failureCount'}++;
+								$v->{'inBuf'}    = '';
+								$v->{'fetching'} = 0;
+								$v->{'streaming'} = 0
+								  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT );
 							} else {
-								Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
+								$log->warn("Retrying of $url");
+								$v->{'offset'}--;  # try the same offset again
+								$v->{'fetching'} = 0;
 							}
-						}
-
-						main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
-
-
-						if ($props->{'isDynamic'}) {
-
-							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-							my $isNow = (Time::HiRes::time()-$edge) < 40;
-
-							# check for live track if we are within striking distance of the live edge							
-							$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});							
-
 						} else {
 
-							$self->liveTrackData($replOffset, 1, 0 );
-						}
-						$v->{'firstIn'} = 0;
+							$v->{'inBuf'} .= $response->content;
+							$v->{'fetching'} = 0;
+							$v->{'retryCount'} = 0;
+							$v->{'failureCount'} = 0;
 
-						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
+							if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
+								$v->{'streaming'} = 0;
+								if ($props->{'isDynamic'}) {
+									$props->{'isContinue'} = 1;
+									$song->pluginData( props   => $props );
+									main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+								} else {
+									Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
+								}
+							}
+
+							main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
+
+
+							if ($props->{'isDynamic'}) {
+
+								my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+								my $isNow = (Time::HiRes::time()-$edge) < 40;
+
+								# check for live track if we are within striking distance of the live edge
+								$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});
+
+							} else {
+
+								$self->liveTrackData($replOffset, 1, 0 );
+							}
+							$v->{'firstIn'} = 0;
+
+							#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
+							$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
+						}
 					},
 
 					onError => sub {
@@ -1082,7 +1106,8 @@ sub getNextTrack {
 
 	$masterUrl =~ s/&.*//;
 
-	my $url ='';
+	my $url = '';
+	my $fallbackUrl = '';
 
 
 	my $processMPD = sub {
@@ -1099,13 +1124,12 @@ sub getNextTrack {
 		push @allowDASH,([ 'audio_1=96000', 'aac', 96_000 ],[ 'audio_1=48000', 'aac', 48_000 ]);
 		@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
 
-		my $dashmpd = $url;
 		my $overrideEpoch;
 
 		$overrideEpoch = (getRewindEpoch($masterUrl) + PROGRAMME_LATENCY) if $class->isRewind($masterUrl);
 
 		getMPD(
-			$dashmpd,
+			$url,
 			\@allowDASH,
 			sub {
 				my $props = shift;
@@ -1116,16 +1140,59 @@ sub getNextTrack {
 					$song->duration( $props->{duration} );
 					$song->isLive(0);
 					aodSongMetaData ($song, $masterUrl, $props, sub {
-						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
+						$setProperties->{ $props->{'format'} }( $song, $props, $successCb, sub {
+							$log->warn("Failed to start stream, trying fallback url...");
+							getMPD(
+								$fallbackUrl,
+								\@allowDASH,
+								sub {
+									my $props = shift;
+									return $errorCb->() unless $props;
+									$song->pluginData( props   => $props );
+									$song->pluginData( baseURL => $props->{'baseURL'} );									
+									$song->duration( $props->{duration} );
+									$song->isLive(0);
+									aodSongMetaData ($song, $masterUrl, $props, sub {
+										$setProperties->{ $props->{'format'} }( $song, $props, $successCb, sub {
+												$log->error("Fallback Error Failed");
+												$errorCb->()
+											}
+										);
+									});
+								},
+								$overrideEpoch
+							);
+						});
 					});
 				} else {
 					liveSongMetaData( $song, $masterUrl, $props, 0, sub {
 						my $updatedProps = shift;
 						$song->isLive(1);
-						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
-					});
-				}
-				
+						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb, sub {
+							$log->warn("Failed to start stream, trying fallback url...");
+							getMPD(
+								$fallbackUrl,
+								\@allowDASH,
+								sub {
+									my $props = shift;
+									return $errorCb->() unless $props;
+									$song->pluginData( props   => $props );
+									$song->pluginData( baseURL => $props->{'baseURL'} );									
+									liveSongMetaData( $song, $masterUrl, $props, 0, sub {
+										my $updatedProps = shift;
+										$song->isLive(1);
+										$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb, sub {
+												$log->error("Fallback Error Failed");
+												$errorCb->()
+											}
+										); 
+									});
+								},									
+								$overrideEpoch
+							);
+						}); 
+					});				
+				}				
 			},
 			$overrideEpoch
 		);
@@ -1192,6 +1259,8 @@ sub getNextTrack {
 							$stationid,
 							sub {
 								$url = shift;
+								$fallbackUrl = shift;
+								main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
 								$processMPD->();
 							},
 							sub {
@@ -1237,6 +1306,8 @@ sub getNextTrack {
 					$id,
 					sub {
 						$url = shift;
+						$fallbackUrl = shift;
+						main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
 						$processMPD->();
 					},
 					sub {
@@ -1283,7 +1354,7 @@ sub aodSongMetaData {
 		}
 
 	);
-	return
+	return;
 
 }
 sub liveSongMetaData {
@@ -2124,31 +2195,30 @@ sub _getMPDUrl {
 			my $connections = @$mediaitems[0]->{connection};
 			my $protocol = 'https';
 			$protocol = 'http' if $prefs->get('forceHTTP');
+			my $mpd = '';
+			my $fallbackmpd = '';			
+			my $priority = 0;
 			for my $connection (@$connections) {
 				if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-					my $mpd = $connection->{href};
-					main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-					$cbY->($mpd);
-					return;
-				}
-			}
+					if (!$priority) {
+						$mpd = $connection->{href};
+						$priority = int($connection->{priority});
 
-			#fallback to http if appropriate
-			if ($prefs->get('forceHTTP') ne 'on') {
-				$log->warn("Falling back to http as no https found");
-				$protocol = 'http';
-				for my $connection (@$connections) {
-					if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-						my $mpd = $connection->{href};
 						main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-						$cbY->($mpd);
+					} elsif ( ($connection->{priority} > int($priority)) ) {
+						$fallbackmpd = $connection->{href};
+						$cbY->($mpd, $fallbackmpd);
 						return;
-					}
+					}					
 				}
 			}
-
+			if ($priority) {
+				$cbY->($mpd);
+				return;
+			}
 			$log->error("No Dash Found");
 			$cbN->();
+			return;
 		},
 		sub {
 			$cbN->();
