@@ -1106,7 +1106,8 @@ sub getNextTrack {
 
 	$masterUrl =~ s/&.*//;
 
-	my $url ='';
+	my $url = '';
+	my $fallbackUrl = '';
 
 
 	my $processMPD = sub {
@@ -1123,13 +1124,12 @@ sub getNextTrack {
 		push @allowDASH,([ 'audio_1=96000', 'aac', 96_000 ],[ 'audio_1=48000', 'aac', 48_000 ]);
 		@allowDASH = sort { @$a[2] < @$b[2] } @allowDASH;
 
-		my $dashmpd = $url;
 		my $overrideEpoch;
 
 		$overrideEpoch = (getRewindEpoch($masterUrl) + PROGRAMME_LATENCY) if $class->isRewind($masterUrl);
 
 		getMPD(
-			$dashmpd,
+			$url,
 			\@allowDASH,
 			sub {
 				my $props = shift;
@@ -1140,16 +1140,59 @@ sub getNextTrack {
 					$song->duration( $props->{duration} );
 					$song->isLive(0);
 					aodSongMetaData ($song, $masterUrl, $props, sub {
-						$setProperties->{ $props->{'format'} }( $song, $props, $successCb );
+						$setProperties->{ $props->{'format'} }( $song, $props, $successCb, sub {
+							$log->warn("Failed to start stream, trying fallback url...");
+							getMPD(
+								$fallbackUrl,
+								\@allowDASH,
+								sub {
+									my $props = shift;
+									return $errorCb->() unless $props;
+									$song->pluginData( props   => $props );
+									$song->pluginData( baseURL => $props->{'baseURL'} );									
+									$song->duration( $props->{duration} );
+									$song->isLive(0);
+									aodSongMetaData ($song, $masterUrl, $props, sub {
+										$setProperties->{ $props->{'format'} }( $song, $props, $successCb, sub {
+												$log->error("Fallback Error Failed");
+												$errorCb->()
+											}
+										);
+									});
+								},
+								$overrideEpoch
+							);
+						});
 					});
 				} else {
 					liveSongMetaData( $song, $masterUrl, $props, 0, sub {
 						my $updatedProps = shift;
 						$song->isLive(1);
-						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb ); 
-					});
-				}
-				
+						$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb, sub {
+							$log->warn("Failed to start stream, trying fallback url...");
+							getMPD(
+								$fallbackUrl,
+								\@allowDASH,
+								sub {
+									my $props = shift;
+									return $errorCb->() unless $props;
+									$song->pluginData( props   => $props );
+									$song->pluginData( baseURL => $props->{'baseURL'} );									
+									liveSongMetaData( $song, $masterUrl, $props, 0, sub {
+										my $updatedProps = shift;
+										$song->isLive(1);
+										$setProperties->{ $updatedProps->{'format'} }( $song, $updatedProps, $successCb, sub {
+												$log->error("Fallback Error Failed");
+												$errorCb->()
+											}
+										); 
+									});
+								},									
+								$overrideEpoch
+							);
+						}); 
+					});				
+				}				
 			},
 			$overrideEpoch
 		);
@@ -1216,6 +1259,8 @@ sub getNextTrack {
 							$stationid,
 							sub {
 								$url = shift;
+								$fallbackUrl = shift;
+								main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
 								$processMPD->();
 							},
 							sub {
@@ -1261,6 +1306,8 @@ sub getNextTrack {
 					$id,
 					sub {
 						$url = shift;
+						$fallbackUrl = shift;
+						main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
 						$processMPD->();
 					},
 					sub {
@@ -1307,7 +1354,7 @@ sub aodSongMetaData {
 		}
 
 	);
-	return
+	return;
 
 }
 sub liveSongMetaData {
@@ -2148,31 +2195,30 @@ sub _getMPDUrl {
 			my $connections = @$mediaitems[0]->{connection};
 			my $protocol = 'https';
 			$protocol = 'http' if $prefs->get('forceHTTP');
+			my $mpd = '';
+			my $fallbackmpd = '';			
+			my $priority = 0;
 			for my $connection (@$connections) {
 				if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-					my $mpd = $connection->{href};
-					main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-					$cbY->($mpd);
-					return;
-				}
-			}
+					if (!$priority) {
+						$mpd = $connection->{href};
+						$priority = int($connection->{priority});
 
-			#fallback to http if appropriate
-			if ($prefs->get('forceHTTP') ne 'on') {
-				$log->warn("Falling back to http as no https found");
-				$protocol = 'http';
-				for my $connection (@$connections) {
-					if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-						my $mpd = $connection->{href};
 						main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-						$cbY->($mpd);
+					} elsif ( ($connection->{priority} > int($priority)) ) {
+						$fallbackmpd = $connection->{href};
+						$cbY->($mpd, $fallbackmpd);
 						return;
-					}
+					}					
 				}
 			}
-
+			if ($priority) {
+				$cbY->($mpd);
+				return;
+			}
 			$log->error("No Dash Found");
 			$cbN->();
+			return;
 		},
 		sub {
 			$cbN->();

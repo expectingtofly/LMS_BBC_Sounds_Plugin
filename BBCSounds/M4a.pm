@@ -67,7 +67,7 @@ sub getStartOffset {
 
 
 sub setProperties {
-	my ( $song, $props, $cb ) = @_;
+	my ( $song, $props, $cbY, $cbN ) = @_;
 	my $url  = $song->pluginData('baseURL');
 	my $http = Slim::Networking::Async::HTTP->new;
 	my $args = {};
@@ -109,18 +109,18 @@ sub setProperties {
 					Slim::Control::Request::notifyFromArray( $song->master,['newmetadata'] );
 					main::INFOLOG && $log->is_info && $log->info("found moov (in $args->{offset} bytes) and set properties abr: ",$song->track->bitrate," sr:",$song->track->samplerate," ch:",$song->track->channels);
 
-					$cb->();
+					$cbY->();
 					return;
 				}else {
 					$log->warn("could not find get properties within $args->{offset} bytes");
-					$cb->();
+					$cbN->();
 					return;
 				}
 			},
 			onError => sub {
 				my ( $self, $error ) = @_;
 				$log->warn("could not find get properties $error");
-				$cb->();
+				$cbN->();
 			}			
 		}
 	);
