@@ -945,41 +945,65 @@ sub sysread {
 						$v->{'nextThrottle'} += $v->{'throttleInterval'};
 						main::DEBUGLOG && $log->is_debug && $log->debug('Next Throttle  will be : ' . $v->{'nextThrottle'} . ' Time Now  : ' . time());
 
-						$v->{'inBuf'} .= $response->content;
-						$v->{'fetching'} = 0;
-						$v->{'retryCount'} = 0;
-						$v->{'failureCount'} = 0;
+						#check if we have all the data, if not retry
+						my $respLength = $response->headers->{'content-length'};
 
-						if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
-							$v->{'streaming'} = 0;
-							if ($props->{'isDynamic'}) {
-								$props->{'isContinue'} = 1;
-								$song->pluginData( props   => $props );
-								main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+						if ( $respLength != length($response->content) ) {
+							$v->{'retryCount'}++;
+
+							$log->warn("Audio chunk did not match expected response, retrying...");
+
+							if ($v->{'retryCount'} > CHUNK_RETRYCOUNT) {
+
+								$log->error("Failed to get $url");
+								$v->{'failureCount'}++;
+								$v->{'inBuf'}    = '';
+								$v->{'fetching'} = 0;
+								$v->{'streaming'} = 0
+								  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT );
 							} else {
-								Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
+								$log->warn("Retrying of $url");
+								$v->{'offset'}--;  # try the same offset again
+								$v->{'fetching'} = 0;
 							}
-						}
-
-						main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
-
-
-						if ($props->{'isDynamic'}) {
-
-							my $edge = $self->_calculateEdge($v->{'offset'}, $props);
-							my $isNow = (Time::HiRes::time()-$edge) < 40;
-
-							# check for live track if we are within striking distance of the live edge							
-							$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});							
-
 						} else {
 
-							$self->liveTrackData($replOffset, 1, 0 );
-						}
-						$v->{'firstIn'} = 0;
+							$v->{'inBuf'} .= $response->content;
+							$v->{'fetching'} = 0;
+							$v->{'retryCount'} = 0;
+							$v->{'failureCount'} = 0;
 
-						#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
-						$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
+							if (($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) {
+								$v->{'streaming'} = 0;
+								if ($props->{'isDynamic'}) {
+									$props->{'isContinue'} = 1;
+									$song->pluginData( props   => $props );
+									main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+								} else {
+									Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
+								}
+							}
+
+							main::DEBUGLOG && $log->is_debug && $log->debug("got chunk $v->{'offset'} length: ",length $response->content," for $url");
+
+
+							if ($props->{'isDynamic'}) {
+
+								my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+								my $isNow = (Time::HiRes::time()-$edge) < 40;
+
+								# check for live track if we are within striking distance of the live edge
+								$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});
+
+							} else {
+
+								$self->liveTrackData($replOffset, 1, 0 );
+							}
+							$v->{'firstIn'} = 0;
+
+							#increment until we reach the threshold to ensure we give the player enough playing data before taking up time getting meta data
+							$v->{'resetMeta'}++ if $v->{'resetMeta'} > 0;
+						}
 					},
 
 					onError => sub {
