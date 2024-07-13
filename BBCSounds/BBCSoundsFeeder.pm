@@ -1825,6 +1825,26 @@ sub _getPlayableItemMenu {
 		  };
 	}
 
+	if ($item->{activities}[0]->{type} && ($item->{activities}[0]->{type} eq 'play_activity'||$item->{activities}[0]->{type} eq 'play_next_activity')) {
+		push @$menu,
+		  {
+			name        => 'Remove From Continue Listening',
+			type        => 'link',
+			order 		=> 10,
+			url         => '',
+			image       => Plugins::BBCSounds::Utilities::IMG_DELETE,
+			passthrough => [
+				{
+					activitytype => 'remove',
+					id => $id,
+					pid => $pid,
+					codeRef  => 'removePlayWrapper'
+				}
+			],
+		  };
+
+	}
+
 
 	if (defined $item->{availability}) {
 		push @$menu,
@@ -1983,6 +2003,7 @@ sub _renderMenuCodeRefs {
 		'getStationMenu' => \&getStationMenu,
 		'createActivityWrapper' => \&createActivityWrapper,
 		'deleteActivityWrapper' => \&deleteActivityWrapper,
+		'removePlayWrapper' => \&removePlayWrapper,
 		'getPersonalisedPage' => \&getPersonalisedPage,
 		'recentSearches' => \&recentSearches
 	);
@@ -2547,6 +2568,29 @@ sub deleteActivityWrapper {
 	);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--deleteActivityWrapper");
+	return;
+}
+
+sub removePlayWrapper {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++removePlayWrapper");
+	main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($args));
+
+	my $menu = [];
+	Plugins::BBCSounds::ActivityManagement::removePlays(
+		sub {
+			my $resp = shift;
+			push @$menu,
+			  {
+				name => $resp,
+				type => 'text'
+			  };
+			$callback->({ items => $menu });
+		},
+		$passDict
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--removePlayWrapper");
 	return;
 }
 
