@@ -1713,13 +1713,12 @@ sub _getPlayableItemMenu {
 	my $progress   = $item->{progress};
 	my $timeOffset = 0;
 	my $playLabel  = '';
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid;
 	if ( defined $progress ) {
-		$timeOffset = $progress->{value};
-		$playLabel  = ' - ' . $progress->{label};
+		$timeOffset =  $progress->{value};
+		$soundsUrl .= "?offset=$timeOffset";
+		$playLabel  = $progress->{label};
 	}
-
-	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_0';
-	my $soundsResumeUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivityWrapper';
@@ -1847,9 +1846,10 @@ sub _getPlayableItemMenu {
 
 
 	if (defined $item->{availability}) {
-		push @$menu,
-		  {
+		my $playItem =	{
+		  
 			name => 'Play',
+			line1 => 'Play',
 			url  => $soundsUrl,
 			image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
 			icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
@@ -1857,21 +1857,12 @@ sub _getPlayableItemMenu {
 			order => 1,
 			passthrough => [ {} ],
 			on_select   => 'play',
-		  };
+		};
 
 		if ($timeOffset) {
-			push @$menu,
-			  {
-				name => 'Resume' . $playLabel,
-				url  => $soundsResumeUrl,
-				image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
-				icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
-				type => 'audio',
-				order => 2,
-				passthrough => [ {} ],
-				on_select   => 'play',
-			  };
+			$playItem->{line2} = $playLabel;			
 		}
+		push @$menu, $playItem;
 
 	} else {
 
