@@ -1830,9 +1830,9 @@ sub _getPlayableItemMenu {
 		  {
 			name        => 'Remove From Continue Listening',
 			type        => 'link',
-			order 		=> 10,
+			order 		=> 8,
 			url         => '',
-			image       => Plugins::BBCSounds::Utilities::IMG_DELETE,
+			image       => Plugins::BBCSounds::Utilities::IMG_CLOSE,
 			passthrough => [
 				{
 					activitytype => 'remove',
