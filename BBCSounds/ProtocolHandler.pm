@@ -60,7 +60,7 @@ use constant PAGE_URL_REGEXP => qr{
         sounds/play/ (?<pid> live:[_0-9a-z]+ | [0-9a-z]+ )
     ) $
 }ix;
-use constant CHUNK_TIMEOUT => 4;
+use constant CHUNK_TIMEOUT => 5;
 use constant CHUNK_RETRYCOUNT => 2;
 use constant CHUNK_FAILURECOUNT => 5;
 use constant RESETMETA_THRESHHOLD => 1;
@@ -279,6 +279,9 @@ sub new {
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
 	my $rewoundInd = $prefs->get('rewoundind');
 	my $noBlankTrackImage = $prefs->get('noBlankTrackImage');
+
+	my $pid = getPid($masterUrl);
+	my $id = getId($masterUrl);
 	
 	my $nextThrottle = time();
 
@@ -324,7 +327,9 @@ sub new {
 				'trackImagePref' => $trackimagePref,
 				'rewoundInd' => $rewoundInd,
 				'noBlankTrackImage' => $noBlankTrackImage,
-			}
+			},
+			'pid' => $pid,
+			'id' => $id,
 		};
 	}
 	
@@ -980,7 +985,7 @@ sub sysread {
 									$song->pluginData( props   => $props );
 									main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
 								} else {
-									Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'ended',floor($props->{'duration'}));
+									Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'ended',floor($props->{'duration'}));
 								}
 							}
 
@@ -1043,7 +1048,7 @@ sub sysread {
 		#bbc heartbeat at a quiet time.
 		if (!($self->isLive($masterUrl) || $self->isRewind($masterUrl))) {
 			if ( time() > $v->{nextHeartbeat} ) {
-				Plugins::BBCSounds::ActivityManagement::heartBeat(getId($masterUrl),getPid($masterUrl),'heartbeat',floor( $song->master->controller->playingSongElapsed ));
+				Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'heartbeat',floor( $song->master->controller->playingSongElapsed ));
 				$v->{nextHeartbeat} = time() + 30;
 			}
 		}
@@ -1062,10 +1067,11 @@ sub sysread {
 sub getId {
 	my ( $url ) = @_;
 
-	my @pid  = split /_/x, $url;
+	my ($mainUrl) = split /\?/x, $url;
+	my @pid  = split /_/x, $mainUrl;
 	my $vpid =  @pid[1];
 	if ($vpid eq 'LIVE') {
-		@pid  = split /_LIVE_/x, $url;
+		@pid  = split /_LIVE_/x, $mainUrl;
 		$vpid =  @pid[1];
 	}
 
@@ -1075,8 +1081,9 @@ sub getId {
 
 sub getPid {
 	my ( $url ) = @_;
-
-	my @pid = split /_/x, $url;
+	
+	my ($mainUrl) = split /\?/x, $url;
+	my @pid = split /_/x, $mainUrl;
 	my $pid  = @pid[2];
 
 	return $pid;
@@ -1087,10 +1094,10 @@ sub getLastPos {
 	my ( $class, $url ) = @_;
 	my $lastpos = 0;
 
-	if (!($class->isLive($url) || $class->isRewind($url))) {
-		my @pid = split /_/x, $url;
-		if ((scalar @pid) == 4) {
-			$lastpos = @pid[3];
+	if ((!($class->isLive($url) || $class->isRewind($url))) && $url =~ /\?offset=/) {
+		my @pos = split /\?offset=/, $url;
+		if ((scalar @pos) == 2) {
+			$lastpos = $pos[1];
 		}
 	}
 

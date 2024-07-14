@@ -1713,13 +1713,12 @@ sub _getPlayableItemMenu {
 	my $progress   = $item->{progress};
 	my $timeOffset = 0;
 	my $playLabel  = '';
+	my $soundsUrl = 'sounds://_' . $id . '_' . $pid;
 	if ( defined $progress ) {
-		$timeOffset = $progress->{value};
-		$playLabel  = ' - ' . $progress->{label};
+		$timeOffset =  $progress->{value};
+		$soundsUrl .= "?offset=$timeOffset";
+		$playLabel  = $progress->{label};
 	}
-
-	my $soundsUrl = 'sounds://_' . $id . '_' . $pid . '_0';
-	my $soundsResumeUrl = 'sounds://_' . $id . '_' . $pid . '_' . $timeOffset;
 
 	my $booktype = 'Bookmark';
 	my $bookCodeRef = 'createActivityWrapper';
@@ -1825,11 +1824,32 @@ sub _getPlayableItemMenu {
 		  };
 	}
 
-
-	if (defined $item->{availability}) {
+	if ($item->{activities}[0]->{type} && ($item->{activities}[0]->{type} eq 'play_activity'||$item->{activities}[0]->{type} eq 'play_next_activity')) {
 		push @$menu,
 		  {
+			name        => 'Remove From Continue Listening',
+			type        => 'link',
+			order 		=> 8,
+			url         => '',
+			image       => Plugins::BBCSounds::Utilities::IMG_CLOSE,
+			passthrough => [
+				{
+					activitytype => 'remove',
+					id => $id,
+					pid => $pid,
+					codeRef  => 'removePlayWrapper'
+				}
+			],
+		  };
+
+	}
+
+
+	if (defined $item->{availability}) {
+		my $playItem =	{
+		  
 			name => 'Play',
+			line1 => 'Play',
 			url  => $soundsUrl,
 			image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
 			icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
@@ -1837,21 +1857,12 @@ sub _getPlayableItemMenu {
 			order => 1,
 			passthrough => [ {} ],
 			on_select   => 'play',
-		  };
+		};
 
 		if ($timeOffset) {
-			push @$menu,
-			  {
-				name => 'Resume' . $playLabel,
-				url  => $soundsResumeUrl,
-				image      => Plugins::BBCSounds::Utilities::IMG_PLAY,
-				icon       => Plugins::BBCSounds::Utilities::IMG_PLAY,
-				type => 'audio',
-				order => 2,
-				passthrough => [ {} ],
-				on_select   => 'play',
-			  };
+			$playItem->{line2} = $playLabel;			
 		}
+		push @$menu, $playItem;
 
 	} else {
 
@@ -1983,6 +1994,7 @@ sub _renderMenuCodeRefs {
 		'getStationMenu' => \&getStationMenu,
 		'createActivityWrapper' => \&createActivityWrapper,
 		'deleteActivityWrapper' => \&deleteActivityWrapper,
+		'removePlayWrapper' => \&removePlayWrapper,
 		'getPersonalisedPage' => \&getPersonalisedPage,
 		'recentSearches' => \&recentSearches
 	);
@@ -2547,6 +2559,29 @@ sub deleteActivityWrapper {
 	);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--deleteActivityWrapper");
+	return;
+}
+
+sub removePlayWrapper {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++removePlayWrapper");
+	main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($args));
+
+	my $menu = [];
+	Plugins::BBCSounds::ActivityManagement::removePlays(
+		sub {
+			my $resp = shift;
+			push @$menu,
+			  {
+				name => $resp,
+				type => 'text'
+			  };
+			$callback->({ items => $menu });
+		},
+		$passDict
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--removePlayWrapper");
 	return;
 }
 

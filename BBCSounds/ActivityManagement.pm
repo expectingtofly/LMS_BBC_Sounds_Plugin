@@ -168,4 +168,36 @@ sub deleteActivity {
 	return;
 }
 
+sub removePlays {
+	my ( $callback, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++removePlays");
+	
+	my $body = '{"pid":"' . $passDict->{'pid'} . '","resource_type":"episode"}';
+
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			Slim::Networking::SimpleAsyncHTTP->new(
+				sub {
+					my $http = shift;
+					main::DEBUGLOG && $log->is_debug && $log->debug( 'remove succeeded');
+					$callback->( 'Remove succeeded');
+				},
+
+				# Called when no response was received or an error occurred.
+				sub {
+					$log->warn("error: $_[1]");
+					$callback->('Remove failed');
+				}
+			)->post('https://rms.api.bbc.co.uk/v2/my/programmes/plays/remove', 'Content-Type' =>  'application/json', $body);
+		},
+		sub {
+			$log->warn("Failed to renew session");
+			$callback->( 'Remove failed');
+		}
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--removePlays");
+	return;
+}
+
 1;
