@@ -279,6 +279,7 @@ sub new {
 	my $trackdisplayline3 = $prefs->get('trackdisplayline3');
 	my $rewoundInd = $prefs->get('rewoundind');
 	my $noBlankTrackImage = $prefs->get('noBlankTrackImage');
+	my $getTrackImageExternally = $prefs->get('getExternalTrackImage');
 
 	my $pid = getPid($masterUrl);
 	my $id = getId($masterUrl);
@@ -327,6 +328,7 @@ sub new {
 				'trackImagePref' => $trackimagePref,
 				'rewoundInd' => $rewoundInd,
 				'noBlankTrackImage' => $noBlankTrackImage,
+				'getTrackImageExternally' => $getTrackImageExternally,
 			},
 			'pid' => $pid,
 			'id' => $id,
@@ -649,7 +651,7 @@ sub liveTrackData {
 			$sub = sub {
 				my $cbY = shift;
 				my $cbN = shift;
-				_getAODTrack(getId($masterUrl), _timeFromOffset( $currentOffset, $props),$cbY,$cbN);
+				_getAODTrack(getId($masterUrl), _timeFromOffset( $currentOffset, $props), $v->{'displayPrefs'}->{'getTrackImageExternally'}, $cbY, $cbN);
 				$v->{'trackData'}->{lastPoll} = time();
 			};
 			$isLive = 0;
@@ -664,7 +666,8 @@ sub liveTrackData {
 		$sub->(
 			sub {
 				my $track = shift;
-				my $meta = $song->pluginData('meta');
+				my $meta;
+				%$meta = %{$song->pluginData('meta')};
 				my $oldmeta;
 				%$oldmeta = %$meta;
 
@@ -768,13 +771,11 @@ sub liveTrackData {
 					my $spotifyId = '';
 					main::INFOLOG && $log->is_info && $log->info('Music service link count ' . scalar @{$track->{data}[0]->{uris}} );
 
-					for my $uri (@{$track->{data}[0]->{uris}}) {
-						if ($uri->{label} eq 'Spotify') {
-							$spotifyId = $uri->{uri};
-							$spotifyId =~ s/https:\/\/open.spotify.com\/track\//spotify:\/\/track:/;
-							last;
-						}
+					if (my $spotifyUrl = _getSpotifyUrlFromURIs(@{$track->{data}[0]->{uris}})) {
+						$spotifyId = $spotifyUrl;
+						$spotifyId =~ s/https:\/\/open.spotify.com\/track\//spotify:\/\/track:/;
 					}
+					
 					$meta->{spotify} = $spotifyId;
 
 					if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
@@ -2028,6 +2029,7 @@ sub _getAODTrack{
 
 	my $pid = shift;
 	my $currentOffsetTime = shift;
+	my $getExternalImage = shift;
 	my $cbY = shift;
 	my $cbN = shift;
 
@@ -2039,7 +2041,24 @@ sub _getAODTrack{
 			for my $track (@$jsonData) {
 				if ($currentOffsetTime >= $track->{offset}->{start}  && $currentOffsetTime < $track->{offset}->{end} ) {
 					main::INFOLOG && $log->is_info && $log->info("Identified track in schedule");
-					$cbY->({'total' => 1, 'data' => [$track]});
+					if ($getExternalImage && (! ($track->{image_url})) && (my $spotifyUrl = _getSpotifyUrlFromURIs(@{$track->{uris}}))) {
+						Plugins::BBCSounds::PlayManager::getTrackImageFromSpotifyUrl( $spotifyUrl,
+						sub {
+							my $image = shift;
+
+							$track->{image_url} = $image;
+							$cache->set("bs:track-$pid", $tracks, 86400);
+							$cbY->({'total' => 1, 'data' => [$track]});
+						},
+						sub {
+							#failed to get image
+							$log->warn("Failed to get spotify image");
+							$cbY->({'total' => 1, 'data' => [$track]});
+						});
+						
+					} else {
+						$cbY->({'total' => 1, 'data' => [$track]});
+					}
 					return;
 				}
 			}
@@ -2262,6 +2281,19 @@ sub _isMetaDiff {
 		main::INFOLOG && $log->is_info && $log->info("Meta Data Changed");
 		return 1;
 	}
+}
+
+sub _getSpotifyUrlFromURIs {
+	my @uris = shift;	
+	
+	for my $uri (@uris) {
+		if ($uri->{label} eq 'Spotify') {
+			return $uri->{uri};			
+		}
+	}
+
+	return;
+	
 }
 
 1;

@@ -143,6 +143,10 @@
 		<input name="pref_noBlankTrackImage" id="pref_noBlankTrackImage" type="checkbox" [% IF prefs.pref_noBlankTrackImage %] checked [% END %]>
 		<label for="pref_noBlankTrackImage">Do not display blank (grey) track image (if possible)</label>	
 	</td></tr>
+	<tr><td>
+		<input name="pref_getExternalTrackImage" id="pref_getExternalTrackImage" type="checkbox" [% IF prefs.pref_getExternalTrackImage %] checked [% END %]>
+		<label for="pref_getExternalTrackImage">Get track image externally if the BBC don't provide it</label>	
+	</td></tr>
 	</table>
 
 	[% END %]	

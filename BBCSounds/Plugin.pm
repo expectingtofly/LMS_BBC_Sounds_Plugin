@@ -199,6 +199,7 @@ sub initPlugin {
 						 { item => 'collections', title => 'Collections',display=>1, disabled=>0 },
 						],
 			noBlankTrackImage => 0,
+			getExternalTrackImage => 1,
 		}
 	);
 
@@ -214,6 +215,13 @@ sub initPlugin {
 			$prefs->set($_[0], 0) unless defined $_[1];
 		},
 		'rewoundind'
+	);
+
+	$prefs->setChange(
+		sub {
+			$prefs->set($_[0], 0) unless defined $_[1];
+		},
+		'getExternalTrackImage'
 	);
 
 	$class->SUPER::initPlugin(
