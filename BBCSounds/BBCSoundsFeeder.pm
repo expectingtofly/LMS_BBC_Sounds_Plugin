@@ -1224,7 +1224,7 @@ sub _parseTracklist {
 		  {
 			name        => $title,
 			type        => 'audio',
-			url         => 'sounds://_' . $passthrough->{id} . '_' . $passthrough->{pid} . '_' . $offsetStart,
+			url         => 'sounds://_' . $passthrough->{id} . '_' . $passthrough->{pid} . "?offset=$offsetStart",
 		  };
 	}
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_parseTracklist");
