@@ -67,5 +67,35 @@ sub getSoundsURLForPid {
 	return;
 }
 
+sub getTrackImageFromSpotifyUrl {
+	my $spotifyUrl = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getTrackImageFromSpotifyUrl");
+
+	my $escapedSpotifyUrl = URI::Escape::uri_escape_utf8($spotifyUrl);
+	my $url = "https://open.spotify.com/oembed?url=$escapedSpotifyUrl";
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("Getting image for $url");	
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			my $JSON = decode_json ${ $http->contentRef };
+			my $image = $JSON->{thumbnail_url};		
+			main::DEBUGLOG && $log->is_debug && $log->debug("Got image for $url");	
+			$cbY->($image);
+		},
+		sub {
+			my ( $http, $error ) = @_;
+			$log->error($error);
+			$cbN->();
+		},
+	)->get($url);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getTrackImageFromSpotifyUrl");
+	return;
+}
+
 1;
 
