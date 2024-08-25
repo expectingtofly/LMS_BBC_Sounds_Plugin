@@ -37,7 +37,7 @@ use File::Spec::Functions;
 use File::Basename;
 use FindBin qw($Bin);
 use XML::Simple;
-use POSIX qw(floor ceil);
+use POSIX qw(floor ceil round);
 
 use Slim::Utils::Strings qw(string cstring);
 use Slim::Utils::Log;
@@ -1604,7 +1604,7 @@ sub getMPD {
 
 							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime} . ' Segment duration : ' . $props->{segmentDuration} . ' Segment timescale : ' . $props->{segmentTimescale} );
 
-							my $index = floor($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
+							my $index = round($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index;
 							$props->{comparisonStartNumber} = $index;
 
