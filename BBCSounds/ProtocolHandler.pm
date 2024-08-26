@@ -1602,7 +1602,11 @@ sub getMPD {
 
 							$props->{metaEpoch} = $props->{comparisonTime} - $epochTime;
 
-							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  'comparision : ' . $props->{comparisonTime} . ' Segment duration : ' . $props->{segmentDuration} . ' Segment timescale : ' . $props->{segmentTimescale} );
+							main::DEBUGLOG && $log->is_debug && $log->debug('dashtime : ' . $epochTime .  ' comparision : ' . $props->{comparisonTime} . ' Segment duration : ' . $props->{segmentDuration} . ' Segment timescale : ' . $props->{segmentTimescale} );
+
+							if ( (my $variation = abs(($props->{comparisonTime} - $epochTime ))) > 30 ) {
+								$log->warn("According to the stream source your LMS server time is out of sync by $variation seconds, please check that the time on your LMS server is correctly set and kept in sync.  This can result in unexpected behaviour.");
+							}
 
 							my $index = round($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
 							$props->{startNumber} = $index;
