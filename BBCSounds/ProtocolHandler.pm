@@ -37,7 +37,8 @@ use File::Spec::Functions;
 use File::Basename;
 use FindBin qw($Bin);
 use XML::Simple;
-use POSIX qw(floor ceil round);
+use POSIX qw(floor ceil);
+
 
 use Slim::Utils::Strings qw(string cstring);
 use Slim::Utils::Log;
@@ -1608,7 +1609,7 @@ sub getMPD {
 								$log->warn("According to the stream source your LMS server time is out of sync by $variation seconds, please check that the time on your LMS server is correctly set and kept in sync.  This can result in unexpected behaviour.");
 							}
 
-							my $index = round($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale}));
+							my $index = floor(($epochTime / ($props->{segmentDuration} / $props->{segmentTimescale})) + 0.5);
 							$props->{startNumber} = $index;
 							$props->{comparisonStartNumber} = $index;
 
