@@ -1716,8 +1716,12 @@ sub _getPlayableItemMenu {
 	my $soundsUrl = 'sounds://_' . $id . '_' . $pid;
 	if ( defined $progress ) {
 		$timeOffset =  $progress->{value};
-		$soundsUrl .= "?offset=$timeOffset";
-		$playLabel  = $progress->{label};
+		if ( ($item->{duration}->{value} - $timeOffset) > 60 ) {
+			$soundsUrl .= "?offset=$timeOffset";
+			$playLabel  = $progress->{label};
+		} else {		
+			$timeOffset = 0;
+		}
 	}
 
 	my $booktype = 'Bookmark';
@@ -1860,6 +1864,7 @@ sub _getPlayableItemMenu {
 		};
 
 		if ($timeOffset) {
+			$playItem->{name} = "Play ($playLabel)";
 			$playItem->{line2} = $playLabel;			
 		}
 		push @$menu, $playItem;
