@@ -965,13 +965,14 @@ sub sysread {
 								$log->error("Failed to get $url");
 								$v->{'failureCount'}++;
 								$v->{'inBuf'}    = '';
+								$v->{'retryCount'} = 0;
 								$v->{'fetching'} = 0;
 								if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) {
+									$log->error('Too many failures, ending streaming.');
 							  		$v->{'streaming'} = 0;
 									$props->{'isContinue'} = 0;
 									$song->pluginData( props   => $props );
 								}
-							}
 							} else {
 								$log->warn("Retrying of $url");
 								$v->{'offset'}--;  # try the same offset again
@@ -1026,8 +1027,10 @@ sub sysread {
 							$log->error("Failed to get $url");
 							$v->{'failureCount'}++;
 							$v->{'inBuf'}    = '';
+							$v->{'retryCount'} = 0;
 							$v->{'fetching'} = 0;
 							if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) {
+								$log->error('Too many failures, ending streaming.');
 							  	$v->{'streaming'} = 0;
 								$props->{'isContinue'} = 0;
 								$song->pluginData( props   => $props );
