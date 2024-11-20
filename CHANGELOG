@@ -1,3 +1,6 @@
+2.40.4
+Fix repeated error logging on live stream connectivity failure.
+
 2.40.3
 Fix for resume when programme has been listened to the end.
 
