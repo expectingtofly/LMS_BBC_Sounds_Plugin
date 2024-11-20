@@ -63,7 +63,7 @@ use constant PAGE_URL_REGEXP => qr{
 }ix;
 use constant CHUNK_TIMEOUT => 5;
 use constant CHUNK_RETRYCOUNT => 2;
-use constant CHUNK_FAILURECOUNT => 5;
+use constant CHUNK_FAILURECOUNT => 1;
 use constant RESETMETA_THRESHHOLD => 1;
 use constant PROGRAMME_LATENCY => 38.4;
 
@@ -965,9 +965,14 @@ sub sysread {
 								$log->error("Failed to get $url");
 								$v->{'failureCount'}++;
 								$v->{'inBuf'}    = '';
+								$v->{'retryCount'} = 0;
 								$v->{'fetching'} = 0;
-								$v->{'streaming'} = 0
-								  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT );
+								if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) {
+									$log->error('Too many failures, ending streaming.');
+							  		$v->{'streaming'} = 0;
+									$props->{'isContinue'} = 0;
+									$song->pluginData( props   => $props );
+								}
 							} else {
 								$log->warn("Retrying of $url");
 								$v->{'offset'}--;  # try the same offset again
@@ -1022,9 +1027,14 @@ sub sysread {
 							$log->error("Failed to get $url");
 							$v->{'failureCount'}++;
 							$v->{'inBuf'}    = '';
+							$v->{'retryCount'} = 0;
 							$v->{'fetching'} = 0;
-							$v->{'streaming'} = 0
-							  if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT );
+							if ((($v->{'endOffset'} > 0) && ($v->{'offset'} > $v->{'endOffset'})) || $v->{'failureCount'} > CHUNK_FAILURECOUNT ) {
+								$log->error('Too many failures, ending streaming.');
+							  	$v->{'streaming'} = 0;
+								$props->{'isContinue'} = 0;
+								$song->pluginData( props   => $props );
+							}
 						} else {
 							$log->warn("Retrying of $url");
 							$v->{'offset'}--;  # try the same offset again
