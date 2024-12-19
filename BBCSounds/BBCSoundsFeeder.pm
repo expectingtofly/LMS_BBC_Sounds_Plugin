@@ -1066,7 +1066,7 @@ sub _parse {
 		}
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
-		my $node = _getNode( $JSON->{data}, 'container_list|collection_shows' );
+		my $node = _getNode( $JSON->{data}, 'container_list|collection_shows|collection_playables' );
 		_parseItems($node->{data},$menu );
 		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
 	}elsif ( $optstr eq 'stationsdayschedule' ) {

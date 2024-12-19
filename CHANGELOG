@@ -1,3 +1,6 @@
+2.40.5
+Added fix for collections that only have episodes.
+
 2.40.4
 Fix repeated error logging on live stream connectivity failure.
 
