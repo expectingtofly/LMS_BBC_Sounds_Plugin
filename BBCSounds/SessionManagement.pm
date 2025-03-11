@@ -58,7 +58,7 @@ sub signIn {
 			password  => $password,
 		);
 
-		#get the session this gives us access to the cookies
+		#get the session
 		my $session = Slim::Networking::Async::HTTP->new;
 
 		my $initrequest = HTTP::Request->new( GET => 'https://account.bbc.com' );
@@ -339,12 +339,48 @@ sub _hasSession {
 }
 
 
-sub getLiveStreamJwt {
+sub getStreamJwt {
+	my $id = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	my $type = shift;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getStreamJwt");	
+
+	geoLocationInfo (
+		sub {
+			my $userInfoJSON = shift;
+			my $country = $userInfoJSON->{'X-Country'};
+			my $isUK = $userInfoJSON->{'X-Ip_is_uk_combined'};
+			main::DEBUGLOG && $log->is_debug && $log->debug("Country : $country  isUK : $isUK");
+			if ($isUK eq 'yes' || $prefs->get('isUKListenerAbroad')) {
+				if ($type eq 'episode') {
+						$cbY->(0); #No JWT required
+						return;
+				} else {
+					getUKStreamJwt($id, $cbY, $cbN);
+				}
+			} else {
+				getInternationalStreamJwt($id, $cbY, $cbN, ($type eq 'episode') ? 'episode' : 'live');
+			}
+
+		 },
+		 sub {
+			$log->warn("Could not get user geolocation");
+			$cbN->();
+		 }
+	);	
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getStreamJwt");
+	return;
+}
+
+sub getUKStreamJwt {
 	my $id = shift;
 	my $cbY = shift;
 	my $cbN = shift;
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getLiveStreamJwt");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getUKStreamJwt");
 
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
@@ -371,8 +407,88 @@ sub getLiveStreamJwt {
 		}
 	)->get('https://rms.api.bbc.co.uk/v2/sign/token/' . $id);
 	
-	main::DEBUGLOG && $log->is_debug && $log->debug("--getLiveStreamJwt");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getUKStreamJwt");
+	return;
+
+}
+
+sub getInternationalStreamJwt {
+	my $id = shift;
+	my $cbY = shift;
+	my $cbN = shift;
+	my $type = shift;
+	my $idType = 'versionPid';
+
+	if ($type eq 'live') {
+		$idType = 'serviceId';
+	}
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getInternationalStreamJwt");
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug('Have  international JWT');
+			my $JSON = decode_json ${ $http->contentRef };
+
+			if (my $jwt = $JSON->{token}) {
+
+				main::DEBUGLOG && $log->is_debug && $log->debug('JWT obtained ' . $jwt);
+
+				$cbY->($jwt);
+			} else {
+				$log->warn('JWT Not Found');
+				$cbN->();
+			}
+		},
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$log->warn("Could not get JWT token");
+			$cbN->();
+		}
+	)->get('https://web-cdn.api.bbci.co.uk/xd/media-token?' . $idType . '=' . $id);
+	
+	main::DEBUGLOG && $log->is_debug && $log->debug("--getInternationalStreamJwt");
+	return;
+
+}
+
+sub geoLocationInfo {
+	my $cbY = shift;
+	my $cbN = shift;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++geoLocationInfo");
+
+	Slim::Networking::SimpleAsyncHTTP->new(
+		sub {
+			my $http = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug('Have UserInfo');
+			my $JSON = decode_json ${ $http->contentRef };
+
+			if (my $country = $JSON->{'X-Country'}) {
+
+				main::DEBUGLOG && $log->is_debug && $log->debug('User Info Obtained Country =  ' . $country);
+
+				$cbY->($JSON);
+			} else {
+				$log->warn('User Info Not profided');
+				$cbN->();
+			}
+		},
+
+		# Called when no response was received or an error occurred.
+		sub {
+			$log->warn("error: $_[1]");
+			$log->warn("Could not get Userinfo");
+			$cbN->();
+		}
+	)->get('https://bbc.com/userinfo');
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--geoLocationInfo");
 	return;
 }
+
 1;
 

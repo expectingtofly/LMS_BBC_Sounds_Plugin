@@ -183,8 +183,15 @@
 	<input name="clearSearchHistory" type="checkbox" >
 	<label for="clearSearchHistory">Clear search history</label>	
 	[% END %]
+	
+	<hr/>
 
-	<hr/>	
+	[% WRAPPER setting title="Location Preference" desc="" %]	
+	<input name="pref_isUKListenerAbroad" id="pref_isUKListenerAbroad" type="checkbox" [% IF prefs.pref_isUKListenerAbroad %] checked [% END %]>
+	<label for="pref_isUKListenerAbroad">I am a UK Listener currently abroad</label>
+	[% END %]
+
+	<hr/>
 	
 	[% WRAPPER setting title="Advanced Settings" desc="" %]
 	The settings below should only be changed if you have a specific reason to do so.

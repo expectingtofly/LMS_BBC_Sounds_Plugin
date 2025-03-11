@@ -200,6 +200,7 @@ sub initPlugin {
 						],
 			noBlankTrackImage => 0,
 			getExternalTrackImage => 1,
+			isUKListenerAbroad => 0,
 		}
 	);
 
