@@ -1270,7 +1270,7 @@ sub getNextTrack {
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				Plugins::BBCSounds::SessionManagement::getLiveStreamJwt(
+				Plugins::BBCSounds::SessionManagement::getStreamJwt(
 					$stationid,
 					sub {
 						my $jwt = shift;
@@ -1321,18 +1321,32 @@ sub getNextTrack {
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				_getMPDUrl(
+				Plugins::BBCSounds::SessionManagement::getStreamJwt(
 					$id,
 					sub {
-						$url = shift;
-						$fallbackUrl = shift;
-						main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
-						$processMPD->();
+						my $jwt = shift;
+						_getMPDUrl(
+							$id,
+							sub {
+								$url = shift;
+								$fallbackUrl = shift;
+								main::DEBUGLOG && $log->is_debug && $log->debug("mpd URL : $url fallback URL : $fallbackUrl ");
+								$processMPD->();
+							},
+							sub {
+								$log->error('Failed to get Audio information.  It may not be available in your location.');
+								$errorCb->("Not able to obtain audio", $masterUrl);
+							},
+							$jwt
+						);
 					},
+
 					sub {
-						$log->error('Failed to get Audio information.  It may not be available in your location.');
-						$errorCb->("Not able to obtain audio", $masterUrl);
-					}
+						$log->error('Could not get stream JWT');
+						$errorCb->("Not able to obtain audio, not logged in", $masterUrl);
+
+					},
+					'episode'
 				);
 			},
 			sub {
@@ -2262,6 +2276,7 @@ sub _getMPDUrl {
 			return;
 		},
 		sub {
+			$log->warn('This content is most likely not available in your region.');
 			$cbN->();
 		}
 	)->get($url);
