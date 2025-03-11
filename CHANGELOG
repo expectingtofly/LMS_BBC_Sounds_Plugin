@@ -1,3 +1,6 @@
+2.50.0
+Added support for Geo Location checking to match BBC requirements.
+
 2.40.5
 Added fix for collections that only have episodes.
 
