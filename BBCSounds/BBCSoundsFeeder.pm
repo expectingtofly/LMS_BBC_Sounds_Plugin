@@ -449,7 +449,7 @@ sub toplevel {
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-					if (Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo()->{'isUKListenerQualified'}) {
+				if (Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo()->{'isUKListenerQualified'}) {
 					$fetch->();
 				} else {
 					$menu = [
