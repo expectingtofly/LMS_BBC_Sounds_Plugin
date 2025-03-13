@@ -168,6 +168,17 @@ sub handler {
 		Plugins::BBCSounds::BBCSoundsFeeder::setMenuVisibility('collections', $params->{pref_menuitem_collections});
 
 		Plugins::BBCSounds::BBCSoundsFeeder::persistHomeMenu();
+
+		#reset location info
+		Plugins::BBCSounds::SessionManagement::setLocationInfo(
+			sub {
+				main::DEBUGLOG && $log->is_debug && $log->debug("Location Info Reset");			
+			},
+			sub {
+				$log->warn("Location Info failed to reset");
+			}
+		);
+
 	}
 
 	my $currentIDStatus = Plugins::BBCSounds::SessionManagement::getIdentityStatus();
@@ -219,6 +230,13 @@ sub beforeRender {
 			$paramRef->{isSignedOut} = 1;
 		}
 	}
+
+	Plugins::BBCSounds::SessionManagement::setIsUKListenerQualified(); #Make Sure it is up to date
+	my $locationInfo = Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo();
+	
+	$paramRef->{locCountry} = $locationInfo->{'country'};
+	$paramRef->{locUKClassified} = $locationInfo->{'isUKListenerClassified'} ? 'Yes' : 'No';
+	$paramRef->{locUKQualified} = $locationInfo->{'isUKListenerQualified'} ? 'Yes' : 'No';
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--beforeRender");
 }

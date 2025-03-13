@@ -4,7 +4,7 @@
 	<br/>
 	<input name="signout" type="submit" value="Sign Out" class="stdclick" />
 	<br/>
-	<p><small>Security tokens available (Expires [% sylphExp %] and [% idExp %])</small></p>
+	<p><small>Security tokens available (Expires [% sylphExp %] and [% idExp %])</small></p>	
 	
 	[% END %]
 	[% IF isSignedOut %]
@@ -190,7 +190,9 @@
 	<input name="pref_isUKListenerAbroad" id="pref_isUKListenerAbroad" type="checkbox" [% IF prefs.pref_isUKListenerAbroad %] checked [% END %]>
 	<label for="pref_isUKListenerAbroad">I am a UK Listener currently abroad</label>
 	[% END %]
-
+	[% WRAPPER setting title="" desc="" %]
+	Country : [% locCountry %] | Classified as UK : [% locUKClassified %] | Qualified as UK : [% locUKQualified %]
+	[% END %]	
 	<hr/>
 	
 	[% WRAPPER setting title="Advanced Settings" desc="" %]

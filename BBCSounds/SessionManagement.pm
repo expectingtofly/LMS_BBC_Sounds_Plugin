@@ -38,6 +38,12 @@ use constant TOKEN_RENEW    => 62370000; # 3 weeks less than 2 years
 my $log   = logger('plugin.bbcsounds');
 my $prefs = preferences('plugin.bbcsounds');
 
+my $locationInfo = {
+	'country' => 'unknown',
+	'isUKListenerClassified' => 0,
+	'isUKListenerQualified' => 0,
+};
+
 
 sub signIn {
 	my $username = shift;
@@ -256,36 +262,42 @@ sub renewSession {
 			main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession already");
 			return;
 		}else {
+			Plugins::BBCSounds::SessionManagement::setLocationInfo(
+				sub {			
+					my $session = Slim::Networking::Async::HTTP->new;
 
-			my $session = Slim::Networking::Async::HTTP->new;
-
-			my $sessionrequest =HTTP::Request->new( GET =>'https://session.bbc.co.uk/session?context=iplayerradio&userOrigin=sounds');
-			$session->send_request(
-				{
-					request => $sessionrequest,
-					onBody  => sub {
-						my ( $http, $self ) = @_;
-						$session->cookie_jar->save();
-						if ( _hasSession() ) {
-							$cbYes->();
-							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
-							return;
-						}else {
-							$log->warn("Failed to get session cookie");
-							$cbNo->();
-							main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession failed to get cookie");
-							return;
+					my $sessionrequest =HTTP::Request->new( GET =>'https://session.bbc.co.uk/session?context=iplayerradio&userOrigin=sounds');
+					$session->send_request(
+						{
+							request => $sessionrequest,
+							onBody  => sub {
+								my ( $http, $self ) = @_;
+								$session->cookie_jar->save();
+								if ( _hasSession() ) {
+									$cbYes->();
+									main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession");
+									return;
+								}else {
+									$log->warn("Failed to get session cookie");
+									$cbNo->();
+									main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession failed to get cookie");
+									return;
+								}
+							},
+							onError => sub {
+								my ( $http, $self ) = @_;
+								my $res = $http->response;
+								$log->warn("Could not renew session error : " . $res->status_line);
+								main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
+								$cbNo->();
+								main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession renew session failed");
+								return;
+							}
 						}
-					},
-					onError => sub {
-						my ( $http, $self ) = @_;
-						my $res = $http->response;
-						$log->warn("Could not renew session error : " . $res->status_line);
-						main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
-						$cbNo->();
-						main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession renew session failed");
-						return;
-					}
+					);
+				},
+				sub {
+					$log->error("Could not get location information");
 				}
 			);
 		}
@@ -344,32 +356,15 @@ sub getStreamJwt {
 	my $cbY = shift;
 	my $cbN = shift;
 	my $type = shift;
+	$type ||= 'live';
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("++getStreamJwt");	
-
-	geoLocationInfo (
-		sub {
-			my $userInfoJSON = shift;
-			my $country = $userInfoJSON->{'X-Country'};
-			my $isUK = $userInfoJSON->{'X-Ip_is_uk_combined'};
-			main::DEBUGLOG && $log->is_debug && $log->debug("Country : $country  isUK : $isUK");
-			if ($isUK eq 'yes' || $prefs->get('isUKListenerAbroad')) {
-				if ($type eq 'episode') {
-						$cbY->(0); #No JWT required
-						return;
-				} else {
-					getUKStreamJwt($id, $cbY, $cbN);
-				}
-			} else {
-				getInternationalStreamJwt($id, $cbY, $cbN, ($type eq 'episode') ? 'episode' : 'live');
-			}
-
-		 },
-		 sub {
-			$log->warn("Could not get user geolocation");
-			$cbN->();
-		 }
-	);	
+	main::DEBUGLOG && $log->is_debug && $log->debug("++getStreamJwt");
+	#Currently only using the UK JWT			
+	
+	if ($locationInfo->{'isUKListenerQualified'}) {
+			getUKStreamJwt($id, $cbY, $cbN);
+	}		
+	
 	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getStreamJwt");
 	return;
@@ -455,25 +450,30 @@ sub getInternationalStreamJwt {
 
 }
 
-sub geoLocationInfo {
+sub setLocationInfo {
 	my $cbY = shift;
 	my $cbN = shift;
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("++geoLocationInfo");
+	main::DEBUGLOG && $log->is_debug && $log->debug("++setLocationInfo");
 
 	Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;
 			main::DEBUGLOG && $log->is_debug && $log->debug('Have UserInfo');
 			my $JSON = decode_json ${ $http->contentRef };
-
+			
 			if (my $country = $JSON->{'X-Country'}) {
 
-				main::DEBUGLOG && $log->is_debug && $log->debug('User Info Obtained Country =  ' . $country);
+				$locationInfo->{'country'} = $JSON->{'X-Country'};
+				$locationInfo->{'isUKListenerClassified'} = $JSON->{'X-Ip_is_uk_combined'} eq 'yes' ? 1 : 0;				
+				$locationInfo->{'isUKListenerQualified'} = $locationInfo->{'isUKListenerClassified'} || $prefs->get('isUKListenerAbroad') ? 1 : 0;
 
-				$cbY->($JSON);
+				main::DEBUGLOG && $log->is_debug && $log->debug('Country : '. $locationInfo->{'country'} . ' Classified : ' . $locationInfo->{'isUKListenerClassified'} . ' Qualified : ' . $locationInfo->{'isUKListenerQualified'});
+
+				$cbY->();
+			
 			} else {
-				$log->warn('User Info Not profided');
+				$log->warn('User Info Not provided');
 				$cbN->();
 			}
 		},
@@ -486,8 +486,16 @@ sub geoLocationInfo {
 		}
 	)->get('https://bbc.com/userinfo');
 
-	main::DEBUGLOG && $log->is_debug && $log->debug("--geoLocationInfo");
+	main::DEBUGLOG && $log->is_debug && $log->debug("--setLocationInfo");
 	return;
+}
+
+sub setIsUKListenerQualified {
+	$locationInfo->{'isUKListenerQualified'} = $locationInfo->{'isUKListenerClassified'} || $prefs->get('isUKListenerAbroad') ? 1 : 0;
+}
+
+sub getCurrentLocationInfo {
+	return $locationInfo;
 }
 
 1;

@@ -100,6 +100,15 @@ sub init {
 
 	$homeMenuItems = $prefs->get('homeMenu');
 
+	Plugins::BBCSounds::SessionManagement::setLocationInfo(
+		sub {
+			main::DEBUGLOG && $log->is_debug && $log->debug("Location info set");
+		},
+		sub {
+			$log->error('Cound not get location information');
+		}		
+	);
+
 	_removeCacheMenu('toplevel'); #force remove
 }
 
@@ -204,13 +213,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_MUSIC,
 							items => $submenu,
 							order => 5,
-						  };
+						};
 					}
 				}
 				if (_getHomeMenuItemDisplay('unmissableSpeech')) {
@@ -223,13 +232,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
 							items => $submenu,
 							order => 6,
-						  };
+						};
 					}
 				}
 
@@ -243,13 +252,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image  => Plugins::BBCSounds::Utilities::IMG_EDITORIAL,
 							items => $submenu,
 							order => 7,
-						  };
+						};
 					}
 				}
 
@@ -263,13 +272,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_RECOMMENDATIONS,
 							items => $submenu,
 							order => 11,
-						  };
+						};
 					}
 				}
 
@@ -279,14 +288,14 @@ sub toplevel {
 					$module = _parseTopInlineMenu($JSON, 'latest_playables_for_curation-m001bm45');
 					$moduleTitle = 'All News';
 					push @$menu,
-					  {
+					{
 						name  => $moduleTitle,
 						type  => 'link',
 						url         => '',
 						image => Plugins::BBCSounds::Utilities::IMG_NEWS,
 						passthrough => [ { type => 'news', codeRef => 'getPage' } ],
 						order       => 10,
-					  };
+					};
 				}
 
 				if (_getHomeMenuItemDisplay('localToMe')) {
@@ -299,13 +308,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_LOCATION,
 							items => $submenu,
 							order => 12,
-						  };
+						};
 					}
 				}
 
@@ -318,13 +327,13 @@ sub toplevel {
 
 					_parseItems( $module->{data}, $submenu );
 					push @$menu,
-					  {
+					{
 						name  => $moduleTitle,
 						type  => 'link',
 						image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
 						items => $submenu,
 						order => 3,
-					  };
+					};
 				}
 
 				if (_getHomeMenuItemDisplay('continueListening')) {
@@ -337,13 +346,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_CONTINUE,
 							items => $submenu,
 							order => 13,
-						  };
+						};
 					}
 				}
 
@@ -358,13 +367,13 @@ sub toplevel {
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
 						push @$menu,
-						  {
+						{
 							name  => $moduleTitle,
 							type  => 'link',
 							image => Plugins::BBCSounds::Utilities::IMG_COLLECTIONS,
 							items => $submenu,
 							order => 14,
-						  };
+						};
 					}
 				}
 
@@ -388,13 +397,13 @@ sub toplevel {
 						#some times it points to a live network
 						if ( $singlePromo->{item}->{urn} =~ /:network:/) {
 							push @$submenu,
-							  {
+							{
 								name        => $moduleTitle,
 								type        => 'audio',
 								image        =>  Plugins::BBCSounds::PlayManager::createIcon($singlePromo->{item}->{image_url}),
 								url         => 'sounds://_LIVE_'. $singlePromo->{item}->{id},
 								on_select   => 'play'
-							  };
+							};
 
 						} else {
 							_parseItems($dataArr, $submenu);
@@ -440,7 +449,16 @@ sub toplevel {
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
 			sub {
-				$fetch->();
+					if (Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo()->{'isUKListenerQualified'}) {
+					$fetch->();
+				} else {
+					$menu = [
+						{
+							name =>'Not available in your location, please check location preferences in the plugin settings',
+						}
+					];
+					$callback->( { items => $menu } );
+				};
 			},
 			sub {
 				$menu = [
@@ -451,8 +469,8 @@ sub toplevel {
 				$callback->( { items => $menu } );
 			}
 		);
-	}
-
+		}
+	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--toplevel");
 	return;
 }

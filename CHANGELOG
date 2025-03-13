@@ -1,3 +1,6 @@
+2.50.1
+Removed International security attempt and added proper geo location check.
+
 2.50.0
 Added support for Geo Location checking to match BBC requirements.
 
