@@ -67,7 +67,7 @@ sub signIn {
 		#get the session
 		my $session = Slim::Networking::Async::HTTP->new;
 
-		my $initrequest = HTTP::Request->new( GET => 'https://account.bbc.com' );
+		my $initrequest = HTTP::Request->new( GET => 'https://session.bbc.co.uk/session?ptrt=https%3A%2F%2Fwww.bbc.co.uk%2Fsounds&context=iplayerradio&userOrigin=sounds' );
 		$initrequest->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
 		$session->send_request(
 			{
