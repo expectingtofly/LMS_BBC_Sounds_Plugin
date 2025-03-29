@@ -361,10 +361,14 @@ sub getStreamJwt {
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getStreamJwt");
 	#Currently only using the UK JWT			
+	if ($type eq 'episode') {
+		$cbY->();
+		return;
+	}
 	
-	if ($locationInfo->{'isUKListenerQualified'}) {
-			getUKStreamJwt($id, $cbY, $cbN);
-	}		
+	#if ($locationInfo->{'isUKListenerQualified'}) {
+	getUKStreamJwt($id, $cbY, $cbN);
+	#}		
 	
 	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getStreamJwt");
