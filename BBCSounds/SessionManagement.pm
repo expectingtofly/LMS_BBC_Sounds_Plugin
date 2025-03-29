@@ -262,8 +262,9 @@ sub renewSession {
 			main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession already");
 			return;
 		}else {
-			Plugins::BBCSounds::SessionManagement::setLocationInfo(
-				sub {			
+			#remove location check for the moment
+			#Plugins::BBCSounds::SessionManagement::setLocationInfo(
+			#	sub {			
 					my $session = Slim::Networking::Async::HTTP->new;
 
 					my $sessionrequest =HTTP::Request->new( GET =>'https://session.bbc.co.uk/session?context=iplayerradio&userOrigin=sounds');
@@ -295,11 +296,11 @@ sub renewSession {
 							}
 						}
 					);
-				},
-				sub {
-					$log->error("Could not get location information");
-				}
-			);
+				#},
+				#sub {
+				#	$log->error("Could not get location information");
+				#}
+			#);
 		}
 	}else {
 		$cbNo->();
