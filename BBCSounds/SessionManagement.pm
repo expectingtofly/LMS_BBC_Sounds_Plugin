@@ -67,8 +67,12 @@ sub signIn {
 		#get the session
 		my $session = Slim::Networking::Async::HTTP->new;
 
+		my $uString = Slim::Utils::Misc::userAgentString();
+		$uString =~ s/iTunes\/4.7.1/Mozilla\/5.0/;
+
 		my $initrequest = HTTP::Request->new( GET => 'https://session.bbc.co.uk/session?ptrt=https%3A%2F%2Fwww.bbc.co.uk%2Fsounds&context=iplayerradio&userOrigin=sounds' );
 		$initrequest->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
+		$initrequest->header( 'User-Agent' => $uString );
 		$session->send_request(
 			{
 				request => $initrequest,
@@ -89,6 +93,7 @@ sub signIn {
 					$requestUserName->header( 'Accept-Language' => 'en-GB,en;q=0.9' );
 					$requestUserName->header( 'Accept' =>'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
 					$requestUserName->header( 'Cache-Control' => 'max-age=0' );
+					$requestUserName->header( 'User-Agent' => $uString );
 
 					$session->send_request(
 						{
