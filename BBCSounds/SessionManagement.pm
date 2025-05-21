@@ -162,6 +162,22 @@ sub signIn {
 						}
 					);
 				},
+				onRedirect => sub {
+					my ( $req, $self ) = @_;
+
+					#ensure we get the 2 page sign on process
+
+					if ( $req->uri =~ /\/identifier\/signin\?/ ) {
+						my $redirectURI = $req->uri;
+						main::DEBUGLOG && $log->is_debug && $log->debug("Single Page URI identified : $redirectURI");
+						$redirectURI =~ s/\/identifier\/signin\?/\?/;
+						
+						main::DEBUGLOG && $log->is_debug && $log->debug("New URI for 2 page signin : $redirectURI");
+						$req->uri($redirectURI);
+					} else {
+						main::DEBUGLOG && $log->is_debug && $log->debug("Two page URI already in place : " . $req->uri);
+					}
+				},
 				onError =>
 
 				  # Called when no response was received or an error occurred.
