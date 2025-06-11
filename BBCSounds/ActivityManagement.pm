@@ -62,10 +62,9 @@ sub createActivity {
 						$callback->( $result );
 					},
 					onError => sub {
-						my ( $http, $self ) = @_;
+						my ( $http, $error ) = @_;
 
-						my $res = $http->response;
-						main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
+						$log->warn( 'Renew Session Error  - ' . $error );
 						$callback->( $result );
 					}
 				}
@@ -106,10 +105,9 @@ sub heartBeat {
 						main::DEBUGLOG && $log->is_debug && $log->debug('heartbeat status - ' . $res->status_line );
 					},
 					onError => sub {
-						my ( $http, $self ) = @_;
+						my ( $http, $error ) = @_;
 
-						my $res = $http->response;
-						$log->error('Heartbeat Error status - ' . $res->status_line );
+						$log->error('Heartbeat Error status - ' . $error );
 					}
 				}
 			);
@@ -151,10 +149,9 @@ sub deleteActivity {
 						$callback->( $result );
 					},
 					onError => sub {
-						my ( $http, $self ) = @_;
-
-						my $res = $http->response;
-						$log->error( 'Error status - ' . $res->status_line );
+						my ( $http, $error ) = @_;
+						
+						$log->error( 'Error status - ' . $error );
 						$callback->( $result );
 					}
 				}

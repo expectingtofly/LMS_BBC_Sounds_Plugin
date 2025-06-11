@@ -145,9 +145,8 @@ sub signIn {
 
 										},
 										onError => sub {
-											my ( $http, $self ) = @_;
-											my $res = $http->response;
-											$log->warn('Error status - ' . $res->status_line );
+											my ( $http, $error ) = @_;											
+											$log->warn('Error status - ' . $error );
 											$cbNo->();
 										}
 									}
@@ -261,9 +260,8 @@ sub signOut {
 				return;
 			},
 			onError => sub {
-				my ( $http, $self ) = @_;
-				my $res = $http->response;
-				main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
+				my ( $http, $error ) = @_;				
+				$log->warn( 'Signout Error status - ' . $error );
 				$cbNo->();
 				main::DEBUGLOG && $log->is_debug && $log->debug("--signOut");
 				return;
@@ -308,10 +306,9 @@ sub renewSession {
 								}
 							},
 							onError => sub {
-								my ( $http, $self ) = @_;
-								my $res = $http->response;
-								$log->warn("Could not renew session error : " . $res->status_line);
-								main::DEBUGLOG && $log->is_debug && $log->debug( 'Error status - ' . $res->status_line );
+								my ( $http, $error ) = @_;
+								
+								$log->warn("Could not renew session error : $error ");
 								$cbNo->();
 								main::DEBUGLOG && $log->is_debug && $log->debug("--renewSession renew session failed");
 								return;
