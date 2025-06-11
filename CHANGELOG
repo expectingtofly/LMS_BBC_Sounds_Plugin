@@ -1,3 +1,6 @@
+2.50.8
+Improve HTTP async error handling.  Show listen live by default.
+
 2.50.7
 Further UA fixes
 
