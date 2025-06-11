@@ -125,7 +125,7 @@ $prefs->migrate(
 				}
 			}
 			if (!$found) {
-				push @$m, { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 };
+				push @$m, { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>1, disabled=>0 };
 				$prefs->set('homeMenu', $m);
 			}
 		}
@@ -194,7 +194,7 @@ sub initPlugin {
 						 { item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
 						 { item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
 						 { item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
-						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>0, disabled=>0 },
+						 { item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>1, disabled=>0 },
 						 { item => 'news', title => 'All News',display=>0, disabled=>0 },
 						 { item => 'collections', title => 'Collections',display=>1, disabled=>0 },
 						],
