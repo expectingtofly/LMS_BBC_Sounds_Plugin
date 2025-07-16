@@ -124,74 +124,111 @@ sub toplevel {
 	my $fetch;
 
 	$fetch = sub {
-		$menu = [
-			{
-				name        => 'All Music',
-				type        => 'link',
-				url         => '',
-				image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
-				passthrough => [ { type => 'music', codeRef => 'getPage' } ],
-				order       => 8,
-			},
-			{
-				name => 'My Sounds',
-				type => 'link',
-				url  => '',
-				favorites_url => 'soundslist://_MYSOUNDS',
-				favorites_type	=> 'link',
-				playlist => 'soundslist://_MYSOUNDS',
-				image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
-				passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
-				order => 2,
-			},
-			{
-				name => 'Stations & Schedules',
-				type => 'link',
-				image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
-				url  => '',
-				passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
-				order => 4,
-			},
-			{
-				name => 'Browse Categories',
-				type => 'link',
-				image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
-				url  => '',
-				passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
-				order => 15,
-			},
-			{
-				name        => 'All Podcasts',
-				type        => 'link',
-				url         => '',
-				image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
-				passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
-				order       => 9,
-			},
-		];
+		my $isUK = Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo()->{'isUKListenerQualified'};
 
-		if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
-			push @$menu,{
+		if ($isUK) { #These are only applicable to UK listeners
+			$menu = [
+				{
+					name        => 'All Music',
+					type        => 'link',
+					url         => '',
+					image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
+					passthrough => [ { type => 'music', codeRef => 'getPage' } ],
+					order       => 8,
+				},
+				{
+					name => 'My Sounds',
+					type => 'link',
+					url  => '',
+					favorites_url => 'soundslist://_MYSOUNDS',
+					favorites_type	=> 'link',
+					playlist => 'soundslist://_MYSOUNDS',
+					image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
+					passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
+					order => 2,
+				},
+				{
+					name => 'Stations & Schedules',
+					type => 'link',
+					image => Plugins::BBCSounds::Utilities::IMG_STATIONS,
+					url  => '',
+					passthrough =>[ { type => 'stationlist', codeRef => 'getPage' } ],
+					order => 4,
+				},
+				{
+					name => 'Browse Categories',
+					type => 'link',
+					image => Plugins::BBCSounds::Utilities::IMG_BROWSE_CATEGORIES,
+					url  => '',
+					passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
+					order => 15,
+				},
+				{
+					name        => 'All Podcasts',
+					type        => 'link',
+					url         => '',
+					image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+					passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
+					order       => 9,
+				},
+			]; 
+		} else {  #This is the menu for listeners outside the UK (plus the listen live menu)
+			$menu = [	
+				{
+					name => 'My Sounds',
+					type => 'link',
+					url  => '',
+					favorites_url => 'soundslist://_MYSOUNDS',
+					favorites_type	=> 'link',
+					playlist => 'soundslist://_MYSOUNDS',
+					image => Plugins::BBCSounds::Utilities::IMG_MY_SOUNDS,
+					passthrough =>[ { type => 'mysounds', codeRef => 'getSubMenu' } ],
+					order => 2,
+				},				
+				{
+					name        => 'All Podcasts',
+					type        => 'link',
+					url         => '',
+					image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
+					passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
+					order       => 9,
+				},
+				{
+					name        => 'Limited International Menu',
+					type        => 'link',
+					items		=> [{
+							name => "You are viewing a limited menu availalable to users outside the UK. Please check your 'Location Preferences' in the BBC Sounds settings.",
+							type => 'text',							
+					}],
+					order       => 99,
+				},
+			]; 
+		}
 
-				name        => 'Search',
-				type        => 'link',
-				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
-				url         => '',
-				passthrough => [ { codeRef => 'recentSearches' } ],
-				order       => 1,
-			};
+		if ($isUK) {   #Search menu is only available to UK qualified listeners
+			if (Plugins::BBCSounds::Utilities::hasRecentSearches()) {
+				push @$menu,{
 
-		} else {
-			push @$menu,{
+					name        => 'Search',
+					type        => 'link',
+					image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
+					url         => '',
+					passthrough => [ { codeRef => 'recentSearches' } ],
+					order       => 1,
+				};
 
-				name        => 'Search',
-				type        => 'search',
-				image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
-				url         => '',
-				passthrough => [ { type => 'search', codeRef => 'getPage' } ],
-				order       => 1,
+			} else {
+				push @$menu,{
 
-			};
+					name        => 'Search',
+					type        => 'search',
+					image => Plugins::BBCSounds::Utilities::IMG_SEARCH,
+					url         => '',
+					passthrough => [ { type => 'search', codeRef => 'getPage' } ],
+					order       => 1,
+
+				};
+			}
 		}
 
 
@@ -208,7 +245,7 @@ sub toplevel {
 				my $moduleTitle = $module->{title};
 				my $submenu = [];
 
-				if (_getHomeMenuItemDisplay('unmissableMusic')) {
+				if (_getHomeMenuItemDisplay('unmissableMusic') && $isUK) {
 
 					if ($module->{total}) {
 						_parseItems( $module->{data}, $submenu );
@@ -222,7 +259,7 @@ sub toplevel {
 						};
 					}
 				}
-				if (_getHomeMenuItemDisplay('unmissableSpeech')) {
+				if (_getHomeMenuItemDisplay('unmissableSpeech') && $isUK) {
 
 					#Editorial menu
 					$module = _parseTopInlineMenu($JSON, 'unmissable_speech');
@@ -242,7 +279,7 @@ sub toplevel {
 					}
 				}
 
-				if (_getHomeMenuItemDisplay('editorial')) {
+				if (_getHomeMenuItemDisplay('editorial') && $isUK) {
 
 					#Editorial menu
 					$module = _parseTopInlineMenu($JSON, 'editorial_collection');
@@ -262,7 +299,7 @@ sub toplevel {
 					}
 				}
 
-				if (_getHomeMenuItemDisplay('recommendations')) {
+				if (_getHomeMenuItemDisplay('recommendations') && $isUK) {
 
 					#Recommended
 					$module = _parseTopInlineMenu($JSON, 'recommendations');
@@ -282,7 +319,7 @@ sub toplevel {
 					}
 				}
 
-				if (_getHomeMenuItemDisplay('news')) {
+				if (_getHomeMenuItemDisplay('news') && $isUK) {
 
 					#Recommended
 					$module = _parseTopInlineMenu($JSON, 'latest_playables_for_curation-m001bm45');
@@ -298,7 +335,7 @@ sub toplevel {
 					};
 				}
 
-				if (_getHomeMenuItemDisplay('localToMe')) {
+				if (_getHomeMenuItemDisplay('localToMe') && $isUK) {
 
 					#Local To Me
 					$module = _parseTopInlineMenu($JSON, 'local_rail');
@@ -318,7 +355,7 @@ sub toplevel {
 					}
 				}
 
-				if (_getHomeMenuItemDisplay('listenLive')) {
+				if (_getHomeMenuItemDisplay('listenLive') || (!$isUK)) {
 
 					#Live Stations Only
 					$module = _parseTopInlineMenu($JSON, 'listen_live');
@@ -336,7 +373,7 @@ sub toplevel {
 					};
 				}
 
-				if (_getHomeMenuItemDisplay('continueListening')) {
+				if (_getHomeMenuItemDisplay('continueListening') && $isUK) {
 
 					#Continue Listening
 					$module = _parseTopInlineMenu($JSON, 'continue_listening');
@@ -357,7 +394,7 @@ sub toplevel {
 				}
 
 
-				if (_getHomeMenuItemDisplay('collections')) {
+				if (_getHomeMenuItemDisplay('collections') && $isUK) {
 
 					#Continue Listening
 					$module = _parseTopInlineMenu($JSON, 'collections');
@@ -378,7 +415,7 @@ sub toplevel {
 				}
 
 
-				if (_getHomeMenuItemDisplay('SingleItemPromotion')) {
+				if (_getHomeMenuItemDisplay('SingleItemPromotion') && $isUK) {
 
 					#single item promo
 					$module = _parseTopInlineMenu($JSON, 'single_item_promo');
@@ -448,18 +485,8 @@ sub toplevel {
 		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
 
 		Plugins::BBCSounds::SessionManagement::renewSession(
-			sub {
-				#if (Plugins::BBCSounds::SessionManagement::getCurrentLocationInfo()->{'isUKListenerQualified'}) {
-				if (1) {  # Temporarily remove location check
-					$fetch->();
-				} else {
-					$menu = [
-						{
-							name =>'Not available in your location, please check location preferences in the plugin settings',
-						}
-					];
-					$callback->( { items => $menu } );
-				};
+			sub {			
+				$fetch->();			
 			},
 			sub {
 				$menu = [

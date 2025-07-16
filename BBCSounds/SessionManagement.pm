@@ -385,9 +385,7 @@ sub getStreamJwt {
 		return;
 	}
 	
-	#if ($locationInfo->{'isUKListenerQualified'}) {
 	getUKStreamJwt($id, $cbY, $cbN);
-	#}		
 	
 	
 	main::DEBUGLOG && $log->is_debug && $log->debug("--getStreamJwt");
