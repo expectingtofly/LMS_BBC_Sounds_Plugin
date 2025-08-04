@@ -138,6 +138,9 @@ sub signIn {
 											#try and change the method to get, as it automatically keeps it as post
 											if ( $req->method eq 'POST' ) {
 												$req->method('GET');
+												$req->content('');
+            									$req->remove_header('Content-Length');
+            									$req->remove_header('Content-Type');
 											}
 
 											main::DEBUGLOG && $log->is_debug && $log->debug('Cookies on Redirect : ' . Dumper($session->cookie_jar));
