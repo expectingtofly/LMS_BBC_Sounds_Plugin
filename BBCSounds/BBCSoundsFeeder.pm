@@ -2073,7 +2073,7 @@ sub getNetworkSchedule {
 	my $callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/poll/' . $network;
 
 	if ($isPrevious) {
-		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=420&sort=-start_at';
+		$callurl = 'https://rms.api.bbc.co.uk/v2/broadcasts/latest?service=' . $network . '&previous=600&sort=-start_at';
 	}
 
 
@@ -2255,7 +2255,7 @@ sub soundsInfoIntegration {
 
 			my $station = Plugins::BBCSounds::ProtocolHandler::_getStationID($url);
 			push @$items,
-			  {
+			{
 				name => "$stationName Live Tracklist",
 				type        => 'link',
 				url         => \&getPage,
@@ -2267,9 +2267,22 @@ sub soundsInfoIntegration {
 						codeRef => 'getPage'
 					}
 				],
-			  };
-
+			};
+			push @$items,
+			{
+				name 	=>	"Rewind to time",
+				line1	=>  "Rewind to time",
+				line2  =>   "Rewind $stationName to a specific time",					
+				type        => 'link',
+				url         => \&inputLiveRewindTime,				
+				passthrough => [
+					{
+						song	  => $song,
+					}
+				]
+			};
 		}
+		
 
 		my $song = Slim::Player::Source::playingSong($client);
 
@@ -2692,6 +2705,179 @@ sub seekToTime {
 	);
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--seekToTime");
+}
+
+
+sub inputLiveRewindTime {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++inputLiveRewindTime");
+	my $song =  $passDict->{'song'};
+	
+	
+	
+	my $menu = [];
+
+	# Round down to nearest quarter hour
+	my $nowTime = time();
+    my $nowRounded = $nowTime - ($nowTime % (15 * 60));
+    
+    for (my $t = $nowRounded; ; $t -= 15 * 60) {
+		
+		last if ($nowTime - $t) > 6 * 3600;
+
+		my $ft = strftime('%H:%M', localtime($t));
+		
+		push @$menu,
+			{
+				name 	=>	'Rewind to ' .  $ft,
+				type        => 'link',
+				url         => \&skipToTime,
+				nextWindow => 'parent',
+				passthrough => [
+					{
+						song		=> $song,
+						skipTime	=> $t,
+						formattedTime => $ft,
+					}
+				]
+			};
+    }
+
+	my $mainMenu = [
+		{
+			name => 'Select time from list',
+			type => 'link',
+			items => $menu,
+		},
+		{
+			name => 'Enter specific time',
+			type => 'link',
+			items => [ {
+				name =>  'Enter specific time in HH:MM format',
+				type => 'search',
+				url => \&skipToEnteredTime,
+				passthrough => [
+					{
+						song		=> $song,
+					}
+				],
+			}]
+		}
+	];
+
+	$callback->( { items => $mainMenu } );
+	main::DEBUGLOG && $log->is_debug && $log->debug("--inputLiveRewindTime");
+}
+
+sub skipToEnteredTime {
+	my ( $client, $callback, $args, $passDict ) = @_;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("++skipToEnteredTime");
+
+	my $time_str = $args->{'search'};
+
+    # Expect format HH:MM
+    unless ($time_str =~ /^(\d{1,2}):(\d{2})$/) {
+		$callback->(
+		{
+			items => [
+				{
+					name        => "Invalid time format",
+					showBriefly => 1,
+					nowPlaying  => 1, # then return to Now Playing
+				}
+			]
+		});
+        $log->error("Invalid skip to time value - $time_str");
+		return;
+    }
+
+    my ($hour, $min) = ($1, $2);
+
+    # Get today's date
+    my ($sec,$cur_min,$cur_hour,$mday,$mon,$year) = localtime();
+    $year += 1900;
+    $mon  += 1;
+
+    # Format YYYY-MM-DD HH:MM
+    my $today_str     = sprintf("%04d-%02d-%02d %02d:%02d", $year, $mon, $mday,     $hour, $min);
+    my $yesterday_str = sprintf("%04d-%02d-%02d %02d:%02d", $year, $mon, $mday - 1, $hour, $min);
+
+    # Convert to epoch
+    my $epoch_today     = str2time($today_str);
+    my $epoch_yesterday = str2time($yesterday_str);
+
+    my $now = time();
+    my $now = time();
+
+    # Check today’s candidate
+    if (defined $epoch_today) {
+        my $diff = $now - $epoch_today;
+		if ($diff >= 0 && $diff <= 6*3600) {
+			$passDict->{'skipTime'} = $epoch_today;
+		}
+    }
+
+    # Check yesterday’s candidate
+    if (defined $epoch_yesterday) {
+        my $diff = $now - $epoch_yesterday;
+        if ($diff >= 0 && $diff <= 6*3600) {
+			$passDict->{'skipTime'} = $epoch_yesterday;			
+		}
+    }
+
+	if (defined $passDict->{'skipTime'}) {
+		$passDict->{'formattedTime'} = $args->{'search'};
+		skipToTime ($client, $callback, $args, $passDict);
+		return;
+	} else {
+		$callback->(
+		{
+			items => [
+				{
+					name        => "Time must be within 6 hours",
+					showBriefly => 1,
+					nowPlaying  => 1, # then return to Now Playing
+				}
+			]
+		});
+        $log->error("Invalid skip to time value $time_str");
+		return;
+	}
+
+	return;
+}
+
+sub skipToTime {
+	my ( $client, $callback, $args, $passDict ) = @_;
+	main::DEBUGLOG && $log->is_debug && $log->debug("++skipToTime");
+
+	my $newPos =  $passDict->{'skipTime'};
+	my $formattedTime = $passDict->{'formattedTime'};
+	my $song =   $passDict->{'song'};
+	my $props = $song->pluginData('props');
+	$props->{reverseSkip} = 1;
+	$props->{skipToTime} = $newPos;
+	$song->pluginData( props   => $props );
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("Skipping to $formattedTime - $newPos ");
+
+
+	$client->controller()->skip();
+
+	$callback->(
+		{
+			items => [
+				{
+					name        => "Skipping to time $formattedTime",
+					showBriefly => 1,
+					nowPlaying  => 1, # then return to Now Playing
+				}
+			]
+		}
+	);
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("--skipToTime");
 }
 
 1;
