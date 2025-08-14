@@ -241,7 +241,7 @@ sub new {
 		main::INFOLOG && $log->is_info && $log->info("Seeking to $startTime  edge $edge live_edge $liveEdge maximum start time $maxStartTime");
 
 		#This "song" has a maximum age
-		my $maximumAge = 18000;  # 5 hours
+		my $maximumAge = 21600;  # 5 hours
 		if ((Time::HiRes::time() - $props->{comparisonTime}) > $maximumAge) {
 
 			#we need to end this track and let it rise again
@@ -1229,11 +1229,21 @@ sub getNextTrack {
 				return $errorCb->() unless ($existingProps->{endNumber} > 0);
 
 				if ( $existingProps->{reverseSkip} ) {
-					$existingProps->{comparisonTime} -= (($existingProps->{comparisonStartNumber} - $existingProps->{previousStartNumber})) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
-					$existingProps->{endNumber} = $existingProps->{startNumber} - 1;
-					$existingProps->{startNumber} = $existingProps->{previousStartNumber};					
-					$existingProps->{previousStartNumber} = 0;					
-					$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+					if (!($existingProps->{skipToTime})) {
+						$existingProps->{comparisonTime} -= (($existingProps->{comparisonStartNumber} - $existingProps->{previousStartNumber})) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});
+						$existingProps->{endNumber} = $existingProps->{startNumber} - 1;
+						$existingProps->{startNumber} = $existingProps->{previousStartNumber};
+						$existingProps->{previousStartNumber} = 0;
+						$existingProps->{comparisonStartNumber} = $existingProps->{startNumber};
+					
+					} else { # this is rewind to a specific time contained in SkipToTime
+							my $index = floor((($existingProps->{skipToTime} + PROGRAMME_LATENCY) / ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale})) + 0.5);
+							$existingProps->{startNumber} = $index;
+							$existingProps->{comparisonTime} -= (($existingProps->{comparisonStartNumber} - $existingProps->{startNumber})) * ($existingProps->{segmentDuration} / $existingProps->{segmentTimescale});						
+							$existingProps->{comparisonStartNumber} = $index;
+							$existingProps->{endNumber} = 0;
+							$existingProps->{previousStartNumber} = 0;
+					}
 
 				} else {
 				
@@ -1250,6 +1260,7 @@ sub getNextTrack {
 
 					$updatedProps->{skip} = 0;
 					$updatedProps->{reverseSkip} = 0;
+					$updatedProps->{skipToTime} = 0;
 					$song->pluginData( props   => $updatedProps );
 					$song->isLive(1);
 					main::INFOLOG && $log->is_info && $log->info("Continuation  of $masterUrl at " .$existingProps->{startNumber} );
