@@ -2732,7 +2732,7 @@ sub inputLiveRewindTime {
 				name 	=>	'Rewind to ' .  $ft,
 				type        => 'link',
 				url         => \&skipToTime,
-				nextWindow => 'parent',
+				nextWindow => 'refresh',
 				passthrough => [
 					{
 						song		=> $song,
@@ -2807,7 +2807,6 @@ sub skipToEnteredTime {
     my $epoch_today     = str2time($today_str);
     my $epoch_yesterday = str2time($yesterday_str);
 
-    my $now = time();
     my $now = time();
 
     # Check today’s candidate
