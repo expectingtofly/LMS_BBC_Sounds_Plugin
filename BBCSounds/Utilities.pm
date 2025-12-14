@@ -52,6 +52,7 @@ use constant IMG_NEWS => 'plugins/BBCSounds/html/images/News_MTL_icon_trending_u
 use constant IMG_COLLECTIONS => 'plugins/BBCSounds/html/images/Collections_MTL_icon_apps.png';
 use constant IMG_DELETE => 'plugins/BBCSounds/html/images/Delete_MTL_icon_delete.png';														  
 use constant IMG_CLOSE => 'plugins/BBCSounds/html/images/Close_MTL_icon_close.png';		
+use constant IMG_BBCSOUNDS => 'plugins/BBCSounds/html/images/BBCSoundsIcon_svg.png';
 
 use constant IMG_NOWPLAYING_SUBSCRIBE => 'plugins/BBCSounds/html/images/btn_heart_subscribe.gif';
 use constant IMG_NOWPLAYING_BOOKMARK => 'plugins/BBCSounds/html/images/btn_thumbsup_bookmark.gif';
@@ -110,5 +111,3 @@ sub isSoundsURL {
 }
 
 1;
-
-

@@ -273,6 +273,13 @@ sub postinitPlugin {
 				}
 			);
 		}
+		if ( Slim::Utils::PluginManager->isEnabled('Plugins::MaterialSkin::Plugin') && Plugins::MaterialSkin::Plugin->can('registerHomeExtra') ) {
+			eval {
+				require Plugins::BBCSounds::HomeExtras;
+			};
+
+			$log->error("Could not load BBC Sounds Home Extras: $@") if $@;
+		}
 	}
 }
 

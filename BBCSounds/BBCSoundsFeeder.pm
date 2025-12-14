@@ -732,8 +732,8 @@ sub getPersonalisedPage {
 	main::DEBUGLOG && $log->is_debug && $log->debug("++getPersonalisedPage Args : " . Dumper($args));
 
 	my $menuType = $passDict->{'type'};
+	my $isForHomeExtras = $passDict->{'isForHomeExtras'} // 0;
 	my $callurl  = "";
-	my $cacheIt = 1;
 
 	my $offset = '';
 	if (defined $passDict->{'offset'}) {
@@ -765,7 +765,12 @@ sub getPersonalisedPage {
 					sub {
 						my $http = shift;
 						_parse( $http, $menuType, $menu, $denominator, $passDict );
-						if ($cacheIt) { _cacheMenu( $callurl, $menu, 21600); }  # Long term cache if needed
+						if ($isForHomeExtras) {
+							_cacheMenu( 'homeextras' . $menuType, $menu, 300); # short caching for home extras 
+						} else {
+							_cacheMenu( $callurl, $menu, 21600); # Long term caching if needed
+						}
+
 						_renderMenuCodeRefs($menu);
 						$callback->( { items => $menu } );
 					},
@@ -786,12 +791,19 @@ sub getPersonalisedPage {
 		);
 	};
 
-	#For Personalised Pages, we only retreive from cache if we are futher down the menu tree
-	if ( $cacheIt && ($args->{'quantity'} == 1) && ( my $cachemenu = _getCachedMenu($callurl) ) ) {
+	#For Personalised Pages, we only retreive from cache if we are futher down the menu tree or we are being called from home extras
+	my $cachemenu;
+	if ($isForHomeExtras) {
+		$cachemenu = _getCachedMenu('homeextras' . $menuType);
+	} elsif ($args->{'quantity'} == 1) {
+		$cachemenu = _getCachedMenu($callurl);
+	}
+
+	if ($cachemenu) {
 		main::DEBUGLOG && $log->is_debug && $log->debug("Have cached menu");
 		_renderMenuCodeRefs($cachemenu);
 		$callback->( { items => $cachemenu } );
-	}else {
+	} else {
 		main::DEBUGLOG && $log->is_debug && $log->debug("No cache");
 		$fetch->();
 	}
