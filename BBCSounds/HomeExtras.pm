@@ -32,6 +32,7 @@ sub initPlugin {
 		tag  => "BBCSoundsExtras${tag}",
 		extra => {
 			title => $args{title},
+            subtitle => $args{subtitle} || '',
 			icon  => $args{icon} || Plugins::BBCSounds::Utilities::IMG_BBCSOUNDS,
 			needsPlayer => 1,
 		}
@@ -59,6 +60,7 @@ sub initPlugin {
 
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds',
+        subtitle => 'Home menu',
 		tag => 'home'
 	);
 }
@@ -75,6 +77,7 @@ sub initPlugin {
 
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Subscriptions',
+        subtitle => 'My Sounds subscriptions',
 		tag => 'subscribed'
 	);
 }
@@ -91,6 +94,7 @@ sub initPlugin {
 
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Latest',
+        subtitle => 'Latest episododes from your subscriptions',
 		tag => 'latest'
 	);
 }
@@ -123,6 +127,7 @@ sub initPlugin {
 
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Bookmarks',
+        subtitle => 'My Sounds bookmarked episodes',
 		tag => 'bookmarks'
 	);
 }
