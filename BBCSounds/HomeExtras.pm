@@ -15,6 +15,8 @@ Plugins::BBCSounds::HomeExtraSubscriptions->initPlugin();
 Plugins::BBCSounds::HomeExtraLatest->initPlugin();
 Plugins::BBCSounds::HomeExtraTopContinueListening->initPlugin();
 Plugins::BBCSounds::HomeExtraBookmarks->initPlugin();
+Plugins::BBCSounds::HomeExtraNewsPlaylist->initPlugin();
+Plugins::BBCSounds::HomeExtraRecommendations->initPlugin();
 
 1;
 
@@ -26,9 +28,11 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	my $tag = $args{tag};
+	my $source = $args{source};
+	my $urn = $args{urn} || undef;
 
 	$class->SUPER::initPlugin(
-		feed => sub { handleFeed($tag, @_) },
+		feed => sub { handleFeed($tag, $source, $urn, @_) },
 		tag  => "BBCSoundsExtras${tag}",
 		extra => {
 			title => $args{title},
@@ -40,13 +44,25 @@ sub initPlugin {
 }
 
 sub handleFeed {
-	my ($tag, $client, $cb, $args) = @_;
+	my ($tag, $source, $urn, $client, $cb, $args) = @_;
     
-    if ($tag eq 'home' ) {
+    if ($source eq 'home' ) {
         Plugins::BBCSounds::BBCSoundsFeeder::toplevel($client, $cb, undef);
-    } else {            
+    } elsif ($source eq 'personalised' ) {
         Plugins::BBCSounds::BBCSoundsFeeder::getPersonalisedPage($client, $cb, {quantity => 0}, {type => $tag, isForHomeExtras => 1} );        
-    }
+    } else {
+		Plugins::BBCSounds::SessionManagement::renewSession(
+			sub {
+				my $actualTag = $urn ? 'inlineURN' : $tag;
+				Plugins::BBCSounds::BBCSoundsFeeder::getPage($client, $cb, undef, {type => $actualTag, urn => $urn, offset  => 0 } );
+			},
+			#could not get a session
+			sub {
+				my $menu = [ { name => 'Failed to get menu - Could not get session' } ];
+				$cb->( { items => $menu } );
+			}
+		);
+	}
 }
 
 1;
@@ -61,7 +77,8 @@ sub initPlugin {
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds',
         subtitle => 'Home menu',
-		tag => 'home'
+		tag => 'home',
+		source => 'home'
 	);
 }
 
@@ -78,7 +95,8 @@ sub initPlugin {
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Subscriptions',
         subtitle => 'My Sounds subscriptions',
-		tag => 'subscribed'
+		tag => 'subscribed',
+		source => 'personalised'
 	);
 }
 
@@ -95,7 +113,8 @@ sub initPlugin {
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Latest',
         subtitle => 'Latest episododes from your subscriptions',
-		tag => 'latest'
+		tag => 'latest',
+		source => 'personalised'
 	);
 }
 
@@ -111,7 +130,9 @@ sub initPlugin {
 
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Continue Listening',
-		tag => 'continue'
+		subtitle => 'Continue listening to your recently played episodes and series',
+		tag => 'continue',
+		source => 'personalised'
 	);
 }
 
@@ -128,8 +149,45 @@ sub initPlugin {
 	$class->SUPER::initPlugin(
 		title => 'BBC Sounds Bookmarks',
         subtitle => 'My Sounds bookmarked episodes',
-		tag => 'bookmarks'
+		tag => 'bookmarks',
+		source => 'personalised'
 	);
 }
 
 1;
+
+package Plugins::BBCSounds::HomeExtraNewsPlaylist;
+
+use base qw(Plugins::BBCSounds::HomeExtraBase);
+
+sub initPlugin {
+	my ($class, %args) = @_;
+
+	$class->SUPER::initPlugin(
+		title => 'BBC Sounds Latest News',
+        subtitle => 'Latest news from the BBC',
+		tag => 'news',
+		source => 'standard',
+		urn => 'urn:bbc:radio:curation:m001bm45'
+	);
+}
+
+1;
+
+package Plugins::BBCSounds::HomeExtraRecommendations;
+
+use base qw(Plugins::BBCSounds::HomeExtraBase);
+
+sub initPlugin {
+	my ($class, %args) = @_;
+
+	$class->SUPER::initPlugin(
+		title => 'BBC Sounds Recommendations For You',
+        subtitle => 'Personal recommendations from BBC Sounds',
+		tag => 'recommendations',
+		source => 'standard'
+	);
+}
+
+1;
+
