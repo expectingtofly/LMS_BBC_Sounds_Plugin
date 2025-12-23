@@ -1228,7 +1228,7 @@ sub _parseLiveTracklist {
 		my $label = '';
 		if ($item->{offset}->{label}) {
 			$label = $item->{offset}->{label};
-		} else {
+		} elsif (defined $item->{offset}->{start}) {
 			$label = strftime( '%H:%M:%S ', gmtime($item->{offset}->{start}) );
 		}
 
