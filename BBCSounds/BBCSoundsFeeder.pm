@@ -513,6 +513,9 @@ sub getPage {
 	my $denominator = "";
 	my $cacheIt     = 1;
 
+	main::DEBUGLOG && $log->is_debug && $log->debug("Menu Type: $menuType");
+	
+
 	if ( $menuType eq 'stationlist' ) {
 		$callurl = 'https://rms.api.bbc.co.uk/v2/experience/inline/stations';
 	}elsif ( $menuType eq 'tleo' ) {
