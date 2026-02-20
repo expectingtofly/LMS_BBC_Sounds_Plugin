@@ -93,8 +93,8 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Subscriptions',
-        subtitle => 'My Sounds subscriptions',
+		title => 'Subscriptions',
+        subtitle => 'BBC Sounds - My Sounds subscriptions',
 		tag => 'subscribed',
 		source => 'personalised'
 	);
@@ -111,8 +111,8 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Latest',
-        subtitle => 'Latest episododes from your subscriptions',
+		title => 'Latest',
+        subtitle => 'Latest episododes from your BBC Sounds subscriptions',
 		tag => 'latest',
 		source => 'personalised'
 	);
@@ -129,8 +129,8 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Continue Listening',
-		subtitle => 'Continue listening to your recently played episodes and series',
+		title => 'Continue Listening',
+		subtitle => 'BBC Sounds - Continue listening to your recently played episodes and series',
 		tag => 'continue',
 		source => 'personalised'
 	);
@@ -147,8 +147,8 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Bookmarks',
-        subtitle => 'My Sounds bookmarked episodes',
+		title => 'Bookmarks',
+        subtitle => 'BBC Sounds - My Sounds bookmarked episodes',
 		tag => 'bookmarks',
 		source => 'personalised'
 	);
@@ -164,7 +164,7 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Latest News',
+		title => 'Latest News',
         subtitle => 'Latest news from the BBC',
 		tag => 'news',
 		source => 'standard',
@@ -182,7 +182,7 @@ sub initPlugin {
 	my ($class, %args) = @_;
 
 	$class->SUPER::initPlugin(
-		title => 'BBC Sounds Recommendations For You',
+		title => 'Recommendations For You',
         subtitle => 'Personal recommendations from BBC Sounds',
 		tag => 'recommendations',
 		source => 'standard'
