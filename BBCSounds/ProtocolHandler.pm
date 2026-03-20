@@ -2238,21 +2238,14 @@ sub _getMPDUrl {
 	my $cbY  = shift;
 	my $cbN  = shift;
 	my $jwt  = shift;
-
-	my $url = "https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json";
-
-	if ($jwt) {
-		$url .= "?jwt_auth=$jwt";
-	}
 	
-	main::DEBUGLOG && $log->is_debug && $log->debug("Media Selector URL  $url");
-
-	Slim::Networking::SimpleAsyncHTTP->new(
+	Plugins::BBCSounds::SessionManagement::mediaSelectorHandler (
+		$id,
+		$jwt,
 		sub {
-			my $http = shift;
-			my $json = decode_json ${ $http->contentRef };
-			main::DEBUGLOG && $log->is_debug && $log->debug(${ $http->contentRef });
-
+			my $json = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($json));
+			
 			my $mediaitems = [];
 			$mediaitems = $json->{media};
 			@$mediaitems = reverse sort { int($a->{bitrate}) <=> int($b->{bitrate}) } @$mediaitems;
@@ -2263,34 +2256,33 @@ sub _getMPDUrl {
 			$protocol = 'http' if $prefs->get('forceHTTP');
 			my $mpd = '';
 			my $fallbackmpd = '';			
-			my $priority = 0;
+			my $supplier = '';
+			
 			for my $connection (@$connections) {
-				if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-					if (!$priority) {
+				if ($connection->{transferFormat} eq 'dash') {
+					if ($mpd eq '') {
 						$mpd = $connection->{href};
-						$priority = int($connection->{priority});
-
-						main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-					} elsif ( ($connection->{priority} > int($priority)) ) {
+						$supplier = $connection->{supplier};						
+					} elsif ($connection->{supplier} ne $supplier) {
 						$fallbackmpd = $connection->{href};
-						$cbY->($mpd, $fallbackmpd);
-						return;
-					}					
+						last;
+					}
 				}
 			}
-			if ($priority) {
-				$cbY->($mpd);
-				return;
+			if ($mpd eq '') {
+				$log->error("No Dash Found");
+				$cbN->();
+			} else {
+				main::DEBUGLOG && $log->is_debug && $log->debug("MPD URL obtained : $mpd and fallback : $fallbackmpd");
+				$cbY->($mpd, $fallbackmpd);
 			}
-			$log->error("No Dash Found");
-			$cbN->();
 			return;
 		},
 		sub {
 			$log->warn('This content is most likely not available in your region.');
 			$cbN->();
 		}
-	)->get($url);
+	);
 	return;
 }
 
