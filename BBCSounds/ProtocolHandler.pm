@@ -418,7 +418,7 @@ sub onStream {
 		my $id = getId( $song->track->url );
 		my $pid = getPid( $song->track->url );
 		Plugins::BBCSounds::ActivityManagement::heartBeat($id, $pid,'started', floor( $song->master->controller->playingSongElapsed ));
-	}
+	} 
 
 }
 
@@ -991,6 +991,10 @@ sub sysread {
 									$props->{'isContinue'} = 1;
 									$song->pluginData( props   => $props );
 									main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+									
+									my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+									my $isNow = (Time::HiRes::time()-$edge) < 40;
+									Plugins::BBCSounds::ActivityManagement::livePlays(_getStationID($masterUrl), $props->{'urn'}, 'ended') if $isNow;
 								} else {
 									Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'ended',floor($props->{'duration'}));
 								}
@@ -1006,7 +1010,11 @@ sub sysread {
 
 								# check for live track if we are within striking distance of the live edge
 								$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});
-
+								if ($isNow && $v->{'firstIn'}) {
+									#record liveplays									
+									Plugins::BBCSounds::ActivityManagement::livePlays(_getStationID($masterUrl), $props->{'urn'}, 'started');
+								}
+							
 							} else {
 
 								$self->liveTrackData($replOffset, 1, 0 );
@@ -1433,6 +1441,7 @@ sub liveSongMetaData {
 					sub {
 						my $retMeta = shift;
 						main::DEBUGLOG && $log->is_debug && $log->debug('Have new meta data for track');
+						main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($retMeta));
 						#set up chunk range						
 						my $currentStartNumber = $props->{startNumber};
 						$props->{startNumber} = $resp->{startOffset};
@@ -1449,8 +1458,11 @@ sub liveSongMetaData {
 
 						$song->pluginData( meta  => $retMeta );
 						
+						$props->{urn} = $retMeta->{urn};
+
 						#Finally, get the previous start number, if there is one and we haven't got one already						
 						$props->{previousStartNumber} = 0;
+
 					
 						if ( my $lastresp = _getIDForBroadcast($schedule, $props->{startNumber} - 2, $props) ) {
 							#We can only go back 6 hours
