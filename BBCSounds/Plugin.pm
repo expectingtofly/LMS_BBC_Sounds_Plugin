@@ -44,6 +44,25 @@ my $log = Slim::Utils::Log->addLogCategory(
 my $prefs = preferences('plugin.bbcsounds');
 
 
+$prefs->migrate(
+	13,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		#remove item 'music' and 'podcasts' that are no longer used.
+		my @new_menu = grep { $_->{item} ne 'music' && $_->{item} ne 'podcasts' } @$m;
+
+		#Add new item 'explore' if not already there
+		my @exploreonly = grep { $_->{item} eq 'explore'} @new_menu;
+		if ( !(scalar @exploreonly) ) {
+			push @new_menu, { item => 'explore', title => 'Explore All', display=>1, disabled=>1 } ;
+		}
+
+		$prefs->set('homeMenu', \@new_menu);
+		
+		1;
+	}
+);
+
 
 $prefs->migrate(
 	12,
@@ -186,9 +205,8 @@ sub initPlugin {
 						 { item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
 						 { item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 },
 						 { item => 'unmissableMusic', title => 'Music You\'ll Love (Unmissable Music)',display=>1, disabled=>0 },						 
-						 { item => 'editorial', title => 'Promoted Editorial Content',display=>1, disabled=>0 },
-						 { item => 'music', title => 'All Music', display=>1, disabled=>1 },
-						 { item => 'podcasts', title => 'All Podcasts', display=>1, disabled=>1 },
+						 { item => 'editorial', title => 'Promoted Editorial Content',display=>1, disabled=>0 },						 
+						 { item => 'explore', title => 'Explore All', display=>1, disabled=>1 },
 						 { item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
 						 { item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
 						 { item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
