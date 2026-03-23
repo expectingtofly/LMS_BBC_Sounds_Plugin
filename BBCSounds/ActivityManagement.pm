@@ -85,7 +85,7 @@ sub heartBeat {
 	my $type = shift;
 	my $time = shift;
 
-	my $body ='{"resource_type":"episode", "play_mode":"ondemand", "pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';	        
+	my $body ='{"resource_type":"episode", "play_mode":"ondemand", "pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';
 
 	main::INFOLOG && $log->is_info && $log->info( 'heartbeat  - ' . $body );
 
