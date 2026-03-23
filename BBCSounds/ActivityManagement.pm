@@ -85,7 +85,7 @@ sub heartBeat {
 	my $type = shift;
 	my $time = shift;
 
-	my $body ='{"resource_type":"episode","pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';
+	my $body ='{"resource_type":"episode", "play_mode":"ondemand", "pid":"'. $pid. '","version_pid":"'. $vpid. '","elapsed_time":'. $time. ',"action":"'. $type . '"}';
 
 	main::INFOLOG && $log->is_info && $log->info( 'heartbeat  - ' . $body );
 
@@ -196,5 +196,50 @@ sub removePlays {
 	main::DEBUGLOG && $log->is_debug && $log->debug("--removePlays");
 	return;
 }
+
+sub livePlays {
+	my $service = shift;
+	my $urn  = shift;
+	my $startOrEnd = shift;
+
+	main::DEBUGLOG && $log->is_debug && $log->debug("livePlays - service: $service, urn: $urn, type: $startOrEnd");
+
+	#pid is the urn without the prefix after the last colon
+	my $pid = (split /:/, $urn)[-1];
+
+	my $body ='{"action":"' . $startOrEnd . '","play_mode":"live","pid":"' . $pid . '","metadata":{"service_id":"' . $service . '","platform":"web"},"resource_type":"episode"}';
+	main::DEBUGLOG && $log->is_debug && $log->debug( 'liveplay  - ' . $body );
+
+
+	Plugins::BBCSounds::SessionManagement::renewSession(
+		sub {
+			my $session = Slim::Networking::Async::HTTP->new;
+			my $request =HTTP::Request->new(POST => 'https://rms.api.bbc.co.uk/v2/my/programmes/plays' );
+			$request->header( 'Content-Type' => 'application/json' );
+			$request->content($body);
+
+			$session->send_request(
+				{
+					request => $request,
+					onBody  => sub {
+						my ( $http, $self ) = @_;
+						my $res = $http->response;
+						main::DEBUGLOG && $log->is_debug && $log->debug('liveplay status - ' . $res->status_line );
+					},
+					onError => sub {
+						my ( $http, $error ) = @_;
+
+						$log->error('liveplay Error status - ' . $error );
+					}
+				}
+			);
+		},
+		sub {
+			$log->error('liveplay failed');
+		}
+	);
+}
+
+
 
 1;

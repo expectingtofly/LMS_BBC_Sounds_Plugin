@@ -418,7 +418,7 @@ sub onStream {
 		my $id = getId( $song->track->url );
 		my $pid = getPid( $song->track->url );
 		Plugins::BBCSounds::ActivityManagement::heartBeat($id, $pid,'started', floor( $song->master->controller->playingSongElapsed ));
-	}
+	} 
 
 }
 
@@ -991,6 +991,10 @@ sub sysread {
 									$props->{'isContinue'} = 1;
 									$song->pluginData( props   => $props );
 									main::INFOLOG && $log->is_info && $log->info('Dynamic track has ended and stream will continue');
+									
+									my $edge = $self->_calculateEdge($v->{'offset'}, $props);
+									my $isNow = (Time::HiRes::time()-$edge) < 40;
+									Plugins::BBCSounds::ActivityManagement::livePlays(_getStationID($masterUrl), $props->{'urn'}, 'ended') if $isNow;
 								} else {
 									Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'ended',floor($props->{'duration'}));
 								}
@@ -1006,7 +1010,11 @@ sub sysread {
 
 								# check for live track if we are within striking distance of the live edge
 								$self->liveTrackData($replOffset, $isNow, $v->{'firstIn'});
-
+								if ($isNow && $v->{'firstIn'}) {
+									#record liveplays									
+									Plugins::BBCSounds::ActivityManagement::livePlays(_getStationID($masterUrl), $props->{'urn'}, 'started');
+								}
+							
 							} else {
 
 								$self->liveTrackData($replOffset, 1, 0 );
@@ -1433,6 +1441,7 @@ sub liveSongMetaData {
 					sub {
 						my $retMeta = shift;
 						main::DEBUGLOG && $log->is_debug && $log->debug('Have new meta data for track');
+						main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($retMeta));
 						#set up chunk range						
 						my $currentStartNumber = $props->{startNumber};
 						$props->{startNumber} = $resp->{startOffset};
@@ -1449,8 +1458,11 @@ sub liveSongMetaData {
 
 						$song->pluginData( meta  => $retMeta );
 						
+						$props->{urn} = $retMeta->{urn};
+
 						#Finally, get the previous start number, if there is one and we haven't got one already						
 						$props->{previousStartNumber} = 0;
+
 					
 						if ( my $lastresp = _getIDForBroadcast($schedule, $props->{startNumber} - 2, $props) ) {
 							#We can only go back 6 hours
@@ -2238,21 +2250,14 @@ sub _getMPDUrl {
 	my $cbY  = shift;
 	my $cbN  = shift;
 	my $jwt  = shift;
-
-	my $url = "https://open.live.bbc.co.uk/mediaselector/6/select/version/2.0/mediaset/pc/vpid/$id/format/json";
-
-	if ($jwt) {
-		$url .= "?jwt_auth=$jwt";
-	}
 	
-	main::DEBUGLOG && $log->is_debug && $log->debug("Media Selector URL  $url");
-
-	Slim::Networking::SimpleAsyncHTTP->new(
+	Plugins::BBCSounds::SessionManagement::mediaSelectorHandler (
+		$id,
+		$jwt,
 		sub {
-			my $http = shift;
-			my $json = decode_json ${ $http->contentRef };
-			main::DEBUGLOG && $log->is_debug && $log->debug(${ $http->contentRef });
-
+			my $json = shift;
+			main::DEBUGLOG && $log->is_debug && $log->debug(Dumper($json));
+			
 			my $mediaitems = [];
 			$mediaitems = $json->{media};
 			@$mediaitems = reverse sort { int($a->{bitrate}) <=> int($b->{bitrate}) } @$mediaitems;
@@ -2263,34 +2268,33 @@ sub _getMPDUrl {
 			$protocol = 'http' if $prefs->get('forceHTTP');
 			my $mpd = '';
 			my $fallbackmpd = '';			
-			my $priority = 0;
+			my $supplier = '';
+			
 			for my $connection (@$connections) {
-				if ($connection->{transferFormat} eq 'dash' && $connection->{protocol} eq $protocol){
-					if (!$priority) {
+				if ($connection->{transferFormat} eq 'dash') {
+					if ($mpd eq '') {
 						$mpd = $connection->{href};
-						$priority = int($connection->{priority});
-
-						main::INFOLOG && $log->is_info && $log->info("MPD $mpd");
-					} elsif ( ($connection->{priority} > int($priority)) ) {
+						$supplier = $connection->{supplier};						
+					} elsif ($connection->{supplier} ne $supplier) {
 						$fallbackmpd = $connection->{href};
-						$cbY->($mpd, $fallbackmpd);
-						return;
-					}					
+						last;
+					}
 				}
 			}
-			if ($priority) {
-				$cbY->($mpd);
-				return;
+			if ($mpd eq '') {
+				$log->error("No Dash Found");
+				$cbN->();
+			} else {
+				main::DEBUGLOG && $log->is_debug && $log->debug("MPD URL obtained : $mpd and fallback : $fallbackmpd");
+				$cbY->($mpd, $fallbackmpd);
 			}
-			$log->error("No Dash Found");
-			$cbN->();
 			return;
 		},
 		sub {
 			$log->warn('This content is most likely not available in your region.');
 			$cbN->();
 		}
-	)->get($url);
+	);
 	return;
 }
 

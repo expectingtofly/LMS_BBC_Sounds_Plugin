@@ -129,11 +129,10 @@ sub toplevel {
 		if ($isUK) { #These are only applicable to UK listeners
 			$menu = [
 				{
-					name        => 'All Music',
+					name        => 'Explore All',
 					type        => 'link',
-					url         => '',
-					image => Plugins::BBCSounds::Utilities::IMG_MUSIC,
-					passthrough => [ { type => 'music', codeRef => 'getPage' } ],
+					image => Plugins::BBCSounds::Utilities::IMG_EXPLORE,
+					items		=> exploreAllMenu(),
 					order       => 8,
 				},
 				{
@@ -162,14 +161,6 @@ sub toplevel {
 					url  => '',
 					passthrough =>[ { type => 'categories', codeRef => 'getSubMenu' } ],
 					order => 15,
-				},
-				{
-					name        => 'All Podcasts',
-					type        => 'link',
-					url         => '',
-					image => Plugins::BBCSounds::Utilities::IMG_SUBSCRIBE,
-					passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],
-					order       => 9,
 				},
 			]; 
 		} else {  #This is the menu for listeners outside the UK (plus the listen live menu)
@@ -503,6 +494,104 @@ sub toplevel {
 	return;
 }
 
+sub exploreAllMenu {
+	
+	#This is the menu for the 'Explore All' option on the home screen. This does not appear to be available from the API so is hard coded here.
+	
+	my @menu = (
+				{
+					name        => 'Podcasts',
+					type        => 'link',
+					url         => '',					
+					passthrough => [ { type => 'podcasts', codeRef => 'getPage' } ],					
+				},
+				{
+					name        => 'Music',
+					type        => 'link',
+					url         => '',				
+					passthrough => [ { type => 'music', codeRef => 'getPage' } ],
+					
+				},
+	);
+
+	my %categoryMenulist = (
+		'audiobooks' => {
+			name => 'Audiobooks',
+			order => 1,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:audiobooks',			
+		},
+		'sport' => {
+			name => 'Sport',
+			order => 2,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:sport',
+		},
+		'news' => {
+			name => 'News',
+			order => 3,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:news',
+		},
+		'childrens' => {
+			name => 'Children\'s',
+			order => 4,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:childrens',
+		},
+		'comedy' => {
+			name => 'Comedy',
+			order => 5,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:comedy',
+		},
+		'drama' => {
+			name => 'Drama',
+			order => 6,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:drama',
+		},
+		'truecrime' => {
+			name => 'True Crime',
+			order => 7,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:factual-crimeandjustice-truecrime',
+		},
+		'documentaries' => {
+			name => 'Documentaries',
+			order => 8,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:documentaries',
+		},
+		'history' => {
+			name => 'History',
+			order => 9,
+			type => 'category',
+			urn => 'urn:bbc:radio:category:factual-history',
+		},
+		
+	);
+
+	foreach my $key (sort { $categoryMenulist{$a}->{order} <=> $categoryMenulist{$b}->{order} } keys %categoryMenulist) {
+		my $item = $categoryMenulist{$key};
+		push @menu, {
+			name => $item->{name},
+			type => 'link',
+			url => '',
+			passthrough => [
+				{
+					type => 'inlineURN',
+					urn => $item->{urn},
+					offset => 0,
+					codeRef => 'getPage'
+				}
+			]
+		};
+	}
+
+	return \@menu;
+
+}
 
 sub getPage {
 	my ( $client, $callback, $args, $passDict ) = @_;
@@ -522,7 +611,7 @@ sub getPage {
 		$callurl ='https://rms.api.bbc.co.uk/v2/my/programmes/playable?sort=sequential&'. $passDict->{'filter'} . '&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'inlineURN' ) {
-		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/'.  $passDict->{'urn'}. '?&offset='. $passDict->{'offset'};
+		$callurl ='https://rms.api.bbc.co.uk/v2/experience/inline/container/'.  $passDict->{'urn'}. '?&hero_enabled=true&tag_enabled=true&offset='. $passDict->{'offset'};
 		$denominator = "";
 	}elsif ( $menuType eq 'container' ) {
 		$callurl ='https://rms.api.bbc.co.uk/v2/programmes/playable?category=' . $passDict->{'category'} . '&tleoDistinct=true&offset='. $passDict->{'offset'};
@@ -1127,9 +1216,14 @@ sub _parse {
 		}
 	}elsif ( $optstr eq 'inlineURN') {
 		my $JSON = decode_json ${ $http->contentRef };
-		my $node = _getNode( $JSON->{data}, 'container_list|collection_shows|collection_playables' );
-		_parseItems($node->{data},$menu );
-		_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
+		#if the number of items in the JSON->{data} array is 2 then it's a single list
+		if ( scalar @{$JSON->{data}} == 2 ) {
+			my $node = _getNode( $JSON->{data}, 'container_list|collection_shows|collection_playables' );
+			_parseItems($node->{data},$menu );
+			_createOffset( $node->{uris}->{pagination}, $passthrough, $menu );
+		} else {
+			_parseInline( $JSON->{data}, $menu );
+		}
 	}elsif ( $optstr eq 'stationsdayschedule' ) {
 		my $JSON = decode_json ${ $http->contentRef };
 		_parseItems( _getDataNode( $JSON->{data}, 'schedule_items' ), $menu );
@@ -1171,8 +1265,7 @@ sub _getNode {
 	my $id   = shift;
 	main::DEBUGLOG && $log->is_debug && $log->debug("--_getNode");
 
-	my $item = [];
-
+	
 	for my $top (@$json) {
 		if ( $top->{id} =~ /$id/ ) {
 			return $top;
