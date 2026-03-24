@@ -526,9 +526,10 @@ sub getCurrentLocationInfo {
 sub mediaSelectorHandler {
 	my ($id, $jwt, $cbY, $cbN) = @_;
 	main::DEBUGLOG && $log->is_debug && $log->debug("++mediaSelectorHandler");
-
+		
 	my $mediaSelectorUrl = "https://open.live.bbc.co.uk/mediaselector/6/select/version/3.0/mediaset/pc/cvid/urn:bbc:pips:pid:$id/format/json";
-	Slim::Networking::SimpleAsyncHTTP->new(
+
+	my $http = Slim::Networking::SimpleAsyncHTTP->new(
 		sub {
 			my $http = shift;
 			main::DEBUGLOG && $log->is_debug && $log->debug('Have Media Selector');
@@ -542,7 +543,13 @@ sub mediaSelectorHandler {
 			$log->warn("Could not get Media Selector");
 			$cbN->();
 		}
-	)->get($mediaSelectorUrl, 'Authorization' => 'Bearer ' . $jwt);
+	);
+
+	if (defined $jwt) {
+		$http->get($mediaSelectorUrl, Authorization => 'Bearer ' . $jwt );
+	} else {
+		$http->get($mediaSelectorUrl);
+	}
 
 	main::DEBUGLOG && $log->is_debug && $log->debug("--mediaSelectorHandler");
 	return;
