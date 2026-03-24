@@ -1,3 +1,6 @@
+2.54.5
+Fix, ensure https streaming is selected.
+
 2.54.4
 Fix cosometic issue with mediaselector logging.
 

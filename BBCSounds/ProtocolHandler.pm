@@ -2271,7 +2271,7 @@ sub _getMPDUrl {
 			my $supplier = '';
 			
 			for my $connection (@$connections) {
-				if ($connection->{transferFormat} eq 'dash') {
+				if (($connection->{transferFormat} eq 'dash') && ($connection->{protocol} eq $protocol)) {
 					if ($mpd eq '') {
 						$mpd = $connection->{href};
 						$supplier = $connection->{supplier};						
