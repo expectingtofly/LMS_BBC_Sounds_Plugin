@@ -996,6 +996,7 @@ sub sysread {
 									my $isNow = (Time::HiRes::time()-$edge) < 40;
 									Plugins::BBCSounds::ActivityManagement::livePlays(_getStationID($masterUrl), $props->{'urn'}, 'ended') if $isNow;
 								} else {
+									Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'heartbeat',floor($props->{'duration'})-1); #fake a heartbeat to ensure the end is registered.
 									Plugins::BBCSounds::ActivityManagement::heartBeat($v->{'id'},$v->{'pid'},'ended',floor($props->{'duration'}));
 								}
 							}
