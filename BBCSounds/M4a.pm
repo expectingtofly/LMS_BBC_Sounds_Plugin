@@ -98,6 +98,7 @@ sub setProperties {
 					if (!($props->{'hideSampleRate'})) {
 						$song->track->samplerate( $sampleRate );
 					}
+					$song->track->content_type( 'aac' );
 					$song->track->channels( $props->{'channels'}|| $props->{mp4a}->{'channelcount'} );
 					
 					if ( my $meta = $song->pluginData('meta') ) {					
