@@ -45,19 +45,55 @@ my $prefs = preferences('plugin.bbcsounds');
 
 
 $prefs->migrate(
+	14,
+	sub {
+		my $m = $prefs->get('homeMenu');
+		if ( $m ) {
+			#fix corrupted home menu.
+			my @checkmenu = grep { $_->{item} eq 'search'} @$m;
+			if (!(scalar @checkmenu)) {
+				$m = [{ item => 'search', title => 'Search',display=>1, disabled=>1 },
+					{ item => 'mySounds', title => 'My Sounds',display=>1, disabled=>1 },
+					{ item => 'stations', title => 'Stations & Schedules',display=>1, disabled=>1 },
+					{ item => 'unmissableSpeech', title => 'Discover Podcasts (Unmissable Speech)',display=>1, disabled=>0 },
+					{ item => 'unmissableMusic', title => 'Music You\'ll Love (Unmissable Music)',display=>1, disabled=>0 },						 
+					{ item => 'editorial', title => 'Promoted Editorial Content',display=>1, disabled=>0 },						 
+					{ item => 'explore', title => 'Explore All', display=>1, disabled=>1 },
+					{ item => 'recommendations', title => 'Recommended For You', display=>1, disabled=>0 },
+					{ item => 'localToMe', title => 'Local To Me',display=>1, disabled=>0 },
+					{ item => 'categories', title => 'Browse Categories',display=>1, disabled=>1 },
+					{ item => 'continueListening', title => 'Continue Listening',display=>0, disabled=>0 },
+					{ item => 'SingleItemPromotion', title => 'Promoted Single Item',display=>1, disabled=>0 },
+					{ item => 'listenLive', title => 'Listen Live (Live Stations Only)',display=>1, disabled=>0 },
+					{ item => 'news', title => 'All News',display=>0, disabled=>0 },
+					{ item => 'collections', title => 'Collections',display=>1, disabled=>0 },
+					];
+				$prefs->set('homeMenu', $m);
+			}
+		}
+
+
+		1;
+	}
+);
+
+$prefs->migrate(
 	13,
 	sub {
 		my $m = $prefs->get('homeMenu');
-		#remove item 'music' and 'podcasts' that are no longer used.
-		my @new_menu = grep { $_->{item} ne 'music' && $_->{item} ne 'podcasts' } @$m;
 
-		#Add new item 'explore' if not already there
-		my @exploreonly = grep { $_->{item} eq 'explore'} @new_menu;
-		if ( !(scalar @exploreonly) ) {
-			push @new_menu, { item => 'explore', title => 'Explore All', display=>1, disabled=>1 } ;
+		if ( $m ) {
+			#remove item 'music' and 'podcasts' that are no longer used.
+			my @new_menu = grep { $_->{item} ne 'music' && $_->{item} ne 'podcasts' } @$m;
+
+			#Add new item 'explore' if not already there
+			my @exploreonly = grep { $_->{item} eq 'explore'} @new_menu;
+			if ( !(scalar @exploreonly) ) {
+				push @new_menu, { item => 'explore', title => 'Explore All', display=>1, disabled=>1 } ;
+			}
+
+			$prefs->set('homeMenu', \@new_menu);
 		}
-
-		$prefs->set('homeMenu', \@new_menu);
 		
 		1;
 	}
