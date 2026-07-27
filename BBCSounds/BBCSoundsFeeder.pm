@@ -27,7 +27,7 @@ use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Networking::Async::HTTP;
 use Slim::Utils::Cache;
-use JSON::XS::VersionOneAndTwo;
+use JSON::XS qw(decode_json);
 use POSIX qw(strftime);
 use HTTP::Date;
 use Digest::MD5 qw(md5_hex);

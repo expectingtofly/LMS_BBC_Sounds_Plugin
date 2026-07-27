@@ -25,7 +25,6 @@ use URI::Escape;
 use Slim::Utils::Log;
 use Slim::Networking::Async::HTTP;
 use Plugins::BBCSounds::SessionManagement;
-use JSON::XS::VersionOneAndTwo;
 
 my $log = logger('plugin.bbcsounds');
 

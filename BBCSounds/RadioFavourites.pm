@@ -18,7 +18,6 @@ package Plugins::BBCSounds::RadioFavourites;
 #  MA 02110-1301, USA.
 
 use Slim::Utils::Log;
-use JSON::XS::VersionOneAndTwo;
 use HTTP::Date;
 use Data::Dumper;
 

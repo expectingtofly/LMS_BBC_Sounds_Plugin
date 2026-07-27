@@ -21,7 +21,7 @@ use warnings;
 use strict;
 
 use URI::Escape;
-use JSON::XS::VersionOneAndTwo;
+use JSON::XS qw(decode_json);
 
 use Slim::Utils::Log;
 
