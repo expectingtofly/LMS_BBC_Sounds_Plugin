@@ -29,7 +29,7 @@ use Slim::Utils::Prefs;
 use HTTP::Request::Common;
 use HTML::Entities;
 use HTTP::Cookies;
-use JSON::XS::VersionOneAndTwo;
+use JSON::XS qw(decode_json);
 
 use Data::Dumper;
 
