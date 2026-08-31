@@ -576,7 +576,7 @@ sub liveTrackData {
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 		$meta->{live_edge} = $v->{'edge'} if $isUrlLive;
 
-		if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
+		if ( $firstIn || _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
