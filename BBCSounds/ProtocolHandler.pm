@@ -2182,6 +2182,17 @@ sub _getLiveMeta {
 				my $image = $json->{'images'}[0]->{url};
 				$image =~ s/{recipe}/320x320/;
 				my $syn = '';
+
+				if ( $prefs->get('useShortProgrammeDescriptions') ) {
+					if ( defined $json->{'synopses'}->{'short'} ) {
+						$syn = $json->{'synopses'}->{'short'};
+					}
+				} else {
+					if ( defined $json->{'synopses'}->{'medium'} ) {
+						$syn = $json->{'synopses'}->{'medium'};
+					}
+				}
+				
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}

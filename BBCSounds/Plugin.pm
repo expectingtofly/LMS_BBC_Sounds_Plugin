@@ -254,6 +254,7 @@ sub initPlugin {
 						],
 			noBlankTrackImage => 0,
 			getExternalTrackImage => 1,
+			useShortProgrammeDescriptions => 0,
 			isUKListenerAbroad => 0,
 		}
 	);
