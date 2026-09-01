@@ -576,7 +576,7 @@ sub liveTrackData {
 		$meta->{cover} = $self->_getPlayingImage($meta->{realCover}, $meta->{trackImage});
 		$meta->{live_edge} = $v->{'edge'} if $isUrlLive;
 
-		if ( _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
+		if ( $firstIn || _isMetaDiff($meta, $oldmeta, $isUrlLive) ) {
 
 			my $cb = sub {
 				main::INFOLOG && $log->is_info && $log->info("Setting title back after callback");
@@ -2182,6 +2182,17 @@ sub _getLiveMeta {
 				my $image = $json->{'images'}[0]->{url};
 				$image =~ s/{recipe}/320x320/;
 				my $syn = '';
+
+				if ( $prefs->get('useShortProgrammeDescriptions') ) {
+					if ( defined $json->{'synopses'}->{'short'} ) {
+						$syn = $json->{'synopses'}->{'short'};
+					}
+				} else {
+					if ( defined $json->{'synopses'}->{'medium'} ) {
+						$syn = $json->{'synopses'}->{'medium'};
+					}
+				}
+				
 				if ( defined $json->{'synopses'}->{'medium'} ) {
 					$syn = $json->{'synopses'}->{'medium'};
 				}

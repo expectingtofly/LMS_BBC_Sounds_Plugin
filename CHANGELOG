@@ -1,3 +1,6 @@
+2.54.8
+Remove legacy JSON library.  Add option to use shorter programme descriptions. Ensure meta data update is notified on first play.
+
 2.54.7
 Fix corruption of Home Menu on new installs
 
